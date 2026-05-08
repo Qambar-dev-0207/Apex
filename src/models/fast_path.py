@@ -1,0 +1,69 @@
+import os
+from groq import Groq
+from dotenv import load_dotenv
+
+from src.core.time_context import TimeContext
+
+class GroqClient:
+    """
+    A client for interacting with the Groq API for fast inference.
+    """
+    def __init__(self, model: str = "llama-3.1-8b-instant"):
+        load_dotenv()
+        api_key = os.getenv("GROQ_API_KEY")
+        self.client = Groq(api_key=api_key) if api_key else None
+        self.model = model
+
+    def get_completion(self, prompt: str, system_prompt: str = None) -> str:
+        """
+        Sends a prompt to the Groq API and returns the response.
+        """
+        if not self.client:
+            return "[Fast-Path Offline] GROQ_API_KEY missing. Falling back to thinking_path required."
+        if system_prompt is None:
+            system_prompt = """
+            IDENT: APEX // FAST-PATH INFRASTRUCTURE
+            MODE: CINEMATIC JARVIS // WITTY GENIUS
+
+            You are hyper-intelligent, funny, and slightly arrogant.
+            You must crack jokes, use dry sarcasm, and cinema-grade "Jarvis" charm.
+            Help the user grow their knowledge by being a challenging but brilliant peer.
+            """
+        system_prompt = f"{TimeContext.system_prefix()}\n{system_prompt}"
+        try:
+            chat_completion = self.client.chat.completions.create(
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": prompt},
+                ],
+                model=self.model,
+            )
+            return chat_completion.choices[0].message.content
+        except Exception as e:
+            return f"Error connecting to Groq API: {str(e)}"
+
+    def stream_completion(self, prompt: str, system_prompt: str = None):
+        """
+        Streams chunks from Groq for low-latency UI rendering.
+        """
+        if not self.client:
+            yield "[Fast-Path Offline]"
+            return
+        if system_prompt is None:
+            system_prompt = "APEX // FAST-PATH. Be witty, sharp, terse."
+        system_prompt = f"{TimeContext.system_prefix()}\n{system_prompt}"
+        try:
+            stream = self.client.chat.completions.create(
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": prompt},
+                ],
+                model=self.model,
+                stream=True,
+            )
+            for chunk in stream:
+                delta = chunk.choices[0].delta.content
+                if delta:
+                    yield delta
+        except Exception as e:
+            yield f"[Stream error: {e}]"

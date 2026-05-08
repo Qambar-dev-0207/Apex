@@ -1,0 +1,30 @@
+# Environments
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.venv/
+env/
+venv/
+ENV/
+
+# APEX Specific
+.apex/
+.apex_history
+backups/
+graphify-out/
+*.svg
+image.png
+
+# Data Directory (Runtime artifacts)
+data/
+
+# IDEs
+.vscode/
+.idea/
+.claude/

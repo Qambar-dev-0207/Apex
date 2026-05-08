@@ -1,0 +1,24 @@
+{
+  "name": "ReactMigrator",
+  "description": "Handle React component migrations.",
+  "query_pattern": "migrate react",
+  "plan_template": {
+    "task_plan": [
+      {
+        "id": 1,
+        "action": "migrate",
+        "description": "migrate",
+        "tool": "shell",
+        "input_data": "cmd",
+        "dependencies": []
+      }
+    ],
+    "tools_required": [
+      "shell"
+    ],
+    "requires_clarification": false,
+    "summary": "Migration Plan",
+    "socratic_insight": null
+  },
+  "usage_count": 1
+}
