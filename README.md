@@ -68,8 +68,8 @@ APEX is evolving through 5 major phases to reach full ambient embodiment.
 
 ### 2. Install
 ```bash
-git clone https://github.com/your-repo/realjarvis.git
-cd realjarvis
+git clone https://github.com/your-repo/apex.git
+cd apex
 pip install -r requirements.txt
 ```
 
