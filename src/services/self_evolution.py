@@ -257,11 +257,8 @@ class SelfEvolver:
                     continue
                 if time.time() - self.last_cycle_time < 1800:  # at most every 30 min
                     continue
-                if self.console:
-                    self.console.print("[dim cyan][SelfEvolver] Idle detected — running cycle...[/dim cyan]")
                 await self.run_cycle()
             except asyncio.CancelledError:
                 return
-            except Exception as e:
-                if self.console:
-                    self.console.print(f"[dim red][SelfEvolver] Loop error: {e}[/dim red]")
+            except Exception:
+                pass  # background errors are silent

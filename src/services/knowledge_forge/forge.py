@@ -57,6 +57,7 @@ class KnowledgeForge:
 
         self.last_input_time = time.time()
         self._running = False
+        self._bg_silent = False  # True during auto background cycles — suppresses console output
         self._missing_key_warned = False
         if not os.getenv("GEMINI_API_KEY"):
             self._log("GEMINI_API_KEY missing — Forge synth/applier will degrade", level="warn")
@@ -65,7 +66,7 @@ class KnowledgeForge:
     # ---------- helpers ----------
 
     def _log(self, msg: str, level: str = "info"):
-        if not self.console:
+        if not self.console or self._bg_silent:
             return
         color = {"info": "bright_cyan", "warn": "yellow", "err": "red"}.get(level, "white")
         self.console.print(f"[bold {color}][Forge] {msg}[/bold {color}]")
@@ -264,12 +265,15 @@ class KnowledgeForge:
                     continue
                 if not self._hw_ok():
                     continue
-                self._log("idle + due — running auto cycle", level="info")
-                await self.run_full_cycle(do_bench=True)
+                self._bg_silent = True
+                try:
+                    await self.run_full_cycle(do_bench=True)
+                finally:
+                    self._bg_silent = False
             except asyncio.CancelledError:
                 return
-            except Exception as e:
-                self._log(f"loop error: {e}", level="err")
+            except Exception:
+                pass  # background errors are silent
 
     # ---------- queries ----------
 

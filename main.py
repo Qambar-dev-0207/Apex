@@ -1671,6 +1671,19 @@ async def main():
                         style="gold1",
                     )
 
+                # Detect leaked key embedded in plan summary by thinking_path.py
+                if plan and plan.summary and "SECURITY_ALERT:GEMINI_KEY_LEAKED" in plan.summary:
+                    from src.core.api_security import leaked_key_warning
+                    console.print(Panel(
+                        leaked_key_warning("Gemini", rich=True),
+                        title="[bold red]⚠  KEY COMPROMISED[/bold red]",
+                        border_style="red",
+                    ))
+                    # Disable Gemini for this session — all subsequent requests fall to Groq/MiMo
+                    engine.gemini_client = None
+                    engine.parallel_executor.primary_brain = None
+                    continue
+
                 response_reveal(
                     engine.assembler.render_plan(plan),
                     title="Task DAG",

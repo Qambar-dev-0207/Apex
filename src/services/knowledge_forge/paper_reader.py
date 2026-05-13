@@ -30,7 +30,7 @@ except Exception:
 
 
 ARXIV_NS = {"a": "http://www.w3.org/2005/Atom", "arxiv": "http://arxiv.org/schemas/atom"}
-ARXIV_API = "http://export.arxiv.org/api/query"
+ARXIV_API = "https://export.arxiv.org/api/query"
 
 DEFAULT_CATEGORIES = [
     "cs.AI", "cs.CL", "cs.LG", "cs.MA",

@@ -228,8 +228,10 @@ class ThinkPartner:
                     return text
             except Exception as e:
                 threat = detect_threat(str(e))
-                if threat == KeyThreat.LEAKED and self.console:
-                    self.console.print(leaked_key_warning("Gemini"))
+                if threat == KeyThreat.LEAKED:
+                    if self.console:
+                        self.console.print(leaked_key_warning("Gemini"))
+                    self.client = None  # disable for this session — stop retrying a dead key
                 # fall through to next brain regardless
 
         # Fallback: OpenRouter ring-2.6-1t (skip for JSON mode — may not honor mime type)

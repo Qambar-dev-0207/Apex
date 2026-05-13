@@ -71,7 +71,7 @@ class RedisManager:
     def _on_fail(self, op: str, e: Exception):
         self.is_active = False
         self._failed_at = time.time()
-        logger.warning(f"Redis {op} failed: {e}; will retry in {self.RETRY_AFTER}s")
+        logger.debug(f"Redis {op} failed: {e}; will retry in {self.RETRY_AFTER}s")
 
     def _maybe_reactivate(self):
         if not self.is_active and (time.time() - self._failed_at) > self.RETRY_AFTER:
