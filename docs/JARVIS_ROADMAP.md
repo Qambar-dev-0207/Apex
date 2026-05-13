@@ -22,6 +22,28 @@
 | Proactive briefing (morning digest) | ✅ Live | `src/services/proactive.py` |
 | Workspace + multi-project | ✅ Live | `src/tools/workspace.py` |
 | Web search (Tavily / Brave / DDG) | ✅ Live | `src/tools/web_search.py` |
+| **TimeContext (always-aware time/date)** | ✅ Live (2026-05-08) | `src/core/time_context.py` |
+| **ThinkPartner (cross-question/architect/debate/brainstorm/teach)** | ✅ Live (2026-05-08) | `src/services/think_partner.py` |
+| **Agent Swarm (architect/coder/critic/researcher/planner)** | ✅ Live, minimal v1 (2026-05-08) | `src/services/swarm.py` |
+| **Tool registry + auto-doc** | ✅ Live (2026-05-08) | `src/tools/registry.py` |
+| **AutoToolSelector (regex + LLM tier)** | ✅ Live (2026-05-08) | `src/tools/auto_selector.py` |
+| **Memory subsystem rewrite (self-healing Redis, summarize-before-drop, async Chroma, TTL pruning)** | ✅ Live (2026-05-08) | `src/services/memory.py` |
+| **PipSandbox (isolated venv dep test)** | ✅ Live (2026-05-08) | `src/services/knowledge_forge/proposal_applier.py` |
+| **ProposalApplier diff mode + per-project state + arxiv backfill + forge_log** | ✅ Live (2026-05-08) | `src/services/knowledge_forge/` |
+| **Xiaomi MiMo v2.5-pro brain (replaces Codex)** | ✅ Live (2026-05-13) | `src/models/mimo_path.py` |
+| **AgentHarness (35-tool autonomous loop, atomic edits, auto-snapshot)** | ✅ Live (2026-05-13) | `src/core/harness.py` |
+| **GeniusMode (5-stage critique + brain cascade: Gemini → MiMo → Groq → ring-2.6-1t)** | ✅ Live (2026-05-13) | `src/services/genius_mode.py` |
+| **ResumeTool (PDF/DOCX → Gemini rewrite → ATS PDF via reportlab)** | ✅ Live (2026-05-13) | `src/tools/resume_tool.py` |
+| **Video understanding (cv2 frame sampling → Gemini multimodal)** | ✅ Live (2026-05-13) | `src/tools/vision.py` |
+| **Audio transcription (Groq Whisper-large-v3)** | ✅ Live (2026-05-13) | `src/tools/vision.py` |
+| **Terminal animations (matrix_rain, pulse_banner, progress_trail, thinking_orb)** | ✅ Live (2026-05-13) | `src/core/animations.py` |
+| **WebFetch tool (HTML stripper, 1.5MB cap, entity decode)** | ✅ Live (2026-05-13) | `src/tools/web_fetch.py` |
+| **Todo tool (persistent, status lifecycle)** | ✅ Live (2026-05-13) | `src/tools/todo.py` |
+| **Diff tool (unified diff, file vs content)** | ✅ Live (2026-05-13) | `src/tools/diff_tool.py` |
+| **ring-2.6-1t fallback (1T-param free reasoning via OpenRouter)** | ✅ Live (2026-05-13) | `src/models/fallback_path.py` |
+| **E2E test suite (21 tests, no network required)** | ✅ Live (2026-05-13) | `tests/test_e2e_full_apex.py` |
+| **APEX identity guard (instant self-aware response)** | ✅ Live (2026-05-13) | `main.py` |
+| **Comprehensive docs folder** | ✅ Live (2026-05-13) | `docs/` |
 
 ---
 
@@ -110,16 +132,19 @@ Extend: `src/routers/router.py` fallback chain
 ### Layer 6 — Multi-Agent Swarm
 **Target: APEX spawns specialist sub-agents, they debate, best answer wins.**
 
-| Component | Tech | Notes |
-|---|---|---|
-| Swarm coordinator | Extend `ResearchSwarm` | Generalize beyond research |
-| Specialist agents | Coder, Reviewer, Debugger, Designer, Critic | Each has scoped tools |
-| Shared blackboard | Redis pub/sub or asyncio queue | Agents post findings, coordinator merges |
-| Inter-agent debate | Structured adversarial prompting | Challenger must refute before commit |
-| Swarm memory | ChromaDB collection per swarm session | Recall prior swarm conclusions |
+| Component | Tech | Notes | Status |
+|---|---|---|---|
+| Swarm coordinator | `Swarm` class with goal decomposer | Picks roster from 5 specialists per goal | ✅ Live |
+| Specialist agents | architect/coder/critic/researcher/planner | Each gets distinct system prompt + private memory | ✅ Live |
+| Shared blackboard | `asyncio.Lock`-guarded message log | Each agent reads peers, excludes own posts | ✅ Live |
+| Slash commands | `/swarm <goal>`, `/swarm <goal> | roles`, `rounds=N` | Manual invocation working | ✅ Live |
+| Inter-agent debate | Structured adversarial prompting | Challenger must refute before commit | ⏳ Pending v2 |
+| Tool scoping per agent | Each role gets subset of registry tools | Coder writes files, Critic read-only, etc. | ⏳ Pending v2 |
+| Swarm memory | ChromaDB collection per swarm session | Recall prior swarm conclusions | ⏳ Pending v2 |
+| Auto-trigger from ThinkPartner | High-complexity goals → spawn swarm | Bypass single-path execute | ⏳ Pending v2 |
 
-New service: `src/services/swarm.py`
-New slash: `/swarm <goal>`, `/swarm status`
+Service: `src/services/swarm.py` (minimal v1, ~250 lines)
+Tests: `tests/test_swarm.py` (23 tests passing)
 
 ---
 
@@ -177,26 +202,36 @@ New slash: `/dashboard start|stop`
 ### Layer 10 — Advanced Reasoning
 **Target: APEX reasons better than any single model.**
 
-| Component | Tech | Notes |
-|---|---|---|
-| Tool-use RL | Track success/fail per tool, update weights | Prefer winners |
-| Symbolic solver | Z3 MCP or `z3-solver` direct | Constraint satisfaction, logic proofs |
-| Debate-then-commit | Two Gemini calls: propose + adversarial | Before any irreversible action |
-| Uncertainty quantification | Confidence scores on all outputs | Flag low-confidence for human review |
-| Meta-cognition | APEX evaluates own reasoning quality | "Was my last answer good? Why?" |
+| Component | Tech | Notes | Status |
+|---|---|---|---|
+| Tool-use telemetry | `ToolTelemetry` per-tool ok/fail | `/tools` slash shows stats | ✅ Live |
+| Tool-use RL | Update weights from telemetry, prefer winners | Telemetry exists, RL loop pending | ⏳ Partial |
+| Socratic / Steelman / Genius modes | `thinking_path.py` flags + multi-pass prompting | `/socratic`, `/steelman`, `/genius` | ✅ Live |
+| Cognitive collaborator | `ThinkPartner` (cross-question/architect/debate/brainstorm/teach) | Auto-routes ambiguous prompts | ✅ Live |
+| Debate-then-commit | `ThinkPartner.debate` steelmans opposing view | `/debate <claim>` explicit; auto-trigger pending | ✅ Live (manual) |
+| Symbolic solver | Z3 MCP or `z3-solver` direct | Constraint satisfaction, logic proofs | ⏳ Pending |
+| Uncertainty quantification | Confidence scores on all outputs | Flag low-confidence for human review | ⏳ Pending |
+| Meta-cognition | APEX evaluates own reasoning quality | "Was my last answer good? Why?" | ⏳ Pending |
 
-Extend: `src/models/thinking_path.py`
-New slash: `/reason <problem>` (explicit deep mode)
+Service: `src/services/think_partner.py` (6 modes, 23 tests passing)
+Slash: `/think`, `/architect`, `/debate`, `/brainstorm`, `/teach`, `/intent`
 
 ---
 
 ## Build Order (recommended)
 
 ```
+Phase 0 (DONE 2026-05-08)  Cognitive collaborator (ThinkPartner) +
+                           Multi-agent Swarm v1 +
+                           TimeContext + Tool registry + AutoToolSelector +
+                           Memory subsystem rewrite +
+                           KnowledgeForge full pipeline (papers + ecosystem +
+                           synthesizer + applier + benchmark)
+
 Phase 1 (~2 weeks)   Voice + Ambient + Desktop Control
 Phase 2 (~2 weeks)   Predictive layer + Local Ollama fallback
 Phase 3 (~2 weeks)   Web Dashboard (HUD)
-Phase 4 (~2 weeks)   Multi-agent Swarm + Autonomous Operator
+Phase 4 (~2 weeks)   Swarm v2 (tool scoping + debate loop) + Autonomous Operator
 Phase 5 (~ongoing)   Real-time Data Fabric + Advanced Reasoning
 ```
 

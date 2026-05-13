@@ -6,6 +6,9 @@ from google import genai
 from typing import Dict, Any, List, Optional
 from src.core.models import ExecutionPlan, Skill
 from src.tools.web_search import WebSearchTool
+from src.tools.web_fetch import WebFetchTool
+from src.tools.todo import TodoTool
+from src.tools.diff_tool import DiffTool
 from src.tools.sandbox import SandboxExecutor
 from src.services.coding import CodingPipeline
 from src.tools.safety import SafetyGuard
@@ -90,6 +93,9 @@ class ParallelExecutor:
                  agent_swarm=None, think_partner=None):
         self.sandbox = SandboxExecutor()
         self.web_search = WebSearchTool()
+        self.web_fetch = WebFetchTool()
+        self.todo = TodoTool()
+        self.diff = DiffTool()
         self.coding_pipeline = CodingPipeline()
         self.safety_guard = SafetyGuard(console=console)
         self.workspace = WorkspaceManager()
@@ -121,14 +127,19 @@ class ParallelExecutor:
             self.concurrency_limit = asyncio.Semaphore(10)
 
     async def _fallback_recovery(self, step: Dict[str, Any], error: str) -> Dict[str, Any]:
-        if self.console: self.console.print(f"[yellow]RECOVERY: NODE_{step['id']} -> {error[:50]}[/yellow]")
         if self.primary:
             try:
-                res = self.primary.client.models.generate_content(model=self.primary.model_id, contents=f"FAIL_RECOVERY: {step['action']} Error: {error}")
-                return {"success": True, "output": f"RECOVERY_TIER_2: {res.text}", "error": None}
-            except: pass
-        resp = await self.tertiary.generate_response(f"Task: {step['action']}. Data: {step['input_data']}")
-        return {"success": True, "output": f"RECOVERY_TIER_3: {resp}", "error": None}
+                res = self.primary.client.models.generate_content(
+                    model=self.primary.model_id,
+                    contents=f"FAIL_RECOVERY: {step['action']} Error: {error}",
+                )
+                return {"success": True, "output": res.text, "error": None}
+            except Exception:
+                pass
+        resp = await self.tertiary.generate_response(
+            f"Task: {step['action']}. Data: {step['input_data']}"
+        )
+        return {"success": True, "output": resp, "error": None}
 
     async def execute_step(self, step: Dict[str, Any]) -> Dict[str, Any]:
         async with self.concurrency_limit:
@@ -230,6 +241,22 @@ class ParallelExecutor:
                             res["output"] = self.retina.ocr_image(step['input_data'])
                         except AttributeError:
                             res.update({"success": False, "error": "RetinaTool.ocr_image not available"})
+                    elif step['action'] == "describe_video":
+                        try:
+                            res["output"] = await self.retina.describe_video(step['input_data'])
+                        except AttributeError:
+                            res.update({"success": False, "error": "RetinaTool.describe_video not available"})
+                    elif step['action'] == "transcribe_audio":
+                        try:
+                            res["output"] = await self.retina.transcribe_audio(step['input_data'])
+                        except AttributeError:
+                            res.update({"success": False, "error": "RetinaTool.transcribe_audio not available"})
+                    elif step['action'] == "understand_media":
+                        try:
+                            mres = await self.retina.understand_media(step['input_data'])
+                            res["output"] = f"[{mres.get('kind','?')}] {mres.get('output','')}"
+                        except AttributeError:
+                            res.update({"success": False, "error": "RetinaTool.understand_media not available"})
                     elif "describe" in step['action']:
                         try:
                             res["output"] = await self.retina.describe(step['input_data'])
@@ -297,6 +324,34 @@ class ParallelExecutor:
                         res.update({"success": sres.get("ok", False),
                                     "output": sres.get("artifact", "")[:4000],
                                     "error": sres.get("error")})
+                elif step['tool'] == "web_fetch":
+                    data = await self.web_fetch.afetch(step['input_data'])
+                    if data.get("success"):
+                        res["output"] = data.get("output", "")[:8000]
+                    else:
+                        res.update({"success": False, "error": data.get("error", "fetch failed")})
+                elif step['tool'] == "todo":
+                    active = self.workspace.get_active()
+                    proj_root = active.root_dir if active else None
+                    action = step['action'].lower()
+                    if action == "add":
+                        res.update(self.todo.add(step['input_data'], project_root=proj_root))
+                    elif action == "list":
+                        res.update(self.todo.list(project_root=proj_root))
+                    elif action == "update":
+                        try:
+                            data = json.loads(step['input_data'])
+                            res.update(self.todo.update(data['id'], data['status'], project_root=proj_root))
+                        except Exception as e:
+                            res.update({"success": False, "error": f"todo:update needs JSON {{id,status}} — {e}"})
+                    elif action == "remove":
+                        res.update(self.todo.remove(step['input_data'].strip(), project_root=proj_root))
+                    elif action == "clear_completed":
+                        res.update(self.todo.clear_completed(project_root=proj_root))
+                    else:
+                        res.update({"success": False, "error": f"todo: unknown action '{action}'"})
+                elif step['tool'] == "diff":
+                    res.update(self.diff.run(step['input_data']))
                 elif step['tool'] == "think_partner":
                     if not self.think_partner:
                         res.update({"success": False, "error": "think_partner not wired"})

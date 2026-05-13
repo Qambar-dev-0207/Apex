@@ -47,6 +47,15 @@ from src.services.swarm import Swarm
 from src.core.time_context import TimeContext
 from src.tools.auto_selector import AutoToolSelector, regex_match as tool_regex_match
 from src.core.hooks import HookManager
+from src.core.harness import AgentHarness
+from src.services.genius_mode import GeniusMode
+from src.tools.resume_tool import ResumeTool
+from src.core.api_security import validate_all_keys, leaked_key_warning
+from src.core.animations import (
+    pulse_banner, type_text, progress_trail, sparkle_panel,
+    thinking_orb, matrix_rain, neural_pulse,
+    thinking_cascade, response_reveal, stream_panel,
+)
 
 
 SLASH_HELP = """\
@@ -98,6 +107,20 @@ SLASH_HELP = """\
   /auto-approve            Toggle auto-approve (bypass prompts)
   /plan                    Toggle plan-only mode (no writes/exec)
 
+[yellow]Harness (Autonomous Agent)[/yellow]
+  /harness <goal>          Run tool-calling agent (MiMo/Groq) end-to-end on a goal
+  /harness max=N <goal>    Cap steps (default 30)
+  /harness rollback        Restore touched files from last harness snapshot
+
+[yellow]Genius Critique[/yellow]
+  /genius <prompt>         Full 5-stage critique: cross-question / right / wrong / blind spots / action / wit
+  /critique <prompt>       What you're getting right vs wrong (terse)
+  /blindspot <prompt>      Second-order consequences + suggested next steps
+
+[yellow]Resume[/yellow]
+  /resume <path>           Rewrite resume (PDF/DOCX/TXT/MD) → polished PDF + feedback
+  /resume <path> | <role>  Target a specific role (e.g. "Senior Backend Engineer")
+
 [yellow]Self-Evolution[/yellow]
   /evolve                  Run self-improvement cycle now
   /evolve auto             Run cycle + auto-provision missing skill
@@ -137,6 +160,8 @@ SLASH_HELP = """\
 [yellow]Tools[/yellow]
   ! <command>              Run shell command directly (passthrough)
   /web <query>             Run web search
+  /fetch <url>             Pull URL content (clean text)
+  /diff <a> <b>            Unified diff between two files
   /mcp connect <name> <cmd> [args...]
   /mcp list                List connected MCP servers
   /mcp tools <server>      List tools on a server
@@ -195,6 +220,30 @@ class APEXEngine:
         )
         self.briefing_agent.forge = self.knowledge_forge
         self.parallel_executor.knowledge_forge = self.knowledge_forge
+        # Genius critique layer + Resume PDF tool
+        self.genius = GeniusMode(
+            mimo_client=self.parallel_executor.coding_pipeline.mimo,
+            groq_client=self.groq_client,
+        )
+        self.resume_tool = ResumeTool()
+        # Autonomous tool-calling harness wired to FULL APEX surface.
+        self.harness = AgentHarness(
+            console=self.console,
+            fs=self.parallel_executor.fs,
+            shell=self.parallel_executor.shell,
+            git=self.parallel_executor.git,
+            executor=self.parallel_executor,
+            gemini_client=self.gemini_client,
+            mcp_client=self.mcp_client,
+            retina=self.retina,
+            code_compass=self.code_compass,
+            knowledge_forge=self.knowledge_forge,
+            swarm=self.swarm,
+            think_partner=self.think_partner,
+            workspace=self.workspace,
+            project_root=os.getcwd(),
+            max_steps=30,
+        )
         self.self_evolver = SelfEvolver(
             workspace=self.workspace,
             learning_manager=self.learning_manager,
@@ -211,11 +260,48 @@ def clear_console():
     os.system('cls' if os.name == 'nt' else 'clear')
 
 
+def _gradient(text: str, colors=("bright_cyan", "cyan", "magenta", "bright_magenta")) -> Text:
+    """Render multi-line text with a vertical color gradient — banner only."""
+    rendered = Text()
+    lines = text.splitlines()
+    n = len(colors)
+    for idx, line in enumerate(lines):
+        color = colors[idx % n] if len(lines) <= n else colors[int(idx / max(1, len(lines) - 1) * (n - 1))]
+        rendered.append(line + "\n", style=f"bold {color}")
+    return rendered
+
+
 async def boot_sequence(console: Console):
     clear_console()
-    title = pyfiglet.figlet_format("APEX", font="slant")
-    console.print(Align.center(f"[bold cyan]{title}[/bold cyan]"))
-    console.print(Align.center("[bold white]SOVEREIGN OMEGA // 24-LAYER MULTI-PROVIDER OS[/bold white]\n"))
+    # Matrix rain intro
+    try:
+        matrix_rain(console, duration=0.8)
+    except Exception:
+        pass
+    # Animated pulsing wordmark
+    try:
+        pulse_banner("APEX", console=console, cycles=2, fps=16)
+    except Exception:
+        title = pyfiglet.figlet_format("APEX", font="slant")
+        console.print(Align.center(_gradient(title)))
+    tagline = Text(
+        "SOVEREIGN OMEGA // 24-LAYER MULTI-PROVIDER OS",
+        style="bold white on grey15",
+    )
+    console.print(Align.center(tagline))
+    console.print()
+    # Neural network visualization showing model topology
+    try:
+        neural_pulse(console, duration=1.4)
+    except Exception:
+        pass
+    badges = Text()
+    badges.append("  Gemini 2.5  ", style="black on cyan")
+    badges.append("  Groq Llama  ", style="black on magenta")
+    badges.append("  MiMo v2.5-pro  ", style="black on gold1")
+    badges.append("  ring-2.6-1t  ", style="black on bright_green")
+    console.print(Align.center(badges))
+    console.print()
 
 
 async def check_proactive_briefing(console, briefing_agent, flow_active: bool):
@@ -350,6 +436,8 @@ async def cmd_status(engine):
     table.add_row("Daily spend", f"${spend:.4f}")
     table.add_row("Gemini", "online" if engine.gemini_client else "[red]offline[/red]")
     table.add_row("Groq", "online" if engine.groq_client.client else "[red]offline[/red]")
+    mimo_online = bool(engine.parallel_executor.coding_pipeline.mimo.is_online)
+    table.add_row("MiMo v2.5-pro", "online" if mimo_online else "[red]offline[/red]")
     table.add_row("Safety mode", engine.parallel_executor.safety_guard.mode)
     table.add_row("MCP servers", ", ".join(engine.mcp_client.sessions.keys()) or "[dim]none[/dim]")
     engine.console.print(table)
@@ -437,6 +525,54 @@ async def cmd_resume(engine):
     if target:
         engine.session_id = target
         engine.console.print(f"[green]✓ Resumed session {target}[/green]")
+
+
+def _render_genius(console, res: dict, terse: bool = False):
+    """Render full GeniusMode output: cross-question + right/wrong + blind spots + action + one-liner."""
+    sections = []
+    cq = res.get("cross_question", []) or []
+    if cq:
+        lines = ["[bold bright_magenta]?  CROSS-QUESTION[/bold bright_magenta]"]
+        for i, q in enumerate(cq, 1):
+            lines.append(f"  [bold]Q{i}.[/bold] {q.get('q','')}")
+            if q.get("why_it_matters"):
+                lines.append(f"     [dim]why:[/dim] {q['why_it_matters']}")
+            if q.get("default_assumption"):
+                lines.append(f"     [dim]default:[/dim] {q['default_assumption']}")
+        sections.append("\n".join(lines))
+
+    right = res.get("right", []) or []
+    if right:
+        sections.append("[bold green]✓  RIGHT[/bold green]\n" +
+                        "\n".join(f"  • {x}" for x in right))
+
+    wrong = res.get("wrong", []) or []
+    if wrong:
+        sections.append("[bold red]✗  WRONG[/bold red]\n" +
+                        "\n".join(f"  • {x}" for x in wrong))
+
+    bs = res.get("blind_spots", []) or []
+    if bs:
+        sections.append("[bold yellow]!  BLIND SPOTS[/bold yellow]\n" +
+                        "\n".join(f"  • {x}" for x in bs))
+
+    actions = res.get("action", []) or []
+    if actions:
+        lines = ["[bold cyan]→  ACTION[/bold cyan]"]
+        for a in actions:
+            lines.append(f"  [bold]{a.get('rank','?')}.[/bold] {a.get('step','')}")
+            if a.get("rationale"):
+                lines.append(f"     [dim]{a['rationale']}[/dim]")
+        sections.append("\n".join(lines))
+
+    oneliner = res.get("one_liner", "")
+    if oneliner:
+        sections.append(f"[italic gold1]“{oneliner}”[/italic gold1]")
+
+    console.print(Panel(
+        "\n\n".join(sections) or "(no analysis)",
+        title="APEX GENIUS", border_style="bright_magenta", padding=(1, 2),
+    ))
 
 
 def _render_cross_question(console, res: dict):
@@ -632,9 +768,12 @@ async def handle_slash(engine, cmd_line: str, skills_dir: str) -> bool:
         else:
             goal = full
 
-        with Live(Spinner("dots", text=f"Swarm running ({rounds} round{'s' if rounds > 1 else ''})...",
-                          style="bright_blue"), refresh_per_second=10, transient=True):
-            res = await engine.swarm.run(goal, rounds=rounds, roster=roster)
+        res = await thinking_cascade(
+            engine.swarm.run(goal, rounds=rounds, roster=roster),
+            phases=["Spawning agents", "Running specialist round", "Merging outputs", "Synthesizing"],
+            console=console,
+            style="bright_blue",
+        )
 
         if not res.get("ok"):
             console.print(f"[red]Swarm failed: {res.get('error')}[/red]")
@@ -657,8 +796,12 @@ async def handle_slash(engine, cmd_line: str, skills_dir: str) -> bool:
         return True
     if cmd == "/evolve":
         auto = bool(args) and args[0] == "auto"
-        with Live(Spinner("dots", text="Self-analysis in progress...", style="magenta"), refresh_per_second=10, transient=True):
-            result = await engine.self_evolver.run_cycle(auto_provision=auto)
+        result = await thinking_cascade(
+            engine.self_evolver.run_cycle(auto_provision=auto),
+            phases=["Benchmarking capabilities", "Identifying gaps", "Generating proposals", "Applying improvements"],
+            console=console,
+            style="magenta",
+        )
         if "skipped" in result:
             console.print(f"[yellow]Cycle skipped: {result['skipped']}[/yellow]")
             return True
@@ -965,6 +1108,183 @@ async def handle_slash(engine, cmd_line: str, skills_dir: str) -> bool:
         context = await engine.knowledge_visualizer.get_pruned_context("current focus")
         console.print(Panel(context or "(empty)", title="PRUNED CONTEXT"))
         return True
+    if cmd == "/genius":
+        prompt = " ".join(args).strip()
+        if not prompt:
+            console.print("[red]Usage: /genius <prompt>[/red]")
+            return True
+        result = await thinking_cascade(
+            engine.genius.analyze(prompt),
+            phases=["Cross-questioning", "Evaluating right", "Finding wrong", "Surfacing blind spots", "Formulating wit"],
+            console=console,
+            style="bright_magenta",
+        )
+        _render_genius(console, result, terse=False)
+        return True
+    if cmd == "/critique":
+        prompt = " ".join(args).strip()
+        if not prompt:
+            console.print("[red]Usage: /critique <prompt>[/red]")
+            return True
+        result = await thinking_cascade(
+            engine.genius.critique_only(prompt),
+            phases=["Auditing assumptions", "Scoring right vs wrong"],
+            console=console,
+            style="magenta",
+        )
+        body_lines = []
+        right = result.get("right", []) or []
+        wrong = result.get("wrong", []) or []
+        if right:
+            body_lines.append("[bold green]✓ RIGHT[/bold green]")
+            body_lines += [f"  • {x}" for x in right]
+        if wrong:
+            body_lines.append("\n[bold red]✗ WRONG[/bold red]")
+            body_lines += [f"  • {x}" for x in wrong]
+        if result.get("one_liner"):
+            body_lines.append(f"\n[italic gold1]“{result['one_liner']}”[/italic gold1]")
+        console.print(Panel("\n".join(body_lines) or "(no critique)",
+                            title="CRITIQUE", border_style="magenta"))
+        return True
+    if cmd == "/blindspot":
+        prompt = " ".join(args).strip()
+        if not prompt:
+            console.print("[red]Usage: /blindspot <prompt>[/red]")
+            return True
+        result = await thinking_cascade(
+            engine.genius.blindspots_only(prompt),
+            phases=["Scanning second-order effects", "Mapping blind spots", "Ranking next steps"],
+            console=console,
+            style="yellow",
+        )
+        body = []
+        bs = result.get("blind_spots", []) or []
+        action = result.get("action", []) or []
+        if bs:
+            body.append("[bold yellow]BLIND SPOTS[/bold yellow]")
+            body += [f"  ! {x}" for x in bs]
+        if action:
+            body.append("\n[bold cyan]NEXT STEPS[/bold cyan]")
+            for a in action:
+                body.append(f"  {a.get('rank','?')}. {a.get('step','')}")
+                if a.get("rationale"):
+                    body.append(f"     [dim]{a['rationale']}[/dim]")
+        if result.get("one_liner"):
+            body.append(f"\n[italic gold1]“{result['one_liner']}”[/italic gold1]")
+        console.print(Panel("\n".join(body) or "(none found)",
+                            title="BLIND SPOTS", border_style="yellow"))
+        return True
+    if cmd == "/resume":
+        if not args:
+            console.print("[red]Usage: /resume <path>  |  /resume <path> | <target role>[/red]")
+            return True
+        raw = " ".join(args)
+        target_role = None
+        if "|" in raw:
+            path_part, role_part = raw.split("|", 1)
+            path = path_part.strip()
+            target_role = role_part.strip() or None
+        else:
+            path = raw.strip()
+        if not os.path.exists(path):
+            console.print(f"[red]File not found: {path}[/red]")
+            return True
+        try:
+            result = await thinking_cascade(
+                engine.resume_tool.improve(path, target_role=target_role),
+                phases=["Parsing document", "Analyzing content", "Optimizing for ATS", "Generating PDF"],
+                console=console,
+                style="cyan",
+            )
+        except Exception as e:
+            console.print(f"[red]Resume error: {e}[/red]")
+            return True
+        if not result.get("success"):
+            console.print(Panel(f"[red]{result.get('error','failed')}[/red]",
+                                title="RESUME", border_style="red"))
+            return True
+        fb = result.get("feedback", {}) or {}
+        body = [f"[bold green]✓ PDF generated:[/bold green] {result['pdf']}\n"]
+        if fb.get("strong"):
+            body.append("[bold green]✓ Strengths[/bold green]")
+            body += [f"  • {x}" for x in fb["strong"]]
+        if fb.get("weak"):
+            body.append("\n[bold red]✗ Weak spots[/bold red]")
+            body += [f"  • {x}" for x in fb["weak"]]
+        if fb.get("missing"):
+            body.append("\n[bold yellow]+ Add these[/bold yellow]")
+            body += [f"  • {x}" for x in fb["missing"]]
+        if fb.get("one_liner"):
+            body.append(f"\n[italic gold1]“{fb['one_liner']}”[/italic gold1]")
+        console.print(Panel("\n".join(body),
+                            title=f"RESUME{' — '+target_role if target_role else ''}",
+                            border_style="cyan"))
+        return True
+    if cmd == "/harness":
+        if not args:
+            console.print("[red]Usage: /harness <goal>  |  /harness max=N <goal>  |  /harness rollback[/red]")
+            return True
+        if args[0].lower() == "rollback":
+            res = engine.harness.rollback()
+            style = "green" if res.get("success") else "red"
+            console.print(f"[{style}]{res.get('output') or res.get('error')}[/{style}]")
+            return True
+        max_steps = engine.harness.max_steps
+        goal_tokens = list(args)
+        if goal_tokens and goal_tokens[0].lower().startswith("max="):
+            try:
+                max_steps = int(goal_tokens[0].split("=", 1)[1])
+                goal_tokens = goal_tokens[1:]
+            except ValueError:
+                pass
+        goal = " ".join(goal_tokens).strip()
+        if not goal:
+            console.print("[red]Empty goal.[/red]")
+            return True
+        engine.harness.max_steps = max_steps
+        result = await engine.harness.run(goal)
+        if result.get("success"):
+            summary = result.get("summary", "(no summary)")
+            touched = result.get("touched_files", []) or []
+            body = f"[bold green]✓ DONE[/bold green]\n\n{summary}"
+            if touched:
+                body += f"\n\n[dim]Touched {len(touched)} file(s):[/dim]\n" + "\n".join(f"  • {p}" for p in touched[:20])
+                if result.get("snapshot_dir"):
+                    body += f"\n\n[dim]Snapshot:[/dim] {result['snapshot_dir']}  ([cyan]/harness rollback[/cyan] to revert)"
+            console.print(Panel(body, title="HARNESS COMPLETE", border_style="green"))
+        else:
+            console.print(Panel(
+                f"[red]{result.get('error','harness failed')}[/red]",
+                title="HARNESS FAILED", border_style="red",
+            ))
+        return True
+    if cmd == "/fetch":
+        if not args:
+            console.print("[red]Usage: /fetch <url>[/red]")
+            return True
+        url = " ".join(args).strip()
+        with Live(Spinner("dots", text=f"Fetching {url}", style="cyan"),
+                  refresh_per_second=10, transient=True):
+            data = await engine.parallel_executor.web_fetch.afetch(url)
+        if not data.get("success"):
+            console.print(f"[red]{data.get('error','fetch failed')}[/red]")
+            return True
+        body = data.get("output", "")[:6000]
+        console.print(Panel(body or "(empty)",
+                            title=f"FETCH — {url}", border_style="cyan"))
+        return True
+    if cmd == "/diff":
+        if len(args) < 2:
+            console.print("[red]Usage: /diff <fileA> <fileB>[/red]")
+            return True
+        res = engine.parallel_executor.diff.diff_files(args[0], args[1])
+        if not res.get("success"):
+            console.print(f"[red]{res.get('error','diff failed')}[/red]")
+            return True
+        title = f"DIFF — +{res.get('added',0)}/-{res.get('removed',0)}"
+        console.print(Panel(res.get("output", "(no changes)"),
+                            title=title, border_style="magenta"))
+        return True
     if cmd == "/clear-session":
         await engine.memory_manager.clear_session_history(engine.session_id)
         console.print("[italic cyan]Session memory flushed.[/italic cyan]")
@@ -988,7 +1308,8 @@ async def main():
 
     console.print(Panel(
         "[bold green]System Wake-up Initiated.[/bold green]\n"
-        "Initializing [cyan]Gemini 2.5 Flash[/cyan], [magenta]ChatGPT Codex[/magenta], [white]MiniMax 2.5[/white].\n"
+        "Initializing [cyan]Gemini 2.5 Flash[/cyan], [gold1]Xiaomi MiMo v2.5-pro[/gold1], "
+        "[magenta]Groq Llama[/magenta], [white]MiniMax 2.5[/white].\n"
         "[italic cyan]Good morning, Architect. All systems at 100%. Type /help for commands.[/italic cyan]",
         border_style="bright_black", title="GREETING"
     ))
@@ -996,8 +1317,41 @@ async def main():
     objective = Prompt.ask("\n[bold white]Objective[/bold white]")
 
     if not engine.ready:
-        with Live(Spinner("dots8", text="Syncing 24 layers...", style="gold1"), refresh_per_second=10, transient=True):
-            await loader_task
+        try:
+            await thinking_cascade(
+                loader_task,
+                phases=[
+                    "Waking kernel",
+                    "Syncing memory layer",
+                    "Loading tool registry",
+                    "Connecting MCP servers",
+                    "Calibrating Genius layer",
+                ],
+                console=console,
+                style="gold1",
+            )
+        except Exception:
+            with Live(Spinner("dots8", text="Syncing 24 layers...", style="gold1"),
+                      refresh_per_second=10, transient=True):
+                await loader_task
+        try:
+            progress_trail(
+                ["Boot kernel", "Memory online", "Tool registry", "MCP servers", "Genius layer ready"],
+                console=console, delay=0.14,
+            )
+        except Exception:
+            pass
+
+    key_issues = validate_all_keys()
+    bad_keys = [(var, reason) for var, ok, reason in key_issues if not ok]
+    if bad_keys:
+        lines = "\n".join(f"  • {var}: {reason}" for var, reason in bad_keys)
+        console.print(Panel(
+            f"[yellow]These configured keys have issues:[/yellow]\n{lines}\n"
+            "[dim]Fix values in .env and restart APEX.[/dim]",
+            title="[bold yellow]Key Configuration Warning[/bold yellow]",
+            border_style="yellow",
+        ))
 
     cwd = os.getcwd()
     folder_name = os.path.basename(cwd)
@@ -1060,15 +1414,25 @@ async def main():
             vitals = engine.parallel_executor.hw.get_vitals()
             active_proj = engine.workspace.get_active()
             mode_tag = engine.parallel_executor.safety_guard.mode.upper()
+            cpu = vitals.cpu_percent
+            ram = vitals.ram_percent
+            cpu_color = "green" if cpu < 60 else ("yellow" if cpu < 85 else "red")
+            ram_color = "green" if ram < 60 else ("yellow" if ram < 85 else "red")
+            stat_glyph = {
+                "ok": "<green>●</green>",
+                "warning": "<yellow>●</yellow>",
+                "critical": "<red>●</red>",
+            }.get(vitals.status, "<grey>●</grey>")
             status_line = (
-                f"<b><cyan>APEX</cyan></b> | "
-                f"<magenta>{mode_tag}</magenta> | "
-                f"<yellow>PROJ:</yellow> {active_proj.name if active_proj else 'NONE'} | "
-                f"<green>$</green>{engine.spend_tracker.get_daily_spend():.4f} | "
-                f"<yellow>CPU</yellow> {vitals.cpu_percent}%"
+                f"{stat_glyph} <b><cyan>APEX</cyan></b> "
+                f"<grey>·</grey> <magenta>{mode_tag}</magenta> "
+                f"<grey>·</grey> <yellow>{active_proj.name if active_proj else 'no-proj'}</yellow> "
+                f"<grey>·</grey> <green>$</green>{engine.spend_tracker.get_daily_spend():.4f} "
+                f"<grey>·</grey> <{cpu_color}>CPU {cpu}%</{cpu_color}> "
+                f"<grey>·</grey> <{ram_color}>RAM {ram}%</{ram_color}>"
             )
 
-            user_input = await session.prompt_async(HTML(f"\n{status_line}\n<b>cmd</b>> "))
+            user_input = await session.prompt_async(HTML(f"\n{status_line}\n<b><cyan>❯</cyan></b> "))
             if not user_input.strip():
                 continue
 
@@ -1104,6 +1468,35 @@ async def main():
                     title="APEX", border_style="cyan",
                 ))
                 await engine.memory_manager.store_interaction(engine.session_id, user_input, reply)
+                continue
+
+            # Identity guard — answer "what are you / who are you / what is APEX" directly.
+            _uid = user_input.strip().lower().rstrip("?!.")
+            if _uid in (
+                "what are you", "who are you", "what is apex", "what is this",
+                "what do you do", "tell me about yourself", "what can you do",
+                "what are your capabilities", "describe yourself", "what is this system",
+                "are you an ai", "are you chatgpt", "are you claude",
+            ):
+                _identity = (
+                    "APEX — Sovereign Agentic AI OS.\n\n"
+                    "I am not a chatbot wrapper. I am a multi-tier orchestration engine "
+                    "combining high-reasoning planning (Gemini 2.5 Flash), fast edge inference "
+                    "(Groq), code implementation (Xiaomi MiMo v2.5-pro), and specialist agent swarms.\n\n"
+                    "What I do:\n"
+                    "  ● Plan and execute multi-step goals autonomously via DAG\n"
+                    "  ● Select tools on my own — 17 registered tools, 35 harness tools\n"
+                    "  ● Think WITH you — cross-question, architect, debate, brainstorm, teach\n"
+                    "  ● Critique your thinking — GeniusMode: right/wrong/blind spots/action\n"
+                    "  ● Improve your resume → output ATS-optimized PDF\n"
+                    "  ● See, read, and hear — image OCR, video understanding, audio transcription\n"
+                    "  ● Spawn specialist agent swarms for complex goals\n"
+                    "  ● Learn from arxiv + ecosystem daily, propose and apply self-improvements\n"
+                    "  ● Run autonomously as an agentic loop — goal in, done() out\n\n"
+                    f"Built by: QambarOP | {TimeContext.now_human()}"
+                )
+                console.print(Panel(_identity, title="APEX — Identity", border_style="bright_cyan"))
+                await engine.memory_manager.store_interaction(engine.session_id, user_input, _identity)
                 continue
 
             # Auto-tool: high-confidence single-tool intents bypass DAG planner.
@@ -1151,8 +1544,12 @@ async def main():
                 console.print("[dim bright_magenta][resuming with clarifications][/dim bright_magenta]")
 
             if engine.auto_think_enabled and engine.think_partner.client:
-                with Live(Spinner("dots", text="Routing intent...", style="bright_magenta"), refresh_per_second=10, transient=True):
-                    route = await engine.think_partner.auto_route(effective_input)
+                route = await thinking_cascade(
+                    engine.think_partner.auto_route(effective_input),
+                    phases=["Reading intent", "Classifying mode", "Routing"],
+                    console=console,
+                    style="bright_magenta",
+                )
                 mode = route["mode"]
                 if mode != "execute":
                     console.print(f"[dim bright_magenta][auto-think → {mode}  ({route['source']}, ambiguity={route['ambiguity_score']:.2f})][/dim bright_magenta]")
@@ -1167,25 +1564,32 @@ async def main():
                     continue
 
                 if mode in ("architect", "debate", "brainstorm", "teach"):
-                    with Live(Spinner("dots", text=f"{mode.title()} mode...", style="bright_magenta"), refresh_per_second=10, transient=True):
-                        if mode == "architect":
-                            res = await engine.think_partner.architect(effective_input)
-                            title = "ARCHITECT"
-                        elif mode == "debate":
-                            res = await engine.think_partner.debate(effective_input)
-                            title = "DEBATE"
-                        elif mode == "brainstorm":
-                            res = await engine.think_partner.brainstorm(effective_input)
-                            title = "BRAINSTORM"
-                        else:
-                            res = await engine.think_partner.teach(effective_input)
-                            title = "TEACH"
+                    _phase_map = {
+                        "architect": ["Analyzing design space", "Evaluating trade-offs", "Proposing architecture"],
+                        "debate": ["Steelmanning opposition", "Building counter-argument", "Synthesizing positions"],
+                        "brainstorm": ["Diverging across models", "Generating angles", "Clustering ideas"],
+                        "teach": ["Framing intuition", "Unpacking mechanism", "Designing test cases"],
+                    }
+                    _coro_map = {
+                        "architect": engine.think_partner.architect(effective_input),
+                        "debate": engine.think_partner.debate(effective_input),
+                        "brainstorm": engine.think_partner.brainstorm(effective_input),
+                        "teach": engine.think_partner.teach(effective_input),
+                    }
+                    res = await thinking_cascade(
+                        _coro_map[mode],
+                        phases=_phase_map[mode],
+                        console=console,
+                        style="bright_magenta",
+                    )
+                    title = mode.upper()
                     console.print(Panel(Markdown(res["output"]), title=title, border_style="bright_magenta"))
                     console.print(f"[dim]→ {res.get('next_action','')}[/dim]")
                     await engine.memory_manager.store_interaction(engine.session_id, user_input, res.get("output", ""))
                     continue
 
-            with Live(Spinner("dots", text="Core analysis...", style="white"), refresh_per_second=10, transient=True):
+            async def _core_analysis():
+                nonlocal emotional_state, apex_state, classification, path, pruned_knowledge, valid_files
                 emotional_state = await engine.cognitive_core.analyze_user(user_input, velocity)
                 apex_state = engine.cognitive_core.synthesize_apex_state(emotional_state)
                 if engine.gemini_client:
@@ -1193,11 +1597,19 @@ async def main():
                 classification = await engine.classifier.classify(user_input)
                 path = engine.router.route(classification)
                 pruned_knowledge = await engine.knowledge_visualizer.get_pruned_context(user_input)
-
                 file_matches = re.findall(r"[\w\.\-/\\]+\.(?:pdf|png|jpg|jpeg|webp|md|py|txt|json)", user_input)
                 valid_files = [f for f in file_matches if os.path.exists(f)]
                 if classification.get('requires_vision') and not any(f.endswith(('.png', '.jpg', '.jpeg')) for f in valid_files):
                     valid_files.append(engine.retina.capture_screen())
+
+            emotional_state = apex_state = classification = path = pruned_knowledge = None
+            valid_files = []
+            await thinking_cascade(
+                _core_analysis(),
+                phases=["Reading context", "Classifying intent", "Selecting path"],
+                console=console,
+                style="white",
+            )
 
             plan = None
             if classification.get("autonomous_skill_id"):
@@ -1219,18 +1631,16 @@ async def main():
                 apex_directive = engine.cognitive_core.style_directive(apex_state)
                 prompt = f"{full_context}\n{apex_directive}\n\nUser: {user_input}"
 
-                # Stream the response token-by-token
-                response_chunks = []
-                console.print("\n" + "═"*80)
-                console.print(engine.assembler.render_workspace_info(active_proj, vitals))
-                if apex_state.flavor:
+                # Stream response into animated live panel
+                if apex_state and apex_state.flavor:
                     console.print(f"[italic dim]({apex_state.mood}) {apex_state.flavor}[/italic dim]")
-                console.print("[bold blue]APEX //[/bold blue] ", end="")
-                for chunk in engine.groq_client.stream_completion(prompt):
-                    console.print(chunk, end="")
-                    response_chunks.append(chunk)
-                console.print("\n" + "═"*80 + "\n")
-                response = "".join(response_chunks)
+                panel_title = f"APEX  ·  {active_proj.name}" if active_proj else "APEX"
+                response = stream_panel(
+                    engine.groq_client.stream_completion(prompt),
+                    title=panel_title,
+                    console=console,
+                    border_style="bright_cyan",
+                )
 
                 # Track spend (approx tokens: 1 token ≈ 4 chars)
                 engine.spend_tracker.log_interaction(
@@ -1245,20 +1655,29 @@ async def main():
 
             elif (path == "thinking_path" or plan) and engine.gemini_client:
                 if not plan:
-                    # Token-efficient code context via CodeCompass — adds 5-10x less tokens
-                    # than full file reads while preserving symbol-level signal.
                     if not engine.code_compass.index:
                         engine.code_compass.build()
                     compass_ctx = engine.code_compass.context_for_query(user_input, max_files=5)
                     compass_block = f"\n--- CODE COMPASS (compressed symbol map) ---\n{compass_ctx}\n" if compass_ctx else ""
-                    plan = await engine.gemini_client.generate_plan(
-                        f"{pruned_knowledge}\n{compass_block}\n{user_input}",
-                        engine.session_id,
-                        file_paths=valid_files,
-                        emotional_state=emotional_state
+                    plan = await thinking_cascade(
+                        engine.gemini_client.generate_plan(
+                            f"{pruned_knowledge}\n{compass_block}\n{user_input}",
+                            engine.session_id,
+                            file_paths=valid_files,
+                            emotional_state=emotional_state,
+                        ),
+                        phases=["Mapping codebase", "Decomposing goal", "Building task DAG", "Selecting tools"],
+                        console=console,
+                        style="gold1",
                     )
 
-                console.print(Panel(engine.assembler.render_plan(plan), title="[bold gold1]Task DAG[/bold gold1]", border_style="yellow"))
+                response_reveal(
+                    engine.assembler.render_plan(plan),
+                    title="Task DAG",
+                    console=console,
+                    final_border="yellow",
+                    cycles=5,
+                )
                 if plan.socratic_insight:
                     console.print(Panel(f"[italic]{plan.socratic_insight}[/italic]", title="CRITIQUE", border_style="magenta"))
 

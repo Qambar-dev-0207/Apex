@@ -98,6 +98,16 @@ _PATTERNS: List[Tuple[re.Pattern, str, str, Any]] = [
 
     # shell
     (re.compile(r"^\s*(?:run|exec|execute)\s+(?P<arg>.+)$", re.I), "shell", "execute", _passthrough),
+
+    # web_fetch — explicit URL pull
+    (re.compile(r"^\s*(?:fetch|get|download|pull|open)\s+(?P<arg>https?://\S+)\s*$", re.I),
+     "web_fetch", "fetch", _passthrough),
+    (re.compile(r"^\s*(?P<arg>https?://\S+)\s*$", re.I), "web_fetch", "fetch", _passthrough),
+
+    # todo
+    (re.compile(r"^\s*(?:todos?|tasks?)\s*$", re.I), "todo", "list", _empty),
+    (re.compile(r"^\s*(?:todos?|tasks?)\s+list\s*$", re.I), "todo", "list", _empty),
+    (re.compile(r"^\s*(?:add\s+todo|todo\s+add)\s+(?P<arg>.+)$", re.I), "todo", "add", _passthrough),
 ]
 
 

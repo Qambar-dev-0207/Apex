@@ -3,6 +3,7 @@ from groq import Groq
 from dotenv import load_dotenv
 
 from src.core.time_context import TimeContext
+from src.core.api_security import sanitize_error, detect_threat, KeyThreat, leaked_key_warning
 
 class GroqClient:
     """
@@ -40,7 +41,10 @@ class GroqClient:
             )
             return chat_completion.choices[0].message.content
         except Exception as e:
-            return f"Error connecting to Groq API: {str(e)}"
+            threat = detect_threat(str(e))
+            if threat == KeyThreat.LEAKED:
+                return leaked_key_warning("Groq", rich=False)
+            return f"[Groq error] {sanitize_error(e)}"
 
     def stream_completion(self, prompt: str, system_prompt: str = None):
         """
@@ -66,4 +70,8 @@ class GroqClient:
                 if delta:
                     yield delta
         except Exception as e:
-            yield f"[Stream error: {e}]"
+            threat = detect_threat(str(e))
+            if threat == KeyThreat.LEAKED:
+                yield leaked_key_warning("Groq", rich=False)
+            else:
+                yield f"[Groq stream error] {sanitize_error(e)}"

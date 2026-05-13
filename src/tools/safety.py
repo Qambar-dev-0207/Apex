@@ -32,19 +32,25 @@ class PolicyManager:
             json.dump(self.policy, f, indent=2)
 
     def check(self, command: str) -> str:
-        """
-        Returns 'allow', 'deny', or 'ask'.
-        """
+        """Returns 'allow', 'deny', or 'ask'."""
         command = command.strip()
-        
+
         for c in self.policy.get("denied_commands", []):
-            if command.startswith(c) or c == "*":
+            if c == "*":
                 return "deny"
-                
+            if command.startswith(c):
+                return "deny"
+
         for c in self.policy.get("allowed_commands", []):
-            if command.startswith(c) or (c == "*" and "denied_commands" not in self.policy):
+            if c == "*":
                 return "allow"
-                
+            if command.startswith(c):
+                return "allow"
+
+        always_ask = self.policy.get("always_ask", [])
+        if "*" in always_ask:
+            return "ask"
+
         return "ask"
 
 class SafetyGuard:
@@ -57,13 +63,20 @@ class SafetyGuard:
         self.policy = PolicyManager()
         self.mode = "default"  # default | auto-approve | plan
         self.destructive_patterns = [
-            (r"os\.remove", "File deletion"),
-            (r"os\.rmdir", "Directory deletion"),
-            (r"shutil\.rmtree", "Recursive directory deletion"),
+            (r"os\.remove\b", "File deletion"),
+            (r"os\.rmdir\b", "Directory deletion"),
+            (r"shutil\.rmtree\b", "Recursive directory deletion"),
             (r"open\(.*['\"]w['\"]\)", "File overwrite"),
             (r"open\(.*['\"]a['\"]\)", "File append"),
-            (r"subprocess\.run\(.*rm ", "System-level removal"),
-            (r"sys\.exit", "Process termination")
+            (r"subprocess\.run\(.*rm\s", "System-level removal"),
+            (r"subprocess\.(?:run|call|Popen)\(.*shell=True", "Shell injection risk"),
+            (r"sys\.exit\b", "Process termination"),
+            (r"os\.system\b", "OS command execution"),
+            (r"eval\s*\(", "Dynamic code evaluation"),
+            (r"exec\s*\(", "Dynamic code execution"),
+            (r"__import__\s*\(", "Dynamic import"),
+            (r"pickle\.loads?\b", "Unsafe deserialization"),
+            (r"yaml\.load\s*\([^,)]+\)", "Unsafe YAML load (use safe_load)"),
         ]
 
     def set_mode(self, mode: str):

@@ -1,18 +1,48 @@
+# ── Core LLM clients ─────────────────────────────────────────────────────
 groq
-python-dotenv
-rich
+openai
 google-genai
-pydantic
+httpx
+tenacity
+
+# ── Storage / memory ─────────────────────────────────────────────────────
 redis[hiredis]
 chromadb
 sentence-transformers
+
+# ── Validation / config ──────────────────────────────────────────────────
+pydantic
+python-dotenv
+pyyaml
+orjson
+
+# ── Terminal UI ──────────────────────────────────────────────────────────
+rich
 pyfiglet
 prompt_toolkit
-httpx
-openai
-pyautogui
+tqdm
+
+# ── Document handling ────────────────────────────────────────────────────
+pypdf
 Pillow
+reportlab
+python-docx
+markdown-it-py
+
+# ── Vision / multimedia (image + video understanding) ────────────────────
+opencv-python
+imageio-ffmpeg
+pyautogui
+
+# ── System ───────────────────────────────────────────────────────────────
+psutil
+watchdog
+aiofiles
+
+# ── MCP ──────────────────────────────────────────────────────────────────
 mcp
 starlette<0.42.0
-pypdf
-psutil
+
+# ── Code intel ───────────────────────────────────────────────────────────
+rapidfuzz
+tiktoken

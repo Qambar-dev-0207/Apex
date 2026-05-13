@@ -19,6 +19,7 @@ import json
 import asyncio
 from typing import Dict, Any, List, Optional
 
+import httpx
 from dotenv import load_dotenv
 
 try:
@@ -27,6 +28,10 @@ except Exception:
     genai = None
 
 from src.core.time_context import TimeContext
+from src.core.api_security import detect_threat, KeyThreat, sanitize_error, leaked_key_warning
+
+_OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+_HIGH_REASON_MODEL = "inclusionai/ring-2.6-1t:free"  # 1T-param free reasoning fallback
 
 
 # ── pattern triggers (cheap heuristic before LLM classify) ──────────────────
@@ -141,7 +146,7 @@ def should_extract_intent(text: str) -> bool:
 
 class ThinkPartner:
     """
-    Cognitive collaborator. Wraps Gemini for structured thinking modes.
+    Cognitive collaborator. Wraps Gemini (primary) + OpenRouter ring-2.6-1t (fallback).
 
     All methods return a dict with at least:
       { "mode": str, "output": str (markdown), "questions": List[str] (optional),
@@ -157,7 +162,8 @@ class ThinkPartner:
         self.client = genai.Client(api_key=api_key) if (genai and api_key) else None
         self.model_id = model_id
         self.deep_model_id = deep_model_id
-        self.fast_model_id = fast_model_id  # for cheap intent extraction
+        self.fast_model_id = fast_model_id
+        self._or_key = os.getenv("OPENROUTER_API_KEY")
 
     def _log(self, msg: str, level: str = "info"):
         if not self.console:
@@ -165,10 +171,40 @@ class ThinkPartner:
         color = {"info": "bright_magenta", "warn": "yellow", "err": "red"}.get(level, "white")
         self.console.print(f"[bold {color}][Think] {msg}[/bold {color}]")
 
+    async def _openrouter_gen(self, prompt: str) -> str:
+        """OpenRouter ring-2.6-1t (1T-param) fallback for high-reasoning tasks."""
+        if not self._or_key:
+            return ""
+        headers = {
+            "Authorization": f"Bearer {self._or_key}",
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://apex-os.local",
+            "X-Title": "APEX Sovereign OS",
+        }
+        payload = {
+            "model": _HIGH_REASON_MODEL,
+            "messages": [
+                {
+                    "role": "system",
+                    "content": (
+                        "You are APEX's deep reasoning engine — a sovereign AI OS. "
+                        "You think with precision, challenge assumptions, and give "
+                        "terse, high-signal answers. No filler."
+                    ),
+                },
+                {"role": "user", "content": f"{TimeContext.system_prefix()}\n\n{prompt}"},
+            ],
+        }
+        try:
+            async with httpx.AsyncClient(timeout=120.0) as client:
+                r = await client.post(_OPENROUTER_URL, headers=headers, json=payload)
+                r.raise_for_status()
+                return r.json()["choices"][0]["message"]["content"].strip()
+        except Exception:
+            return ""
+
     async def _gen(self, prompt: str, deep: bool = False, json_mode: bool = False,
                    fast: bool = False) -> str:
-        if not self.client:
-            return ""
         if fast:
             model = self.fast_model_id
         elif deep:
@@ -177,17 +213,32 @@ class ThinkPartner:
             model = self.model_id
         cfg = {"response_mime_type": "application/json"} if json_mode else {}
         prompt_with_time = f"{TimeContext.system_prefix()}\n\n{prompt}"
-        try:
-            res = await asyncio.to_thread(
-                self.client.models.generate_content,
-                model=model,
-                contents=prompt_with_time,
-                config=cfg or None,
-            )
-            return res.text or ""
-        except Exception as e:
-            self._log(f"gen fail ({model}): {e}", level="warn")
-            return ""
+
+        # Primary: Gemini
+        if self.client:
+            try:
+                res = await asyncio.to_thread(
+                    self.client.models.generate_content,
+                    model=model,
+                    contents=prompt_with_time,
+                    config=cfg or None,
+                )
+                text = res.text or ""
+                if text:
+                    return text
+            except Exception as e:
+                threat = detect_threat(str(e))
+                if threat == KeyThreat.LEAKED and self.console:
+                    self.console.print(leaked_key_warning("Gemini"))
+                # fall through to next brain regardless
+
+        # Fallback: OpenRouter ring-2.6-1t (skip for JSON mode — may not honor mime type)
+        if not json_mode:
+            result = await self._openrouter_gen(prompt)
+            if result:
+                return result
+
+        return ""
 
     # ────────────────────────────────────────────────────────────────────────
     # 1. cross_question — clarify before answering

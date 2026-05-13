@@ -99,11 +99,16 @@ REGISTRY: Dict[str, ToolSpec] = {
     ),
     "vision": ToolSpec(
         name="vision",
-        aliases=["screen", "retina", "see"],
-        actions=["capture", "ocr", "describe"],
-        input_schema="empty (capture full screen) or path to image file",
-        when_to_use="See user's screen, OCR an image, describe what's visible.",
-        examples=["vision:capture input_data=''", "vision:ocr input_data='./screenshot.png'"],
+        aliases=["screen", "retina", "see", "media"],
+        actions=["capture", "ocr", "describe", "describe_video", "transcribe_audio", "understand_media"],
+        input_schema="empty (capture full screen) or path to image/video/audio file",
+        when_to_use="See screen, OCR/describe images, summarize videos (frame-sampled multimodal), transcribe audio.",
+        examples=[
+            "vision:capture input_data=''",
+            "vision:describe input_data='./screenshot.png'",
+            "vision:describe_video input_data='./demo.mp4'",
+            "vision:transcribe_audio input_data='./call.m4a'",
+        ],
     ),
     "hardware": ToolSpec(
         name="hardware",
@@ -144,6 +149,37 @@ REGISTRY: Dict[str, ToolSpec] = {
         input_schema="prompt string",
         when_to_use="Cognitive collaboration — clarify vague goals, design review, adversarial pushback.",
         examples=["think_partner:architect input_data='build a billing service'"],
+    ),
+    "web_fetch": ToolSpec(
+        name="web_fetch",
+        aliases=["fetch", "url", "wf", "get_url"],
+        actions=["fetch"],
+        input_schema="URL string",
+        when_to_use="Pull a SPECIFIC URL's text content. Use after web_search picks the target page.",
+        examples=["web_fetch:fetch input_data='https://docs.python.org/3/library/asyncio.html'"],
+    ),
+    "todo": ToolSpec(
+        name="todo",
+        aliases=["todos", "tasks", "tl"],
+        actions=["add", "list", "update", "remove", "clear_completed"],
+        input_schema='add: task string; list: empty; update: JSON {"id":"...","status":"pending|in_progress|completed"}; remove: id string',
+        when_to_use="Persistent per-project task list. Track multi-step work across sessions.",
+        examples=[
+            "todo:add input_data='wire MiMo into coding pipeline'",
+            "todo:list input_data=''",
+            'todo:update input_data=\'{"id":"a1b2","status":"completed"}\'',
+        ],
+    ),
+    "diff": ToolSpec(
+        name="diff",
+        aliases=["compare", "patch"],
+        actions=["run", "files", "content"],
+        input_schema='JSON {"a": "<path>", "b": "<path>"} OR {"path": "<path>", "content": "<text>"}',
+        when_to_use="Unified diff between two files or between disk and proposed content. Use BEFORE filesystem:write to preview changes.",
+        examples=[
+            'diff:run input_data=\'{"a":"src/foo.py","b":"src/foo.py.bak"}\'',
+            'diff:run input_data=\'{"path":"README.md","content":"# new content\\n"}\'',
+        ],
     ),
 }
 

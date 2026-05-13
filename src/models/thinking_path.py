@@ -10,6 +10,7 @@ from src.services.learning import SkillManager
 from src.tools.workspace import WorkspaceManager
 from src.models.fallback_path import TertiaryReasoningClient
 from src.core.time_context import TimeContext
+from src.core.api_security import detect_threat, KeyThreat, sanitize_error, leaked_key_warning
 from src.tools.registry import get_prompt_block as get_tools_prompt_block
 from dotenv import load_dotenv
 
@@ -155,11 +156,24 @@ class GeminiClient:
             
             return ExecutionPlan(**json.loads(response.text))
         except Exception as e:
-            print(f"[ThinkingPath] Gemini Primary Failed: {e}. Activating Tertiary Recovery (gpt-oss-120b)...")
+            err_str = str(e)
+            threat = detect_threat(err_str)
+            # Leaked key — embed alert in summary so main.py can surface it
+            extra = ""
+            if threat == KeyThreat.LEAKED:
+                extra = "SECURITY_ALERT:GEMINI_KEY_LEAKED"
             try:
                 fallback_plan_dict = await self.tertiary.generate_plan(full_prompt)
                 if fallback_plan_dict:
-                    return ExecutionPlan(**fallback_plan_dict)
-            except Exception as fe:
-                print(f"[ThinkingPath] Tertiary Recovery Failed: {fe}")
-            return ExecutionPlan(task_plan=[], tools_required=[], requires_clarification=False, summary=f"Critical Orchestration Failure: {e}")
+                    plan = ExecutionPlan(**fallback_plan_dict)
+                    if extra:
+                        plan.summary = f"{extra} | {plan.summary}"
+                    return plan
+            except Exception:
+                pass
+            return ExecutionPlan(
+                task_plan=[], tools_required=[],
+                requires_clarification=False,
+                summary=f"{extra} | Planning unavailable: {sanitize_error(e)}" if extra
+                        else f"Planning unavailable: {sanitize_error(e)}",
+            )

@@ -90,8 +90,8 @@ class KnowledgeVisualizer:
                     self.current_map.edges.append(KnowledgeEdge(**e))
             
             self._save_map()
-        except Exception as e:
-            print(f"[Knowledge] Extraction failed: {e}")
+        except Exception:
+            pass  # background — silent failure is fine
 
     def generate_svg(self) -> str:
         """
