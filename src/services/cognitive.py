@@ -24,6 +24,10 @@ class EmotionalCore:
         self.history = []
         self.last_apex_state = ApexState()
 
+    def neutral_state(self, velocity: float = 0.0) -> EmotionalState:
+        """Zero-cost default — used by economy mode to skip LLM analyze_user."""
+        return EmotionalState(sentiment="neutral", cognitive_load="low", velocity_mps=velocity)
+
     async def analyze_user(self, message: str, velocity: float) -> EmotionalState:
         if not self.client:
             return EmotionalState(sentiment="neutral", cognitive_load="low", velocity_mps=velocity)

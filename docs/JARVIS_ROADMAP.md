@@ -44,6 +44,10 @@
 | **E2E test suite (21 tests, no network required)** | ✅ Live (2026-05-13) | `tests/test_e2e_full_apex.py` |
 | **APEX identity guard (instant self-aware response)** | ✅ Live (2026-05-13) | `main.py` |
 | **Comprehensive docs folder** | ✅ Live (2026-05-13) | `docs/` |
+| **Reflex pre-LLM scout & speculative prefetch** | ✅ Live (2026-05-13) | `src/core/reflex.py` |
+| **API security guard, key validation & backoff** | ✅ Live (2026-05-13) | `src/core/api_security.py` |
+| **Relational Cognitive Graph (KnowledgeVisualizer)** | ✅ Live (2026-05-15) | `src/services/cognitive_graph.py` |
+| **Failure Logging & Style Capture (LearningManager)** | ✅ Live (2026-05-15) | `src/services/learning.py` |
 
 ---
 
@@ -188,7 +192,7 @@ New slash: `/stream add <url>`, `/stream list`
 |---|---|---|
 | Frontend | Next.js 15 + shadcn/ui + Tailwind | Fast to build, looks sharp |
 | Backend WS | FastAPI + WebSocket | APEX streams events to browser |
-| Knowledge graph viz | `react-force-graph` | Real-time node updates |
+| Knowledge graph viz | `react-force-graph` + `KnowledgeVisualizer` (Live backend) | Real-time node updates & SVG output |
 | Telemetry charts | Recharts or tremor | CPU/GPU/spend/bench scores |
 | Proposal queue | Table with approve/reject buttons | `/forge` via REST API |
 | Voice waveform | Web Audio API | Live mic + TTS visualizer |
@@ -209,11 +213,12 @@ New slash: `/dashboard start|stop`
 | Socratic / Steelman / Genius modes | `thinking_path.py` flags + multi-pass prompting | `/socratic`, `/steelman`, `/genius` | ✅ Live |
 | Cognitive collaborator | `ThinkPartner` (cross-question/architect/debate/brainstorm/teach) | Auto-routes ambiguous prompts | ✅ Live |
 | Debate-then-commit | `ThinkPartner.debate` steelmans opposing view | `/debate <claim>` explicit; auto-trigger pending | ✅ Live (manual) |
+| Relational Context Pruning | `KnowledgeVisualizer` (Gemini compression) | Traces nodes/edges to compress tokens | ✅ Live |
 | Symbolic solver | Z3 MCP or `z3-solver` direct | Constraint satisfaction, logic proofs | ⏳ Pending |
 | Uncertainty quantification | Confidence scores on all outputs | Flag low-confidence for human review | ⏳ Pending |
 | Meta-cognition | APEX evaluates own reasoning quality | "Was my last answer good? Why?" | ⏳ Pending |
 
-Service: `src/services/think_partner.py` (6 modes, 23 tests passing)
+Service: `src/services/think_partner.py` (6 modes, 23 tests passing), `src/services/cognitive_graph.py`
 Slash: `/think`, `/architect`, `/debate`, `/brainstorm`, `/teach`, `/intent`
 
 ---
@@ -302,6 +307,10 @@ realjarvis/
       agents.py                   Base agent classes
       hooks.py                    HookManager
       telemetry.py                SpendTracker
+      reflex.py                   Local pre-LLM scout and speculative prefetch
+      api_security.py             Key masking, threat detection, and backoff
+      time_context.py             Always-aware datetime state provider
+      skills_library.py           Pre-seeded baseline system skills
   docs/
     JARVIS_ROADMAP.md             This file
   data/

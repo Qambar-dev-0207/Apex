@@ -92,8 +92,8 @@ class SystemReadinessTest(unittest.TestCase):
         # STAGE 4: Semantic Caching (L8.5)
         self.console.print("[yellow]STAGE 4: Semantic Deduplication Cache[/yellow]")
         resp = "The result is 42."
-        self.memory.cache.cache_response("What is the meaning of life?", resp)
-        cached = self.memory.cache.get_cached_response("What is the meaning of life?")
+        await self.memory.cache.cache_response("What is the meaning of life?", resp)
+        cached = await self.memory.cache.get_cached_response("What is the meaning of life?")
         self.assertEqual(cached, resp)
         self.console.print("  [green]✓ Semantic Response Cache hit verified.[/green]")
         

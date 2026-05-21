@@ -1,9 +1,11 @@
 import os
 import json
 import asyncio
+import logging
 from google import genai
 from google.genai import types
 from typing import Dict, Any, Optional, List
+from pydantic import ValidationError
 from src.core.models import ExecutionPlan, EmotionalState, TaskStep
 from src.services.memory import MemoryManager
 from src.services.learning import SkillManager
@@ -12,7 +14,199 @@ from src.models.fallback_path import TertiaryReasoningClient
 from src.core.time_context import TimeContext
 from src.core.api_security import detect_threat, KeyThreat, sanitize_error, leaked_key_warning
 from src.tools.registry import get_prompt_block as get_tools_prompt_block
+from src.tools.registry import resolve_tool_name
 from dotenv import load_dotenv
+
+logger = logging.getLogger("apex.thinking_path")
+
+
+# ── plan schema coercion ─────────────────────────────────────────────────────
+#
+# Gemini sometimes emits alternate field names (e.g. `plan` instead of
+# `task_plan`, `step` instead of `action`, `input` instead of `input_data`).
+# Strict pydantic parsing then fails with "Field required" and the planner
+# returns "Planning unavailable: 4 validation errors". Coerce common shapes
+# before giving up.
+
+_STEP_KEY_ALIASES = {
+    "action":      ["action", "step", "title", "name", "task", "description_short"],
+    "description": ["description", "details", "rationale", "why"],
+    "tool":        ["tool", "tool_name", "use"],
+    "input_data":  ["input_data", "input", "args", "arg", "payload", "data"],
+    "dependencies": ["dependencies", "deps", "depends_on", "after"],
+}
+
+
+def _pick(d: Dict[str, Any], keys: List[str], default=None):
+    for k in keys:
+        if k in d and d[k] is not None:
+            return d[k]
+    return default
+
+
+def _coerce_step(raw: Dict[str, Any], idx: int) -> Dict[str, Any]:
+    if not isinstance(raw, dict):
+        return {"id": idx, "action": str(raw), "description": "",
+                "tool": None, "input_data": None, "dependencies": []}
+    action = _pick(raw, _STEP_KEY_ALIASES["action"], default=f"step {idx}")
+    # Description: prefer explicit description fields, else use 'step' as the
+    # human label (if 'action' carried the tool verb), else fall back to action.
+    description = _pick(raw, _STEP_KEY_ALIASES["description"])
+    if not description:
+        step_label = raw.get("step") or raw.get("title") or raw.get("name")
+        if step_label and step_label != action:
+            description = step_label
+        else:
+            description = action
+    tool = _pick(raw, _STEP_KEY_ALIASES["tool"])
+    split_action: Optional[str] = None
+    if isinstance(tool, str):
+        # Combined "tool:action" shape — Gemini emits e.g. "workspace:summarize",
+        # "filesystem:read", "git:status". Split before alias resolution so the
+        # canonical tool name resolves and the verb survives.
+        if ":" in tool and "/" not in tool:
+            head, _, tail = tool.partition(":")
+            split_action = tail.strip() or None
+            tool = head.strip()
+        canonical = resolve_tool_name(tool)
+        if canonical:
+            tool = canonical
+    input_data = _pick(raw, _STEP_KEY_ALIASES["input_data"])
+    if input_data is not None and not isinstance(input_data, str):
+        try:
+            input_data = json.dumps(input_data)
+        except Exception:
+            input_data = str(input_data)
+    deps = _pick(raw, _STEP_KEY_ALIASES["dependencies"], default=[]) or []
+    if not isinstance(deps, list):
+        deps = []
+    # Cast deps to int where possible; drop garbage
+    clean_deps: List[int] = []
+    for d in deps:
+        try:
+            clean_deps.append(int(d))
+        except (TypeError, ValueError):
+            pass
+    raw_id = raw.get("id")
+    try:
+        step_id = int(raw_id) if raw_id is not None else idx
+    except (TypeError, ValueError):
+        step_id = idx
+    # If we extracted an action from "tool:action" split, and the explicit
+    # action field is missing/generic, prefer the split.
+    final_action = action
+    if split_action and (str(action).startswith("step ") or not str(action).strip()):
+        final_action = split_action
+    elif split_action and split_action.lower() not in str(action).lower():
+        # Action field had its own value — keep it but prepend the verb hint
+        # so executor's `if "summarize" in step['action']` checks still pass.
+        final_action = f"{split_action} — {action}"
+    return {
+        "id": step_id,
+        "action": str(final_action)[:500],
+        "description": str(description)[:1000],
+        "tool": tool,
+        "input_data": input_data,
+        "dependencies": clean_deps,
+    }
+
+
+def coerce_plan_dict(raw: Any) -> Dict[str, Any]:
+    """
+    Best-effort coerce of any Gemini JSON shape into ExecutionPlan dict.
+    Returns a dict ready for `ExecutionPlan(**...)`.
+    """
+    if not isinstance(raw, dict):
+        return {"task_plan": [], "tools_required": [],
+                "requires_clarification": False,
+                "summary": "Planner returned non-object output."}
+
+    steps_src = (
+        raw.get("task_plan")
+        or raw.get("plan")
+        or raw.get("steps")
+        or raw.get("tasks")
+        or []
+    )
+    if not isinstance(steps_src, list):
+        steps_src = []
+
+    task_plan = [_coerce_step(s, i + 1) for i, s in enumerate(steps_src)]
+
+    tools_required = raw.get("tools_required")
+    if not isinstance(tools_required, list):
+        # Derive from step tools, dedup, drop None
+        seen = set()
+        tools_required = []
+        for s in task_plan:
+            t = s.get("tool")
+            if t and t not in seen:
+                seen.add(t)
+                tools_required.append(t)
+
+    requires_clarification = bool(raw.get("requires_clarification", False))
+
+    summary = raw.get("summary") or raw.get("description") or ""
+    if not summary and task_plan:
+        first = task_plan[0]
+        summary = f"{len(task_plan)}-step plan starting with: {first.get('action','?')}"
+    elif not summary:
+        summary = "Empty plan."
+
+    out: Dict[str, Any] = {
+        "task_plan": task_plan,
+        "tools_required": tools_required,
+        "requires_clarification": requires_clarification,
+        "summary": str(summary)[:2000],
+    }
+    if raw.get("socratic_insight"):
+        out["socratic_insight"] = str(raw["socratic_insight"])[:2000]
+    return out
+
+
+def parse_plan_response(text: str) -> ExecutionPlan:
+    """
+    Parse Gemini's plan JSON. Try strict first, fall back to coercion.
+    Always returns an ExecutionPlan — never raises.
+    """
+    try:
+        data = json.loads(text)
+    except Exception:
+        # Sometimes Gemini wraps JSON in ```json ... ``` fences
+        stripped = (text or "").strip()
+        for fence in ("```json", "```"):
+            if stripped.startswith(fence):
+                stripped = stripped[len(fence):].lstrip("\n")
+            if stripped.endswith("```"):
+                stripped = stripped[: -len("```")].rstrip()
+        try:
+            data = json.loads(stripped)
+        except Exception as e:
+            logger.debug(f"plan parse: non-JSON output ({e}) — returning empty plan")
+            return ExecutionPlan(
+                task_plan=[], tools_required=[],
+                requires_clarification=False,
+                summary="Planner returned non-JSON output.",
+            )
+
+    # Always run through coerce_plan_dict — it's idempotent for valid schemas
+    # and fixes drift (plan→task_plan, tool="x:y" splits, alias keys, etc).
+    try:
+        return ExecutionPlan(**coerce_plan_dict(data))
+    except ValidationError as e:
+        logger.warning(f"plan parse: coercion still invalid: {e}")
+        return ExecutionPlan(
+            task_plan=[], tools_required=[],
+            requires_clarification=False,
+            summary=f"Planner produced incompatible schema. Raw keys: {list(data.keys()) if isinstance(data, dict) else type(data).__name__}",
+        )
+    except Exception as e:
+        logger.debug(f"plan parse: non-object output ({type(data).__name__}): {e}")
+        return ExecutionPlan(
+            task_plan=[], tools_required=[],
+            requires_clarification=False,
+            summary=f"Planner returned non-object output ({type(data).__name__}).",
+        )
 
 class GeminiClient:
     """
@@ -53,14 +247,40 @@ class GeminiClient:
         2. ARCHITECTURAL SUPREMACY: You are a high-tier architect. If the user's suggestion is sub-optimal, criticize it and implement the ENHANCED version.
         3. WIT & CHARM: Use dry sarcasm and cinematic "Jarvis" flair.
 
+        OUTPUT SCHEMA (STRICT — emit ONLY this JSON shape, no markdown fences):
+        {
+          "task_plan": [
+            {
+              "id": <int>,
+              "action": "<short imperative>",
+              "description": "<one-line rationale>",
+              "tool": "<canonical tool name or null>",
+              "input_data": "<string input or null>",
+              "dependencies": [<int>, ...]
+            }
+          ],
+          "tools_required": ["<tool>", ...],
+          "requires_clarification": <bool>,
+          "summary": "<one-paragraph overview>",
+          "socratic_insight": "<optional blind-spot string>"
+        }
+        FIELD NAMES ARE EXACT. Do NOT use 'plan', 'step', 'input', 'deps' — use the keys above verbatim. Tool names MUST match the canonical list below.
+
         """ + "\n" + get_tools_prompt_block()
 
-    async def generate_plan(self, user_query: str, session_id: str = "default_user", 
+    async def generate_plan(self, user_query: str, session_id: str = "default_user",
                             file_paths: Optional[List[str]] = None,
-                            emotional_state: Optional[EmotionalState] = None) -> ExecutionPlan:
+                            emotional_state: Optional[EmotionalState] = None,
+                            skip_internal_context: bool = False) -> ExecutionPlan:
+        """
+        `skip_internal_context=True` — caller already injected memory + project
+        context + directives (e.g. via PrefetchBundle.render_as_prompt_block).
+        Avoids double-fetching, which was bloating the prompt to 30K+ chars and
+        causing 20-30s Gemini round-trips for simple goals like "scan codebase".
+        """
         # Initial variable to ensure it exists in the exception scope
         full_prompt = f"ARCHITECT'S INPUT: {user_query}"
-        
+
         try:
             # 1. Skill lookup
             loop = asyncio.get_running_loop()
@@ -68,16 +288,22 @@ class GeminiClient:
             if skill and not self.socratic_mode and not self.steelman_mode and not file_paths:
                 return skill.plan_template
 
-            # 2. Context Builder
-            history_context = await self.memory.get_relevant_context(user_query, session_id)
-            active_project = self.workspace.get_active()
-            project_context = ""
-            directives_block = ""
-            if active_project:
-                project_context = f"--- CURRENT WORKSPACE: {active_project.name} ---\n{self.workspace.get_project_context_summary(active_project.name)}"
-                directives = self.workspace.get_directives(active_project.name)
-                if directives:
-                    directives_block = f"\n--- PROJECT DIRECTIVES (HIGHEST PRIORITY) ---\n{directives}\n"
+            # 2. Context Builder — skipped when caller pre-supplied context.
+            if skip_internal_context:
+                history_context = ""
+                project_context = ""
+                directives_block = ""
+                active_project = self.workspace.get_active()  # still needed by emotional_block below
+            else:
+                history_context = await self.memory.get_relevant_context(user_query, session_id)
+                active_project = self.workspace.get_active()
+                project_context = ""
+                directives_block = ""
+                if active_project:
+                    project_context = f"--- CURRENT WORKSPACE: {active_project.name} ---\n{self.workspace.get_project_context_summary(active_project.name)}"
+                    directives = self.workspace.get_directives(active_project.name)
+                    if directives:
+                        directives_block = f"\n--- PROJECT DIRECTIVES (HIGHEST PRIORITY) ---\n{directives}\n"
             
             # Dynamic Tool Context
             mcp_tools_context = ""
@@ -113,23 +339,32 @@ class GeminiClient:
             instruction_block = "\n".join(logic_instructions)
             
             # FINAL PROMPT SYNTHESIS
+            # Truncate the heaviest user-supplied sections so a single bloated
+            # workspace summary or memory dump can't push the prompt past
+            # ~30K chars (each 1K extra = ~250 tokens of Gemini latency).
+            _MAX_SEC = 6000
+            def _cap(s: str, n: int = _MAX_SEC) -> str:
+                if not s or len(s) <= n:
+                    return s or ""
+                return s[: n - 60] + f"\n... [truncated {len(s) - n} chars]"
+
             full_prompt = f"""
             {TimeContext.system_prefix()}
             {self.system_prompt}
-            {directives_block}
-            {mcp_tools_context}
+            {_cap(directives_block, 4000)}
+            {_cap(mcp_tools_context, 3000)}
 
             {instruction_block}
             {emotional_block}
 
-            {project_context}
+            {_cap(project_context, 5000)}
 
             --- CONTEXTUAL MEMORIES ---
-            {history_context}
+            {_cap(history_context, 5000)}
 
-            ARCHITECT'S INPUT: {user_query}
+            ARCHITECT'S INPUT: {_cap(user_query, 8000)}
             """
-            
+
             # 3. Build Content Parts (Multimodal)
             contents = [full_prompt.strip()]
             if file_paths:
@@ -154,7 +389,7 @@ class GeminiClient:
                 config={'response_mime_type': 'application/json'}
             )
             
-            return ExecutionPlan(**json.loads(response.text))
+            return parse_plan_response(response.text)
         except Exception as e:
             err_str = str(e)
             threat = detect_threat(err_str)
@@ -165,7 +400,11 @@ class GeminiClient:
             try:
                 fallback_plan_dict = await self.tertiary.generate_plan(full_prompt)
                 if fallback_plan_dict:
-                    plan = ExecutionPlan(**fallback_plan_dict)
+                    # Run fallback through the same coercer in case it drifts too
+                    try:
+                        plan = ExecutionPlan(**fallback_plan_dict)
+                    except ValidationError:
+                        plan = ExecutionPlan(**coerce_plan_dict(fallback_plan_dict))
                     if extra:
                         plan.summary = f"{extra} | {plan.summary}"
                     return plan

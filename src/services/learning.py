@@ -38,11 +38,14 @@ class FailureLogger:
 class SkillManager:
     """
     Manages the 'apex_skills' collection in ChromaDB.
+    Reuses the singleton sentence-transformer EF from memory.py to avoid
+    loading the ~80MB model twice on boot.
     """
     def __init__(self):
+        from src.services.memory import _get_shared_ef
         path = os.getenv("CHROMA_PATH", "./data/chroma")
         self.client = chromadb.PersistentClient(path=path)
-        self.ef = embedding_functions.DefaultEmbeddingFunction()
+        self.ef = _get_shared_ef()
         self.collection = self.client.get_or_create_collection(
             name="apex_skills",
             embedding_function=self.ef

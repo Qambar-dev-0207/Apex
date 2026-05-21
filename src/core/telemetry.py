@@ -70,3 +70,12 @@ class SpendTracker:
         result = cursor.fetchone()[0]
         conn.close()
         return result if result else 0.0
+
+    def daily_call_count(self) -> int:
+        today = datetime.now().strftime('%Y-%m-%d')
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM spend_logs WHERE timestamp LIKE ?", (f"{today}%",))
+        result = cursor.fetchone()[0]
+        conn.close()
+        return int(result or 0)

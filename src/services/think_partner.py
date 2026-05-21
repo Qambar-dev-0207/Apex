@@ -164,6 +164,9 @@ class ThinkPartner:
         self.deep_model_id = deep_model_id
         self.fast_model_id = fast_model_id
         self._or_key = os.getenv("OPENROUTER_API_KEY")
+        self._intent_cache: Dict[str, Dict[str, Any]] = {}
+        self._intent_cache_order: list = []
+        self._intent_cache_max = 64
 
     def _log(self, msg: str, level: str = "info"):
         if not self.console:
@@ -560,6 +563,9 @@ NOT a comprehensive textbook chapter.
         Decompose a vague/multi-goal prompt into a structured task graph.
         Used by the router as a smarter pre-classifier.
         """
+        cache_key = (prompt.strip().lower() + "|" + context.strip().lower())[:400]
+        if cache_key in self._intent_cache:
+            return dict(self._intent_cache[cache_key])
         sys_prompt = f"""
 You are APEX's intent decomposer. Convert the user prompt into structured
 intent + actionable sub-tasks.
@@ -599,6 +605,12 @@ Rules:
         if not raw:
             return safe_default
         try:
-            return {"mode": "extract_intent", **json.loads(raw)}
+            result = {"mode": "extract_intent", **json.loads(raw)}
+            self._intent_cache[cache_key] = result
+            self._intent_cache_order.append(cache_key)
+            if len(self._intent_cache_order) > self._intent_cache_max:
+                old = self._intent_cache_order.pop(0)
+                self._intent_cache.pop(old, None)
+            return result
         except Exception:
             return safe_default

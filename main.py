@@ -7,6 +7,7 @@ import sys
 import re
 import pyfiglet
 from pathlib import Path
+from typing import Any, Dict, Optional
 from rich.console import Console, Group
 from rich.panel import Panel
 from rich.prompt import Prompt, Confirm
@@ -46,6 +47,7 @@ from src.services.think_partner import ThinkPartner, detect_think_mode
 from src.services.swarm import Swarm
 from src.core.time_context import TimeContext
 from src.tools.auto_selector import AutoToolSelector, regex_match as tool_regex_match
+from src.core.reflex import PrefetchBundle
 from src.core.hooks import HookManager
 from src.core.harness import AgentHarness
 from src.services.genius_mode import GeniusMode
@@ -55,6 +57,7 @@ from src.core.animations import (
     pulse_banner, type_text, progress_trail, sparkle_panel,
     thinking_orb, matrix_rain, neural_pulse,
     thinking_cascade, response_reveal, stream_panel,
+    status_ticker, decrypt_reveal_banner,
 )
 
 
@@ -65,6 +68,9 @@ SLASH_HELP = """\
   /help                    Show this menu
   /now                     Show current date, time, weekday
   /tools                   Show registered tools + per-tool success/fail stats
+  /reflex                  Show Reflex (local router) telemetry — cache + LLM-skip rate
+  /reflex prefetch on|off  Toggle speculative prefetch (auto-disables on high waste)
+  /reflex reset            Reset Reflex counters + cache
   /clear                   Clear console
   /clear-session           Wipe current session memory
   /clear-all               Wipe all memories (requires confirm)
@@ -90,6 +96,11 @@ SLASH_HELP = """\
   /genius                  Toggle Genius multi-pass reasoning (deepest mode)
   /autothink on|off        Toggle auto-routing of ambiguous prompts to ThinkPartner
   /autotool on|off         Toggle bypass-planner for single-tool prompts (e.g. "git status")
+  /autoswarm on|off        Toggle auto-spawn agent swarm on high-complexity coding/architect
+
+[yellow]Auto-spawn[/yellow]
+  ^^ <goal>                Auto-spawn agent swarm (^^ <goal> [| roles] [rounds=N])
+  >> <goal>                Auto-spawn autonomous harness (>> <goal> [max=N])
 
 [yellow]Think Partner[/yellow]
   /think <prompt>          Cross-question — surface ambiguity before answering
@@ -175,43 +186,75 @@ class APEXEngine:
         self.session_id = str(uuid.uuid4())[:8]
         load_dotenv()
 
-    async def load_system(self):
+    async def load_system(self, progress=None):
+        """
+        Boot the engine. Optional `progress` is an async callable accepting a
+        single string — called between major stages so the boot UI can show
+        what's actually happening instead of a frozen single-label cascade.
+        """
+        async def _stage(label):
+            if progress is not None:
+                try:
+                    await progress(label)
+                except Exception:
+                    pass
+
         from src.tools.mcp_client import MCPClient
+
+        await _stage("Mounting MCP bridge")
         self.mcp_client = MCPClient()
+
+        await _stage("Booting Reflex scout (local router)")
         self.classifier = InputClassifier()
         self.router = SmartRouter()
+
+        await _stage("Loading memory layer (Redis + ChromaDB)")
         self.memory_manager = MemoryManager()
+
+        await _stage("Indexing workspace + skills")
         self.workspace = WorkspaceManager()
         self.knowledge_visualizer = KnowledgeVisualizer(self.memory_manager, self.workspace)
         self.learning_manager = LearningManager(self.memory_manager)
         self.learning_manager.seed_skills()
 
+        await _stage("Wiring brains — Gemini 2.5 / Groq / MiMo")
         self.gemini_client = GeminiClient(model_name="gemini-2.5-flash", mcp_client=self.mcp_client) if os.getenv("GEMINI_API_KEY") else None
         self.provisioner = AutoProvisioner(self.learning_manager.skill_manager, self.mcp_client, self.workspace)
+
+        await _stage("Spawning parallel executor + 17 tools")
         self.parallel_executor = ParallelExecutor(console=self.console, primary_brain=self.gemini_client, mcp_client=self.mcp_client)
         self.assembler = ResponseAssembler(self.console)
         self.spend_tracker = SpendTracker()
         self.retina = RetinaTool()
         self.briefing_agent = BriefingAgent(self.workspace, self.spend_tracker)
-        # forge is constructed below; will be back-attached after init
         self._briefing_forge_pending = True
         self.cognitive_core = EmotionalCore()
         self.sync_manager = SovereignSync()
         self.groq_client = GroqClient()
         self.hooks = HookManager(project_root=os.getcwd())
+
+        await _stage("Building code compass (AST symbol map)")
         self.code_compass = CodeCompass(root=os.getcwd())
+
+        await _stage("Calibrating think partner + agent swarm")
         self.think_partner = ThinkPartner(console=self.console)
-        self.auto_think_enabled = True  # auto-route ambiguous prompts to ThinkPartner
+        self.auto_think_enabled = False
+        self.economy_mode = os.getenv("APEX_ECONOMY", "1") != "0"
+        self.background_loops_enabled = os.getenv("APEX_BG_LOOPS", "0") == "1"
+        self.briefing_enabled = os.getenv("APEX_BRIEFING", "0") == "1"
+        self.daily_call_limit = int(os.getenv("APEX_DAILY_CALL_LIMIT", "40"))
         self.swarm = Swarm(console=self.console)
-        self.pending_clarification = None  # holds original prompt while waiting for user answer
+        self.pending_clarification = None
         self.tool_selector = AutoToolSelector()
-        self.auto_tool_enabled = True  # bypass full DAG planner for high-confidence single-tool intents
-        # Wire optional tool collaborators into ParallelExecutor so plan steps
-        # like vision/code_compass/swarm/etc are reachable.
+        self.auto_tool_enabled = True
+        self.auto_swarm_enabled = False
+
         self.parallel_executor.retina = self.retina
         self.parallel_executor.code_compass = self.code_compass
         self.parallel_executor.think_partner = self.think_partner
         self.parallel_executor.agent_swarm = self.swarm
+
+        await _stage("Linking knowledge forge (papers + ecosystem)")
         self.knowledge_forge = KnowledgeForge(
             hw_monitor=self.parallel_executor.hw,
             console=self.console,
@@ -220,13 +263,15 @@ class APEXEngine:
         )
         self.briefing_agent.forge = self.knowledge_forge
         self.parallel_executor.knowledge_forge = self.knowledge_forge
-        # Genius critique layer + Resume PDF tool
+
+        await _stage("Loading Genius critique + Resume tool")
         self.genius = GeniusMode(
             mimo_client=self.parallel_executor.coding_pipeline.mimo,
             groq_client=self.groq_client,
         )
         self.resume_tool = ResumeTool()
-        # Autonomous tool-calling harness wired to FULL APEX surface.
+
+        await _stage("Arming autonomous harness (35 tools)")
         self.harness = AgentHarness(
             console=self.console,
             fs=self.parallel_executor.fs,
@@ -242,8 +287,10 @@ class APEXEngine:
             think_partner=self.think_partner,
             workspace=self.workspace,
             project_root=os.getcwd(),
-            max_steps=30,
+            max_steps=10,
         )
+
+        await _stage("Priming self-evolver")
         self.self_evolver = SelfEvolver(
             workspace=self.workspace,
             learning_manager=self.learning_manager,
@@ -253,11 +300,121 @@ class APEXEngine:
             forge=self.knowledge_forge,
         )
 
+        await _stage("Systems online")
         self.ready = True
+
+    async def warmup_background(self):
+        """
+        Pre-warm slow lazy paths so the FIRST user prompt doesn't stall:
+          - sentence-transformer embedding model (3-5s cold load)
+          - Reflex intent-prototype vectors
+          - CodeCompass AST index (first compass query builds it otherwise)
+        Run as background task — never blocks the REPL.
+        """
+        try:
+            await asyncio.to_thread(self.classifier.reflex._build_intent_vectors)
+        except Exception:
+            pass
+        try:
+            if not self.code_compass.index:
+                await asyncio.to_thread(self.code_compass.build)
+        except Exception:
+            pass
 
 
 def clear_console():
     os.system('cls' if os.name == 'nt' else 'clear')
+
+
+# ── auto-spawn dispatch (shared by prefix / keyword / complexity gates) ──────
+
+async def dispatch_swarm(engine, console, goal: str, rounds: int = 1,
+                         roster=None, trigger: str = "manual") -> Dict[str, Any]:
+    """
+    Run engine.swarm and render the same transcript+synthesis the /swarm
+    slash uses. Returns the underlying swarm result dict.
+    """
+    if not goal.strip():
+        console.print("[red]Empty swarm goal.[/red]")
+        return {"ok": False, "error": "empty goal"}
+    console.print(f"[dim bright_blue][auto-swarm ({trigger}) → '{goal[:60]}'][/dim bright_blue]")
+    res = await thinking_cascade(
+        engine.swarm.run(goal, rounds=rounds, roster=roster),
+        phases=["Spawning agents", "Running specialist round", "Merging outputs", "Synthesizing"],
+        console=console,
+        style="bright_blue",
+    )
+    if not res.get("ok"):
+        console.print(f"[red]Swarm failed: {res.get('error')}[/red]")
+        return res
+    for post in res["transcript"]:
+        console.print(Panel(
+            Markdown(post["content"][:2000]),
+            title=f"{post['role'].upper()} — {post['agent']}",
+            border_style="cyan",
+        ))
+    console.print(Panel(
+        Markdown(res["artifact"]),
+        title=f"SWARM SYNTHESIS — roster: {', '.join(res['roster'])}",
+        border_style="bright_blue",
+    ))
+    await engine.memory_manager.store_interaction(
+        engine.session_id, f"[auto-swarm:{trigger}] {goal}", res["artifact"]
+    )
+    return res
+
+
+async def dispatch_harness(engine, console, goal: str,
+                           max_steps=None, trigger: str = "manual") -> Dict[str, Any]:
+    """Run engine.harness and render its result panel."""
+    if not goal.strip():
+        console.print("[red]Empty harness goal.[/red]")
+        return {"success": False, "error": "empty goal"}
+    if max_steps is not None:
+        engine.harness.max_steps = max_steps
+    console.print(f"[dim bright_magenta][auto-harness ({trigger}) → '{goal[:60]}'][/dim bright_magenta]")
+    result = await engine.harness.run(goal)
+    if result.get("success"):
+        summary = result.get("summary", "(no summary)")
+        touched = result.get("touched_files", []) or []
+        body = f"[bold green]✓ DONE[/bold green]\n\n{summary}"
+        if touched:
+            body += f"\n\n[dim]Touched {len(touched)} file(s):[/dim]\n" + "\n".join(f"  • {p}" for p in touched[:20])
+            if result.get("snapshot_dir"):
+                body += f"\n\n[dim]Snapshot:[/dim] {result['snapshot_dir']}  ([cyan]/harness rollback[/cyan] to revert)"
+        console.print(Panel(body, title="HARNESS COMPLETE", border_style="green"))
+    else:
+        console.print(Panel(
+            f"[red]{result.get('error','harness failed')}[/red]",
+            title="HARNESS FAILED", border_style="red",
+        ))
+    await engine.memory_manager.store_interaction(
+        engine.session_id, f"[auto-harness:{trigger}] {goal}", result.get("summary", str(result))[:2000]
+    )
+    return result
+
+
+def _parse_swarm_args(s: str):
+    """
+    Shared parser for swarm goal strings. Accepts:
+      "goal text"
+      "goal text | role1,role2"
+      "goal text rounds=N"
+      "goal text | role1,role2 rounds=N"
+    Returns (goal, rounds, roster_list_or_None).
+    """
+    rounds = 1
+    m = re.search(r"\brounds=(\d+)", s)
+    if m:
+        rounds = int(m.group(1))
+        s = re.sub(r"\brounds=\d+", "", s).strip()
+    roster = None
+    if "|" in s:
+        goal, roster_str = (p.strip() for p in s.split("|", 1))
+        roster = [r.strip().lower() for r in roster_str.split(",") if r.strip()]
+    else:
+        goal = s.strip()
+    return goal, rounds, roster
 
 
 def _gradient(text: str, colors=("bright_cyan", "cyan", "magenta", "bright_magenta")) -> Text:
@@ -273,14 +430,10 @@ def _gradient(text: str, colors=("bright_cyan", "cyan", "magenta", "bright_magen
 
 async def boot_sequence(console: Console):
     clear_console()
-    # Matrix rain intro
+    # Cinematic decrypt-reveal — wordmark resolves column-by-column from
+    # glitch chars into final palette. Replaces the rainbow pulse.
     try:
-        matrix_rain(console, duration=0.8)
-    except Exception:
-        pass
-    # Animated pulsing wordmark
-    try:
-        pulse_banner("APEX", console=console, cycles=2, fps=16)
+        decrypt_reveal_banner("APEX", console=console)
     except Exception:
         title = pyfiglet.figlet_format("APEX", font="slant")
         console.print(Align.center(_gradient(title)))
@@ -290,11 +443,6 @@ async def boot_sequence(console: Console):
     )
     console.print(Align.center(tagline))
     console.print()
-    # Neural network visualization showing model topology
-    try:
-        neural_pulse(console, duration=1.4)
-    except Exception:
-        pass
     badges = Text()
     badges.append("  Gemini 2.5  ", style="black on cyan")
     badges.append("  Groq Llama  ", style="black on magenta")
@@ -350,6 +498,9 @@ async def auto_load_mcp(engine):
 async def cmd_init(engine):
     """
     Generates APEX.md (CLAUDE.md equivalent) for the active project.
+    Auto-detects stack (Python/Node/etc.), counts files by extension,
+    surfaces top-level dirs, and includes the full file tree in a collapsed
+    section so the directive file is genuinely useful instead of a stub.
     """
     active = engine.workspace.get_active()
     if not active:
@@ -361,31 +512,116 @@ async def cmd_init(engine):
         if not Confirm.ask(f"[yellow]APEX.md exists. Overwrite?[/yellow]"):
             return
 
-    file_summary = "\n".join(active.file_tree[:50])
+    root = active.root_dir
+    tree = active.file_tree or []
+
+    # ── stack detection ─────────────────────────────────────────────────────
+    stack_lines: list[str] = []
+    def _check(rel: str, label: str, extra: str = ""):
+        p = os.path.join(root, rel)
+        if os.path.exists(p):
+            try:
+                snippet = ""
+                if rel.endswith((".txt", ".toml", ".json", ".cfg", ".yaml", ".yml")):
+                    with open(p, "r", encoding="utf-8", errors="ignore") as f:
+                        snippet = f.read(400).strip().splitlines()[0:6]
+                        snippet = " | ".join(s.strip() for s in snippet if s.strip())[:160]
+                stack_lines.append(f"- **{label}** (`{rel}`){' — ' + snippet if snippet else ''}{extra}")
+            except Exception:
+                stack_lines.append(f"- **{label}** (`{rel}`)")
+
+    _check("requirements.txt", "Python")
+    _check("pyproject.toml", "Python (PEP 621)")
+    _check("setup.py", "Python (setuptools)")
+    _check("package.json", "Node / JavaScript")
+    _check("Cargo.toml", "Rust")
+    _check("go.mod", "Go")
+    _check("Gemfile", "Ruby")
+    _check("composer.json", "PHP")
+    _check("pom.xml", "Java (Maven)")
+    _check("build.gradle", "Java/Kotlin (Gradle)")
+    _check("Dockerfile", "Container", extra=" — ships in Docker")
+    _check(".github/workflows", "GitHub Actions CI")
+    if not stack_lines:
+        stack_lines.append("_(no manifest file detected — single-language repo)_")
+
+    # ── file-type counts ────────────────────────────────────────────────────
+    ext_counts: dict[str, int] = {}
+    for f in tree:
+        ext = os.path.splitext(f)[1].lower() or "(none)"
+        ext_counts[ext] = ext_counts.get(ext, 0) + 1
+    top_exts = sorted(ext_counts.items(), key=lambda kv: -kv[1])[:8]
+    ext_table = "\n".join(f"| `{e}` | {c} |" for e, c in top_exts)
+
+    # ── top-level dirs ──────────────────────────────────────────────────────
+    top_dirs: dict[str, int] = {}
+    for f in tree:
+        parts = f.replace("\\", "/").split("/", 1)
+        if len(parts) == 2:
+            top_dirs[parts[0]] = top_dirs.get(parts[0], 0) + 1
+    top_dir_lines = "\n".join(
+        f"- `{d}/` — {n} files" for d, n in sorted(top_dirs.items(), key=lambda kv: -kv[1])[:12]
+    ) or "_(flat repo — all files at root)_"
+
+    # ── notable anchor files ────────────────────────────────────────────────
+    anchors = []
+    for a in ("README.md", "CLAUDE.md", "architecture.md", "ARCHITECTURE.md",
+              ".env.example", "docs/INDEX.md", "Makefile"):
+        if os.path.exists(os.path.join(root, a)):
+            anchors.append(f"- `{a}`")
+    anchors_block = "\n".join(anchors) or "_(none found)_"
+
+    # ── full file tree (collapsible) ────────────────────────────────────────
+    tree_block = "\n".join(tree[:500])
+    tree_overflow = f"\n... +{len(tree) - 500} more" if len(tree) > 500 else ""
+
     template = f"""# APEX Project Directives — {active.name}
 
-> Auto-generated by `/init`. Edit freely. APEX reads this on every request.
+> Auto-generated by `/init` on {TimeContext.now_human()}. Edit freely. APEX reads this on every request as highest-priority context.
+
+## Project
+- **Name:** {active.name}
+- **Root:** `{root}`
+- **Files mapped:** {len(tree)}
 
 ## Goals
-{chr(10).join(f"- {g}" for g in active.goals)}
+{chr(10).join(f"- {g}" for g in active.goals) or "- _(none — edit me)_"}
 
 ## Stack
-_(detected from file tree)_
+{chr(10).join(stack_lines)}
+
+## Top-level layout
+{top_dir_lines}
+
+## File-type breakdown
+| Extension | Count |
+|---|---|
+{ext_table}
+
+## Anchor files
+{anchors_block}
 
 ## Conventions
-- Match existing code style
-- Don't add features that weren't asked for
-- Run tests before declaring done
-
-## Files
-{file_summary}
+- Match existing code style — read 2-3 neighbor files before writing.
+- Don't add features that weren't asked for. Don't refactor unrelated code.
+- Default to no comments unless the *why* is non-obvious.
+- Run tests before declaring done. Prefer editing existing files over creating new ones.
 
 ## Notes
-_Add long-lived constraints, gotchas, and architectural decisions here._
+_Add long-lived constraints, gotchas, architectural decisions, and "do not touch" zones here._
+
+<details>
+<summary>Full file tree ({len(tree)} files)</summary>
+
+```
+{tree_block}{tree_overflow}
+```
+</details>
 """
     with open(apex_md_path, "w", encoding="utf-8") as f:
         f.write(template)
     engine.console.print(f"[bold green]✓ APEX.md generated at {apex_md_path}[/bold green]")
+    engine.console.print(f"[dim]  {len(tree)} files mapped, {len(top_exts)} ext groups, {len(stack_lines)} stack hints[/dim]")
 
 
 async def cmd_compact(engine):
@@ -680,12 +916,97 @@ async def handle_slash(engine, cmd_line: str, skills_dir: str) -> bool:
             engine.auto_tool_enabled = not engine.auto_tool_enabled
         console.print(f"[cyan]Auto-tool → {engine.auto_tool_enabled}[/cyan]")
         return True
+    if cmd == "/reflex":
+        # Sub-commands: /reflex prefetch on|off  |  /reflex reset
+        if args and args[0].lower() == "prefetch" and len(args) > 1:
+            on = args[1].lower() == "on"
+            engine.classifier.reflex.set_prefetch_enabled(on)
+            console.print(f"[bright_cyan]Reflex prefetch → {on}[/bright_cyan]")
+            return True
+        if args and args[0].lower() == "reset":
+            engine.classifier.reflex.reset_cache()
+            for k in engine.classifier.reflex.counters:
+                engine.classifier.reflex.counters[k] = 0
+            engine.classifier.reflex._recent_results.clear()
+            engine.classifier.reflex._auto_disabled = False
+            console.print("[bright_cyan]Reflex telemetry + cache reset[/bright_cyan]")
+            return True
+        try:
+            stats = engine.classifier.reflex.stats()
+            # Split into two tables — routing vs prefetch — for readability
+            r_tbl = Table(title="REFLEX — routing", border_style="bright_cyan")
+            r_tbl.add_column("Metric", style="bold")
+            r_tbl.add_column("Value")
+            routing_keys = [
+                "calls", "cache_hits", "hit_rate", "cache_size",
+                "trivial", "regex_tool", "skill_match",
+                "embed_nn", "token_nn", "llm_escalations", "llm_skip_rate",
+            ]
+            for k in routing_keys:
+                v = stats.get(k)
+                if isinstance(v, float):
+                    r_tbl.add_row(k, f"{v:.3f}")
+                else:
+                    r_tbl.add_row(k, str(v))
+            console.print(r_tbl)
+
+            p_tbl = Table(title="REFLEX — prefetch", border_style="magenta")
+            p_tbl.add_column("Metric", style="bold")
+            p_tbl.add_column("Value")
+            prefetch_keys = [
+                "prefetch_enabled", "prefetch_auto_disabled",
+                "adaptive_window_filled",
+                "prefetch_started", "prefetch_used", "prefetch_wasted",
+                "prefetch_cache_hits", "prefetch_use_rate", "prefetch_waste_rate",
+                "prefetch_bytes_saved", "prefetch_disabled_auto",
+            ]
+            for k in prefetch_keys:
+                v = stats.get(k)
+                if isinstance(v, float):
+                    p_tbl.add_row(k, f"{v:.3f}")
+                else:
+                    p_tbl.add_row(k, str(v))
+            console.print(p_tbl)
+            console.print(
+                "[dim]llm_skip_rate = inputs handled w/o Gemini classify. "
+                "prefetch_use_rate = bundle reuse vs spawn. "
+                "Auto-disable trips at 60% waste over 20 calls. "
+                "/reflex prefetch on|off · /reflex reset[/dim]"
+            )
+        except Exception as e:
+            console.print(f"[red]reflex stats unavailable: {e}[/red]")
+        return True
     if cmd == "/autothink":
         if args and args[0].lower() in ("on", "off"):
             engine.auto_think_enabled = args[0].lower() == "on"
         else:
             engine.auto_think_enabled = not engine.auto_think_enabled
         console.print(f"[bright_magenta]Auto-think → {engine.auto_think_enabled}[/bright_magenta]")
+        return True
+    if cmd == "/economy":
+        if args and args[0].lower() in ("on", "off"):
+            engine.economy_mode = args[0].lower() == "on"
+        else:
+            engine.economy_mode = not engine.economy_mode
+        console.print(f"[bold cyan]Economy mode → {engine.economy_mode}[/bold cyan] [dim](skips auto_think/cognitive/pruning/bg learning to save API quota)[/dim]")
+        return True
+    if cmd == "/full":
+        engine.economy_mode = False
+        engine.auto_think_enabled = True
+        engine.background_loops_enabled = True
+        console.print("[bold magenta]FULL mode: economy off, auto_think on, bg loops on.[/bold magenta]")
+        return True
+    if cmd == "/background":
+        if args and args[0].lower() in ("on", "off"):
+            engine.background_loops_enabled = args[0].lower() == "on"
+        else:
+            engine.background_loops_enabled = not engine.background_loops_enabled
+        console.print(f"[cyan]Background loops → {engine.background_loops_enabled}[/cyan] [dim](self_evolver + knowledge_forge, restart APEX to apply)[/dim]")
+        return True
+    if cmd == "/quota":
+        used = engine.spend_tracker.daily_call_count() if hasattr(engine.spend_tracker, "daily_call_count") else "?"
+        spend = engine.spend_tracker.get_daily_spend()
+        console.print(f"[cyan]Today: {used}/{engine.daily_call_limit} LLM calls · ${spend:.4f}[/cyan]")
         return True
     if cmd == "/think":
         if not args:
@@ -753,46 +1074,18 @@ async def handle_slash(engine, cmd_line: str, skills_dir: str) -> bool:
         if not args:
             console.print("[yellow]Usage: /swarm <goal> [| role1,role2] [rounds=N][/yellow]")
             return True
-        full = " ".join(args)
-        # parse rounds=N
-        rounds = 1
-        rounds_match = re.search(r"\brounds=(\d+)", full)
-        if rounds_match:
-            rounds = int(rounds_match.group(1))
-            full = re.sub(r"\brounds=\d+", "", full).strip()
-        # parse roster after |
-        roster = None
-        if "|" in full:
-            goal, roster_str = (s.strip() for s in full.split("|", 1))
-            roster = [r.strip().lower() for r in roster_str.split(",") if r.strip()]
+        goal, rounds, roster = _parse_swarm_args(" ".join(args))
+        await dispatch_swarm(engine, console, goal, rounds=rounds, roster=roster, trigger="slash")
+        return True
+    if cmd == "/autoswarm":
+        if args and args[0].lower() in ("on", "off"):
+            engine.auto_swarm_enabled = args[0].lower() == "on"
         else:
-            goal = full
-
-        res = await thinking_cascade(
-            engine.swarm.run(goal, rounds=rounds, roster=roster),
-            phases=["Spawning agents", "Running specialist round", "Merging outputs", "Synthesizing"],
-            console=console,
-            style="bright_blue",
+            engine.auto_swarm_enabled = not engine.auto_swarm_enabled
+        console.print(
+            f"[bright_blue]Auto-swarm → {engine.auto_swarm_enabled}[/bright_blue] "
+            f"[dim](high-complexity coding/architect intents auto-spawn swarm)[/dim]"
         )
-
-        if not res.get("ok"):
-            console.print(f"[red]Swarm failed: {res.get('error')}[/red]")
-            return True
-
-        # render transcript per agent
-        for post in res["transcript"]:
-            console.print(Panel(
-                Markdown(post["content"][:2000]),
-                title=f"{post['role'].upper()} — {post['agent']}",
-                border_style="cyan",
-            ))
-        # final synthesis
-        console.print(Panel(
-            Markdown(res["artifact"]),
-            title=f"SWARM SYNTHESIS — roster: {', '.join(res['roster'])}",
-            border_style="bright_blue",
-        ))
-        await engine.memory_manager.store_interaction(engine.session_id, f"/swarm {goal}", res["artifact"])
         return True
     if cmd == "/evolve":
         auto = bool(args) and args[0] == "auto"
@@ -1238,25 +1531,7 @@ async def handle_slash(engine, cmd_line: str, skills_dir: str) -> bool:
             except ValueError:
                 pass
         goal = " ".join(goal_tokens).strip()
-        if not goal:
-            console.print("[red]Empty goal.[/red]")
-            return True
-        engine.harness.max_steps = max_steps
-        result = await engine.harness.run(goal)
-        if result.get("success"):
-            summary = result.get("summary", "(no summary)")
-            touched = result.get("touched_files", []) or []
-            body = f"[bold green]✓ DONE[/bold green]\n\n{summary}"
-            if touched:
-                body += f"\n\n[dim]Touched {len(touched)} file(s):[/dim]\n" + "\n".join(f"  • {p}" for p in touched[:20])
-                if result.get("snapshot_dir"):
-                    body += f"\n\n[dim]Snapshot:[/dim] {result['snapshot_dir']}  ([cyan]/harness rollback[/cyan] to revert)"
-            console.print(Panel(body, title="HARNESS COMPLETE", border_style="green"))
-        else:
-            console.print(Panel(
-                f"[red]{result.get('error','harness failed')}[/red]",
-                title="HARNESS FAILED", border_style="red",
-            ))
+        await dispatch_harness(engine, console, goal, max_steps=max_steps, trigger="slash")
         return True
     if cmd == "/fetch":
         if not args:
@@ -1304,7 +1579,17 @@ async def main():
     console = engine.console
     await boot_sequence(console)
 
-    loader_task = asyncio.create_task(engine.load_system())
+    # Live boot — status_ticker reads stage labels emitted by load_system
+    # so the user sees actual progress instead of a frozen "Waking kernel" line.
+    async with status_ticker(console, style="gold1") as boot_ticker:
+        await boot_ticker.set("Cold start")
+        loader_task = asyncio.create_task(
+            engine.load_system(progress=boot_ticker.set)
+        )
+        try:
+            await loader_task
+        except Exception as e:
+            console.print(f"[red]Boot error: {e}[/red]")
 
     console.print(Panel(
         "[bold green]System Wake-up Initiated.[/bold green]\n"
@@ -1314,26 +1599,21 @@ async def main():
         border_style="bright_black", title="GREETING"
     ))
 
-    objective = Prompt.ask("\n[bold white]Objective[/bold white]")
+    # Pre-warm sentence-transformer EF + Reflex intent vectors + compass index
+    # in the background so the FIRST user prompt isn't stuck for 3-5s.
+    warmup_task = asyncio.create_task(engine.warmup_background())
+
+    # Prompt.ask is sync and would freeze the event loop, starving warmup_task.
+    # Run it in a thread so the loop keeps ticking and the warmup finishes.
+    objective = await asyncio.to_thread(
+        Prompt.ask, "\n[bold white]Objective[/bold white]"
+    )
 
     if not engine.ready:
-        try:
-            await thinking_cascade(
-                loader_task,
-                phases=[
-                    "Waking kernel",
-                    "Syncing memory layer",
-                    "Loading tool registry",
-                    "Connecting MCP servers",
-                    "Calibrating Genius layer",
-                ],
-                console=console,
-                style="gold1",
-            )
-        except Exception:
-            with Live(Spinner("dots8", text="Syncing 24 layers...", style="gold1"),
-                      refresh_per_second=10, transient=True):
-                await loader_task
+        # Should be already done by now — this is a safety net for slow systems.
+        with Live(Spinner("dots8", text="Syncing 24 layers...", style="gold1"),
+                  refresh_per_second=10, transient=True):
+            await loader_task
         try:
             progress_trail(
                 ["Boot kernel", "Memory online", "Tool registry", "MCP servers", "Genius layer ready"],
@@ -1359,6 +1639,7 @@ async def main():
 
     if existing:
         engine.workspace.set_active(existing.name)
+        active_name = existing.name
         console.print(f"[bold green]✓ ATTACHED: {existing.name}[/bold green]")
     else:
         engine.workspace.create_project(
@@ -1367,9 +1648,12 @@ async def main():
             root_dir=cwd,
             goals=["Autonomous Exploration"]
         )
+        active_name = folder_name
         console.print(f"[bold blue]⚡ NEW WORKSPACE: {folder_name}[/bold blue]")
 
-    engine.workspace.scan_local_files(folder_name)
+    # Use the ACTIVE project's actual name (not cwd basename) — they can
+    # differ when the user has renamed the project via /project.
+    engine.workspace.scan_local_files(active_name)
     active = engine.workspace.get_active()
     console.print(f"[bold green]✓ CODEBASE MAPPED: {len(active.file_tree)} files.[/bold green]")
 
@@ -1384,10 +1668,18 @@ async def main():
 
     await engine.hooks.fire("SessionStart", {"session_id": engine.session_id, "project": folder_name})
 
-    # Background self-evolution loop (idle-triggered, hardware-gated)
-    evolve_task = asyncio.create_task(engine.self_evolver.background_loop(idle_threshold=300, sleep_interval=60))
-    # Background knowledge forge loop (daily, idle-only, hardware-gated)
-    forge_task = asyncio.create_task(engine.knowledge_forge.background_loop(idle_threshold=600, sleep_interval=120))
+    # Background loops gated by APEX_BG_LOOPS env (default OFF) to save API quota.
+    if engine.background_loops_enabled:
+        # Auto-architecture improvement waits for 20 min of input silence
+        # before kicking off. Forge stays at 10 min — paper ingest is cheaper.
+        evolve_task = asyncio.create_task(engine.self_evolver.background_loop(idle_threshold=1200, sleep_interval=60))
+        forge_task = asyncio.create_task(engine.knowledge_forge.background_loop(idle_threshold=600, sleep_interval=120))
+    else:
+        async def _noop():
+            return None
+        evolve_task = asyncio.create_task(_noop())
+        forge_task = asyncio.create_task(_noop())
+        console.print("[dim cyan]Background loops disabled (economy). Enable with /background on.[/dim cyan]")
 
     if not os.getenv("GEMINI_API_KEY"):
         console.print("[yellow]⚠ GEMINI_API_KEY missing — Forge synth/applier will run in degraded heuristic mode.[/yellow]")
@@ -1404,7 +1696,8 @@ async def main():
             ))
     except Exception:
         pass
-    await check_proactive_briefing(console, engine.briefing_agent, flow_active=False)
+    if engine.briefing_enabled:
+        await check_proactive_briefing(console, engine.briefing_agent, flow_active=False)
 
     session = PromptSession(history=FileHistory(".apex_history"), auto_suggest=AutoSuggestFromHistory())
     last_msg_time = time.time()
@@ -1442,6 +1735,32 @@ async def main():
 
             velocity = 1.0 / (time.time() - last_msg_time + 0.1)
             last_msg_time = time.time()
+
+            # ^^ prefix: auto-spawn agent swarm. Syntax: ^^ <goal> [| role1,role2] [rounds=N]
+            if user_input.startswith("^^"):
+                goal_str = user_input[2:].strip()
+                if not goal_str:
+                    console.print("[yellow]Usage: ^^ <goal> [| role1,role2] [rounds=N][/yellow]")
+                    continue
+                goal, rounds, roster = _parse_swarm_args(goal_str)
+                await dispatch_swarm(engine, console, goal, rounds=rounds,
+                                     roster=roster, trigger="prefix")
+                continue
+
+            # >> prefix: auto-spawn autonomous harness. Syntax: >> <goal> [max=N]
+            if user_input.startswith(">>"):
+                goal_str = user_input[2:].strip()
+                if not goal_str:
+                    console.print("[yellow]Usage: >> <goal> [max=N][/yellow]")
+                    continue
+                max_steps = None
+                m = re.search(r"\bmax=(\d+)", goal_str)
+                if m:
+                    max_steps = int(m.group(1))
+                    goal_str = re.sub(r"\bmax=\d+", "", goal_str).strip()
+                await dispatch_harness(engine, console, goal_str,
+                                       max_steps=max_steps, trigger="prefix")
+                continue
 
             # ! prefix: direct shell passthrough (like Claude Code's ! command)
             if user_input.startswith("!"):
@@ -1512,8 +1831,8 @@ async def main():
                         "input_data": rx_pick["input_data"],
                         "dependencies": [],
                     }
-                    with Live(Spinner("dots", text=f"{rx_pick['tool']}...", style="cyan"),
-                              refresh_per_second=10, transient=True):
+                    async with status_ticker(console, style="cyan") as ticker:
+                        await ticker.set(f"Running {rx_pick['tool']}:{rx_pick['action']}")
                         result = await engine.parallel_executor.execute_step(step)
                     if result.get("success"):
                         out = str(result.get("output", ""))[:4000]
@@ -1529,6 +1848,49 @@ async def main():
                     )
                     continue
 
+            # Auto-spawn keyword gate: Reflex routes "multi-agent / autonomous"
+            # prompts directly to swarm/harness, bypassing Gemini DAG planner.
+            # Cheap — Reflex cache means this is a no-op if classify already ran.
+            if not engine.pending_clarification:
+                _kw_decision = await engine.classifier.reflex.decide(user_input)
+
+                # Casual chat gate (must run even in economy mode — same goal:
+                # no LLM fan-out). Routes small-talk directly to Groq llama-3.1
+                # with NO memory / directives / compass / project context.
+                if _kw_decision.intent == "conversational":
+                    casual_prompt = (
+                        "You are APEX, a personal AI. Respond conversationally "
+                        "to the user in 1-2 short sentences. Warm, casual, human tone. "
+                        "Do NOT mention your architecture, internals, modules, code, "
+                        "files, or settings. Just chat.\n\n"
+                        f"User: {user_input}"
+                    )
+                    response = stream_panel(
+                        engine.groq_client.stream_completion(casual_prompt),
+                        title="APEX",
+                        console=console,
+                        border_style="bright_cyan",
+                    )
+                    engine.spend_tracker.log_interaction(
+                        session_id=engine.session_id,
+                        model=engine.groq_client.model,
+                        tokens_in=len(casual_prompt) // 4,
+                        tokens_out=len(response) // 4,
+                        compute_sec=time.time() - last_msg_time,
+                    )
+                    await engine.memory_manager.store_interaction(
+                        engine.session_id, user_input, response
+                    )
+                    continue
+
+                if not engine.economy_mode:
+                    if _kw_decision.intent == "swarm_goal" and _kw_decision.confidence > 0.50:
+                        await dispatch_swarm(engine, console, user_input, trigger="keyword")
+                        continue
+                    if _kw_decision.intent == "harness_goal" and _kw_decision.confidence > 0.50:
+                        await dispatch_harness(engine, console, user_input, trigger="keyword")
+                        continue
+
             # Auto-think: smart router (regex → LLM intent → ambiguity gate).
             # Routes ambiguous/architectural prompts to ThinkPartner before
             # standard plan execution. Disable with /autothink off.
@@ -1543,7 +1905,15 @@ async def main():
                 engine.pending_clarification = None
                 console.print("[dim bright_magenta][resuming with clarifications][/dim bright_magenta]")
 
-            if engine.auto_think_enabled and engine.think_partner.client:
+            # Budget gate: force economy mode after daily LLM call cap
+            try:
+                if engine.spend_tracker.daily_call_count() >= engine.daily_call_limit and not engine.economy_mode:
+                    engine.economy_mode = True
+                    console.print(f"[bold yellow]⚠ Daily call cap ({engine.daily_call_limit}) hit — economy mode forced. /full to override.[/bold yellow]")
+            except Exception:
+                pass
+
+            if engine.auto_think_enabled and engine.think_partner.client and not engine.economy_mode:
                 route = await thinking_cascade(
                     engine.think_partner.auto_route(effective_input),
                     phases=["Reading intent", "Classifying mode", "Routing"],
@@ -1588,28 +1958,126 @@ async def main():
                     await engine.memory_manager.store_interaction(engine.session_id, user_input, res.get("output", ""))
                     continue
 
-            async def _core_analysis():
-                nonlocal emotional_state, apex_state, classification, path, pruned_knowledge, valid_files
-                emotional_state = await engine.cognitive_core.analyze_user(user_input, velocity)
-                apex_state = engine.cognitive_core.synthesize_apex_state(emotional_state)
-                if engine.gemini_client:
-                    engine.gemini_client.apex_state_directive = engine.cognitive_core.style_directive(apex_state)
-                classification = await engine.classifier.classify(user_input)
+            emotional_state = apex_state = classification = path = pruned_knowledge = None
+            valid_files = []
+            prefetch_results: Dict[str, Any] = {}
+            prefetch_bundle: Optional[PrefetchBundle] = None
+
+            async with status_ticker(console, style="bright_cyan") as ticker:
+                if engine.economy_mode:
+                    await ticker.set("Heuristic classify (economy mode)")
+                    emotional_state = engine.cognitive_core.neutral_state() if hasattr(engine.cognitive_core, "neutral_state") else None
+                    apex_state = engine.cognitive_core.synthesize_apex_state(emotional_state) if emotional_state else None
+                    classification = engine.classifier._heuristic_classify(
+                        user_input,
+                        engine.classifier.skill_manager.find_matching_skill(user_input, threshold=0.05),
+                    )
+                    pruned_knowledge = ""
+                else:
+                    await ticker.set("Reading affect + velocity")
+                    emotional_state = await engine.cognitive_core.analyze_user(user_input, velocity)
+                    apex_state = engine.cognitive_core.synthesize_apex_state(emotional_state)
+                    if engine.gemini_client:
+                        engine.gemini_client.apex_state_directive = engine.cognitive_core.style_directive(apex_state)
+
+                    # Reflex scout first — sync, cheap, sets prefetch hint.
+                    await ticker.set("Reflex scout")
+                    decision = await engine.classifier.reflex.decide(user_input)
+
+                    # If Reflex's source is regex/trivial, skip Gemini classify
+                    # (deterministic, no thinking needed). Else fire prefetch +
+                    # Gemini classify in parallel.
+                    if not decision.needs_llm:
+                        await ticker.set("Reflex deterministic — skipping Gemini classify")
+                        classification = decision.to_classification()
+                    elif not decision.prefetch_hint:
+                        # No prefetch (adaptive-disabled, or intent has nothing to prewarm).
+                        await ticker.set("Gemini classify (no prefetch — adaptive gate)")
+                        classification = await engine.classifier.classify(user_input)
+                    else:
+                        # Speculative prefetch: spawn targeted local-only tasks
+                        # in parallel with Gemini's classify round-trip.
+                        active = engine.workspace.get_active()
+                        prefetch_bundle = PrefetchBundle(
+                            hints=decision.prefetch_hint,
+                            prompt=user_input,
+                            session_id=engine.session_id,
+                            memory_manager=engine.memory_manager,
+                            code_compass=engine.code_compass,
+                            workspace=engine.workspace,
+                            skill_manager=engine.classifier.skill_manager,
+                            active_project_name=active.name if active else None,
+                            reflex=engine.classifier.reflex,
+                        ).start()
+
+                        await ticker.set(
+                            f"Prefetching {','.join(decision.prefetch_hint)} + Gemini classify in parallel"
+                        )
+                        classify_task = asyncio.create_task(
+                            engine.classifier.classify(user_input)
+                        )
+                        prefetch_results, classification = await asyncio.gather(
+                            prefetch_bundle.await_all(timeout=3.0),
+                            classify_task,
+                        )
+
+                    # Skip costly knowledge pruning when Reflex says memory is not needed.
+                    _reflex_meta = classification.get("_reflex") or {}
+                    if _reflex_meta.get("requires_memory", True):
+                        # If prefetch already pulled memory, reuse it instead of pruning again.
+                        if prefetch_results.get("memory"):
+                            pruned_knowledge = prefetch_results["memory"]
+                        else:
+                            await ticker.set("Pruning knowledge graph")
+                            pruned_knowledge = await engine.knowledge_visualizer.get_pruned_context(user_input)
+                    else:
+                        pruned_knowledge = ""
+
+                await ticker.set("Selecting execution path")
                 path = engine.router.route(classification)
-                pruned_knowledge = await engine.knowledge_visualizer.get_pruned_context(user_input)
+
+                # Decide whether the bundle ends up consumed downstream:
+                #   fast_path + memory-bearing intent → memory reused (used)
+                #   thinking_path → compass + memory reused (used)
+                #   path mismatch with reflex's predicted family → wasted, cancel
+                if prefetch_bundle is not None:
+                    reflex_path = (classification.get("_reflex") or {}).get("path", "")
+                    mismatch = (
+                        path == "fast_path"
+                        and reflex_path.startswith("think_partner:")
+                    )
+                    if mismatch:
+                        prefetch_bundle.cancel()
+                        prefetch_bundle.mark_wasted()
+                        prefetch_results = {}
+                    else:
+                        prefetch_bundle.mark_used(bytes_saved=sum(
+                            len(v) if isinstance(v, str) else 0
+                            for v in (prefetch_results or {}).values()
+                        ))
+
                 file_matches = re.findall(r"[\w\.\-/\\]+\.(?:pdf|png|jpg|jpeg|webp|md|py|txt|json)", user_input)
                 valid_files = [f for f in file_matches if os.path.exists(f)]
                 if classification.get('requires_vision') and not any(f.endswith(('.png', '.jpg', '.jpeg')) for f in valid_files):
+                    await ticker.set("Capturing screen for vision")
                     valid_files.append(engine.retina.capture_screen())
 
-            emotional_state = apex_state = classification = path = pruned_knowledge = None
-            valid_files = []
-            await thinking_cascade(
-                _core_analysis(),
-                phases=["Reading context", "Classifying intent", "Selecting path"],
-                console=console,
-                style="white",
-            )
+            # Auto-spawn complexity gate: high-complexity coding/architect/skill
+            # intents fire a swarm INSTEAD of the standard Gemini DAG plan.
+            # Opt-in via /autoswarm on.
+            if (
+                engine.auto_swarm_enabled
+                and not engine.pending_clarification
+                and (classification or {}).get("complexity") == "high"
+                and (classification or {}).get("intent") in {"coding", "architect", "skill", "skill_activation"}
+            ):
+                await dispatch_swarm(
+                    engine, console, user_input,
+                    rounds=1,
+                    roster=None,
+                    trigger=f"complexity:{(classification or {}).get('intent')}",
+                )
+                continue
 
             plan = None
             if classification.get("autonomous_skill_id"):
@@ -1620,7 +2088,13 @@ async def main():
                     plan = skill.plan_template
 
             if path == "fast_path" and not plan:
-                context = await engine.memory_manager.get_relevant_context(user_input, engine.session_id)
+                _reflex_meta = (classification or {}).get("_reflex") or {}
+                if _reflex_meta.get("requires_memory", True):
+                    async with status_ticker(console, style="bright_cyan") as _t:
+                        await _t.set("Retrieving relevant memories")
+                        context = await engine.memory_manager.get_relevant_context(user_input, engine.session_id)
+                else:
+                    context = ""
                 project_context = ""
                 if active_proj:
                     project_context = f"--- WORKSPACE: {active_proj.name} ---\n{engine.workspace.get_project_context_summary(active_proj.name)}"
@@ -1651,20 +2125,36 @@ async def main():
                     compute_sec=time.time() - last_msg_time,
                 )
                 await engine.memory_manager.store_interaction(engine.session_id, user_input, response)
-                asyncio.create_task(engine.knowledge_visualizer.extract_knowledge(user_input, response))
+                if not engine.economy_mode:
+                    asyncio.create_task(engine.knowledge_visualizer.extract_knowledge(user_input, response))
 
             elif (path == "thinking_path" or plan) and engine.gemini_client:
                 if not plan:
-                    if not engine.code_compass.index:
-                        engine.code_compass.build()
-                    compass_ctx = engine.code_compass.context_for_query(user_input, max_files=5)
+                    # Reuse prefetched compass if Reflex already pulled it,
+                    # otherwise compute it now (single-flight via build()).
+                    compass_ctx = prefetch_results.get("compass") if prefetch_results else None
+                    if not compass_ctx:
+                        if not engine.code_compass.index:
+                            engine.code_compass.build()
+                        compass_ctx = engine.code_compass.context_for_query(user_input, max_files=5)
                     compass_block = f"\n--- CODE COMPASS (compressed symbol map) ---\n{compass_ctx}\n" if compass_ctx else ""
+
+                    # Inject the entire Reflex prefetch bundle as a warm-context
+                    # block so Gemini spends tokens reasoning, not retrieving.
+                    bundle_block = PrefetchBundle.render_as_prompt_block(prefetch_results or {})
+
+                    # Tell Gemini to skip its internal memory + workspace fetch
+                    # whenever we've already supplied a prefetch bundle. Avoids
+                    # 30K+ prompt bloat that was causing 20-30s round-trips.
+                    _has_prefetch = bool(prefetch_results) or bool(pruned_knowledge)
+
                     plan = await thinking_cascade(
                         engine.gemini_client.generate_plan(
-                            f"{pruned_knowledge}\n{compass_block}\n{user_input}",
+                            f"{bundle_block}\n{pruned_knowledge}\n{compass_block}\n{user_input}",
                             engine.session_id,
                             file_paths=valid_files,
                             emotional_state=emotional_state,
+                            skip_internal_context=_has_prefetch,
                         ),
                         phases=["Mapping codebase", "Decomposing goal", "Building task DAG", "Selecting tools"],
                         console=console,
@@ -1716,8 +2206,9 @@ async def main():
                         compute_sec=time.time() - t0,
                     )
                     await engine.memory_manager.store_interaction(engine.session_id, user_input, response)
-                    asyncio.create_task(engine.learning_manager.learn(engine.session_id, user_input, response, plan))
-                    asyncio.create_task(engine.knowledge_visualizer.extract_knowledge(user_input, response))
+                    if not engine.economy_mode:
+                        asyncio.create_task(engine.learning_manager.learn(engine.session_id, user_input, response, plan))
+                        asyncio.create_task(engine.knowledge_visualizer.extract_knowledge(user_input, response))
             elif path == "thinking_path" and not engine.gemini_client:
                 console.print("[yellow]Gemini offline — falling back to Groq fast-path.[/yellow]")
                 context = await engine.memory_manager.get_relevant_context(user_input, engine.session_id)

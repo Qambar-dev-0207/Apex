@@ -32,6 +32,9 @@ from src.services.memory import (  # noqa: E402
 )
 from src.core.models import MemoryEntry, SessionContext  # noqa: E402
 
+_chroma_patcher.stop()
+_ef_patcher.stop()
+
 
 # ════════════════════════════════════════════════════════════════════════════
 # RedisManager — self-healing

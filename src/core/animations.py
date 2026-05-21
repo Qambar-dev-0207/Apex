@@ -9,6 +9,7 @@ Effects:
   - neural_pulse(console, duration=1.5)        — animated neural network graph
   - thinking_orb(console, label, task)         — async spinner while a coroutine runs
   - thinking_cascade(coro, phases, console)    — multi-phase thinking display
+  - status_ticker(console)                     — live one-line ✶ doing X… (1.2s) updater
   - response_reveal(text, title, console)      — animated panel fade-in for responses
   - stream_panel(gen, title, console)          — live-updating streaming panel
   - progress_trail(steps, console, delay)      — boot checklist animation
@@ -127,6 +128,138 @@ def pulse_banner(
                 ci = (f + idx) % len(palette)
                 rendered.append(line + "\n", style=f"bold {palette[ci]}")
             live.update(Align.center(rendered))
+            time.sleep(1.0 / fps)
+
+
+# ── decrypt-reveal banner (cinematic boot wordmark) ─────────────────────────
+
+_GLITCH_CHARS = "█▓▒░╬╤╧╪╫╝╜╛┐┌╔╗▌▐▀▄■"
+
+
+def decrypt_reveal_banner(
+    title: str = "APEX",
+    console: Optional[Console] = None,
+    font: str = "ansi_shadow",
+    reveal_speed: float = 0.018,    # seconds per column of reveal
+    glitch_frames: int = 4,          # tail of garbled passes after full reveal
+    fps: int = 60,
+    final_palette: Iterable[str] = ("bright_cyan", "cyan", "magenta", "bright_magenta", "bright_cyan"),
+) -> None:
+    """
+    Cinematic boot banner: figlet wordmark resolves column-by-column from
+    glitch chars into the final colored ASCII. Then briefly shimmers and locks.
+
+    Visually distinct from pulse_banner — this looks like a system *decrypting
+    itself online* rather than a rainbow gradient.
+
+    Non-tty falls back to a single colored figlet print.
+    """
+    console = console or Console()
+    try:
+        art = pyfiglet.figlet_format(title, font=font)
+    except Exception:
+        art = pyfiglet.figlet_format(title)
+    lines = art.rstrip("\n").splitlines()
+    if not lines:
+        return
+
+    width = max(len(ln) for ln in lines)
+    height = len(lines)
+    palette = list(final_palette)
+
+    if not _is_animatable(console):
+        out = Text()
+        for idx, ln in enumerate(lines):
+            out.append(ln + "\n", style=f"bold {palette[idx % len(palette)]}")
+        console.print(Align.center(out))
+        return
+
+    rng = random.Random(0xA9EF)
+    target_grid = [list(ln.ljust(width)) for ln in lines]
+
+    def _build_frame(reveal_col: int, ghost_phase: int) -> Text:
+        out = Text()
+        for y in range(height):
+            for x in range(width):
+                tch = target_grid[y][x]
+                if x < reveal_col and tch != " ":
+                    # Settled column — render in palette color, varying per row
+                    style = f"bold {palette[(y + ghost_phase) % len(palette)]}"
+                    out.append(tch, style=style)
+                elif tch != " " and x < reveal_col + 4:
+                    # Edge of reveal wave — bright white scan beam
+                    out.append(rng.choice(_GLITCH_CHARS), style="bold bright_white")
+                elif tch != " ":
+                    # Not yet resolved — flicker glitch char in deep cyan
+                    if rng.random() < 0.85:
+                        out.append(rng.choice(_GLITCH_CHARS), style="dim cyan")
+                    else:
+                        out.append(" ", style="dim")
+                else:
+                    out.append(" ")
+            out.append("\n")
+        return out
+
+    delay = 1.0 / fps
+    with Live("", console=console, refresh_per_second=fps, transient=False) as live:
+        # Stage 1 — reveal from left to right
+        col = 0
+        ghost = 0
+        steps_per_col = max(1, int(reveal_speed * fps))
+        while col <= width:
+            live.update(Align.center(_build_frame(col, ghost)))
+            for _ in range(steps_per_col):
+                time.sleep(delay)
+            col += 1
+            ghost = (ghost + 1) % len(palette)
+
+        # Stage 2 — settled but shimmer the palette a few frames
+        for f in range(glitch_frames * 6):
+            shimmer = Text()
+            for y in range(height):
+                color = palette[(y + f) % len(palette)]
+                shimmer.append("".join(target_grid[y]) + "\n", style=f"bold {color}")
+            live.update(Align.center(shimmer))
+            time.sleep(1.0 / 24)
+
+        # Stage 3 — lock to a clean gradient and exit
+        final = Text()
+        for y in range(height):
+            color = palette[y % len(palette)]
+            final.append("".join(target_grid[y]) + "\n", style=f"bold {color}")
+        live.update(Align.center(final))
+        time.sleep(0.15)
+
+    # Spectrum bar — animated audio-meter underneath
+    _spectrum_bar(console, duration=0.7)
+
+
+def _spectrum_bar(console: Console, duration: float = 0.7, fps: int = 30,
+                  width: int = 40, height: int = 3) -> None:
+    """Quick animated bar-graph beneath the banner for cinematic effect."""
+    if not _is_animatable(console):
+        return
+    rng = random.Random()
+    end = time.time() + duration
+    bars = [rng.randint(0, height) for _ in range(width)]
+    with Live("", console=console, refresh_per_second=fps, transient=True) as live:
+        while time.time() < end:
+            # walk each bar up/down by 1 toward a new random target
+            for i in range(width):
+                tgt = rng.randint(0, height)
+                if bars[i] < tgt:
+                    bars[i] += 1
+                elif bars[i] > tgt:
+                    bars[i] -= 1
+            txt = Text()
+            glyphs = (" ", "▁", "▃", "▅", "▇")
+            for y in range(height, 0, -1):
+                line = ""
+                for b in bars:
+                    line += glyphs[min(b, len(glyphs) - 1)] if b >= y else " "
+                style = "bright_cyan" if y == 1 else ("cyan" if y == 2 else "magenta")
+                txt.append(line + "\n", style=f"bold {style}")
+            live.update(Align.center(txt))
             time.sleep(1.0 / fps)
 
 
@@ -475,3 +608,120 @@ def _render_trail(steps, state):
         out.append(f"  {marker}  ", style=f"bold {color}")
         out.append(s + "\n")
     return out
+
+
+# ── status ticker (live one-line ephemeral status) ───────────────────────────
+
+_STAR_FRAMES = ("✶", "✷", "✸", "✹", "✺", "✹", "✸", "✷")
+
+
+class StatusTicker:
+    """
+    Live one-line ephemeral status display, Claude-Code style.
+
+    Shows: `✶ <message>… (1.2s)`
+
+    Usage (async context manager):
+
+        async with status_ticker(console) as t:
+            await t.set("Adding classify + intent cache")
+            await do_thing_1()
+            await t.set("Picking best tool")
+            await do_thing_2()
+
+    The line clears on exit (transient=True). Non-tty falls back to plain
+    prints, one per `set()`.
+
+    `t.tick()` is a no-op alias kept for symmetry — the underlying Rich Live
+    refresh handles the animation frame internally.
+    """
+
+    def __init__(
+        self,
+        console: Optional[Console] = None,
+        style: str = "bright_cyan",
+        fps: int = 12,
+    ):
+        self.console = console or Console()
+        self.style = style
+        self.fps = fps
+        self._live: Optional[Live] = None
+        self._message: str = "thinking"
+        self._t_start: float = 0.0
+        self._task: Optional[asyncio.Task] = None
+        self._stop = asyncio.Event()
+        self._animatable = _is_animatable(self.console)
+
+    async def __aenter__(self):
+        self._t_start = time.time()
+        self._stop.clear()
+        if self._animatable:
+            self._live = Live(
+                self._render(),
+                console=self.console,
+                refresh_per_second=self.fps,
+                transient=True,
+            )
+            self._live.__enter__()
+            self._task = asyncio.create_task(self._spin())
+        else:
+            # Non-tty: print initial message
+            self.console.print(f"  ✶ {self._message}…")
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+        self._stop.set()
+        if self._task is not None:
+            try:
+                await self._task
+            except Exception:
+                pass
+        if self._live is not None:
+            try:
+                self._live.__exit__(exc_type, exc, tb)
+            except Exception:
+                pass
+
+    async def set(self, message: str) -> None:
+        """Swap the active status message."""
+        self._message = message
+        if self._animatable and self._live is not None:
+            self._live.update(self._render())
+        else:
+            elapsed = time.time() - self._t_start
+            self.console.print(f"  ✶ {message}…  [dim]({elapsed:.1f}s)[/dim]")
+
+    async def tick(self) -> None:
+        """No-op alias — kept for API symmetry."""
+        return None
+
+    # ── internal ─────────────────────────────────────────────────────────────
+
+    def _render(self) -> Text:
+        elapsed = time.time() - self._t_start
+        frame_idx = int(elapsed * self.fps) % len(_STAR_FRAMES)
+        star = _STAR_FRAMES[frame_idx]
+        out = Text()
+        out.append(f"  {star} ", style=f"bold {self.style}")
+        out.append(self._message, style=self.style)
+        out.append("…  ", style=self.style)
+        out.append(f"({elapsed:.1f}s)", style="dim white")
+        return out
+
+    async def _spin(self):
+        try:
+            while not self._stop.is_set():
+                if self._live is not None:
+                    self._live.update(self._render())
+                await asyncio.sleep(1.0 / self.fps)
+        except asyncio.CancelledError:
+            pass
+
+
+def status_ticker(
+    console: Optional[Console] = None,
+    style: str = "bright_cyan",
+    fps: int = 12,
+) -> StatusTicker:
+    """Factory — returns a StatusTicker async context manager."""
+    return StatusTicker(console=console, style=style, fps=fps)

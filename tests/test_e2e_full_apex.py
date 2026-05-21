@@ -174,14 +174,16 @@ async def test_harness_rejects_ambiguous_edit():
 
 @pytest.mark.asyncio
 async def test_vision_understand_media_routes_by_extension():
-    os.environ.pop("GEMINI_API_KEY", None)
-    from src.tools.vision import RetinaTool
-    r = RetinaTool()
-    assert (await r.understand_media("nope.png"))["kind"] == "image"
-    assert (await r.understand_media("nope.mp4"))["kind"] == "video"
-    assert (await r.understand_media("nope.mp3"))["kind"] == "audio"
-    res = await r.understand_media("nope.xyz")
-    assert res["kind"] == "unknown" and "unsupported" in res["output"]
+    from unittest.mock import patch
+    with patch("src.tools.vision.load_dotenv"), patch.dict(os.environ):
+        os.environ.pop("GEMINI_API_KEY", None)
+        from src.tools.vision import RetinaTool
+        r = RetinaTool()
+        assert (await r.understand_media("nope.png"))["kind"] == "image"
+        assert (await r.understand_media("nope.mp4"))["kind"] == "video"
+        assert (await r.understand_media("nope.mp3"))["kind"] == "audio"
+        res = await r.understand_media("nope.xyz")
+        assert res["kind"] == "unknown" and "unsupported" in res["output"]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -213,11 +215,13 @@ def test_resume_render_pdf_minimum(tmp_path):
 
 @pytest.mark.asyncio
 async def test_resume_offline_fallback_structure():
-    os.environ.pop("GEMINI_API_KEY", None)
-    from src.tools.resume_tool import rewrite_resume
-    data = await rewrite_resume("Jane Doe — engineer")
-    for k in ("name", "feedback", "skills"):
-        assert k in data
+    from unittest.mock import patch
+    with patch("src.tools.resume_tool.load_dotenv"), patch.dict(os.environ):
+        os.environ.pop("GEMINI_API_KEY", None)
+        from src.tools.resume_tool import rewrite_resume
+        data = await rewrite_resume("Jane Doe — engineer")
+        for k in ("name", "feedback", "skills"):
+            assert k in data
 
 
 # ─────────────────────────────────────────────────────────────────────────────

@@ -22,11 +22,18 @@ from src.tools.filesystem import FilesystemAgent
 from src.tools.shell import ShellAgent
 from src.tools.mcp_client import MCPClient
 from src.tools.registry import resolve_tool_name, ToolTelemetry, get_spec
+from src.core.reflex import Reflex
 from dotenv import load_dotenv
 
 class InputClassifier:
     """
-    Upgraded to Gemini 2.5 Flash Lite for autonomous routing.
+    Two-tier classifier:
+      1. Reflex (local) — deterministic + embedding NN. Free, sub-100ms.
+      2. Gemini 2.5 Flash Lite — only when Reflex confidence is low.
+
+    Reflex handles ~80% of inputs without an LLM call. Exposes the decision
+    on the returned dict under "_reflex" so main.py can short-circuit memory
+    retrieval and other costly steps for trivial intents.
     """
     def __init__(self, model_name: str = "gemini-2.5-flash-lite"):
         load_dotenv()
@@ -34,16 +41,46 @@ class InputClassifier:
         self.client = genai.Client(api_key=api_key) if api_key else None
         self.model_id = model_name
         self.skill_manager = SkillManager()
+        self.reflex = Reflex(skill_manager=self.skill_manager)
+        self._cache: Dict[str, Dict[str, Any]] = {}
+        self._cache_order: list = []
+        self._cache_max = 64
+
+    def _cache_get(self, key: str):
+        return self._cache.get(key)
+
+    def _cache_put(self, key: str, val: Dict[str, Any]):
+        if key in self._cache:
+            return
+        self._cache[key] = val
+        self._cache_order.append(key)
+        if len(self._cache_order) > self._cache_max:
+            old = self._cache_order.pop(0)
+            self._cache.pop(old, None)
 
     async def classify(self, text: str) -> Dict[str, Any]:
+        cache_key = (text.strip().lower())[:300]
+        cached = self._cache_get(cache_key)
+        if cached:
+            return dict(cached)
+
+        # Stage 1 — Reflex (local). Free, fast, handles the bulk of inputs.
+        decision = await self.reflex.decide(text)
+        if not decision.needs_llm:
+            classification = decision.to_classification()
+            self._cache_put(cache_key, classification)
+            return classification
+
+        # Stage 2 — LLM escalation only when Reflex confidence is low.
         skill = self.skill_manager.find_matching_skill(text, threshold=0.05)
-        if not self.client: return self._heuristic_classify(text, skill)
-        
+        if not self.client:
+            return self._heuristic_classify(text, skill)
+
         prompt = f"""
-        Classify for APEX OMEGA. 
+        Classify for APEX OMEGA.
         INPUT: {text}
         SKILL_MATCH: {skill.name if skill else 'None'}
-        
+
         Output MUST be valid JSON with these keys:
         - intent: (chat, coding, search, git, exploration, skill_activation)
         - complexity: (low, medium, high)
@@ -54,31 +91,51 @@ class InputClassifier:
         """
         try:
             res = self.client.models.generate_content(
-                model=self.model_id, 
-                contents=prompt, 
+                model=self.model_id,
+                contents=prompt,
                 config={'response_mime_type': 'application/json'}
             )
             classification = json.loads(res.text)
             if skill and not classification.get('autonomous_skill_id'):
                 classification['autonomous_skill_id'] = skill.name
+            # Tag with Reflex's local view too — main.py uses it for memory gating.
+            classification.setdefault("_reflex", decision.to_classification()["_reflex"])
+            self._cache_put(cache_key, classification)
             return classification
-        except: 
+        except Exception:
             return self._heuristic_classify(text, skill)
 
     def _heuristic_classify(self, text: str, matched_skill: Optional[Skill] = None):
         t = text.lower()
         intent = "chat"
         vision = any(k in t for k in ["see", "screen", "look", "this"])
+        complexity = "high" if (len(text) > 80 or any(w in t for w in ["complex", "optimize", "rewrite", "scrape", "refactor"])) else "low"
         if matched_skill: intent = "skill_activation"
         elif "git" in t: intent = "git"
         elif any(k in t for k in ["search", "grep", "find in file"]): intent = "search"
         elif any(k in t for k in ["write", "code", "create file", "delete"]): intent = "coding"
         elif any(k in t for k in ["scan", "explore", "list", "what is", "tell me about"]): 
             return {"intent": "exploration", "complexity": "high", "priority": 2, "requires_tools": True, "requires_vision": vision, "autonomous_skill_id": matched_skill.name if matched_skill else None}
-        return {"intent": intent, "complexity": "low", "priority": 3, "requires_tools": intent != "chat", "requires_vision": vision, "autonomous_skill_id": matched_skill.name if matched_skill else None}
+        return {"intent": intent, "complexity": complexity, "priority": 3, "requires_tools": intent != "chat", "requires_vision": vision, "autonomous_skill_id": matched_skill.name if matched_skill else None}
 
 class SmartRouter:
     def route(self, classification: Dict[str, Any]) -> str:
+        # Reflex path takes precedence ONLY when it's high-confidence (needs_llm is False).
+        reflex = classification.get("_reflex") or {}
+        rpath = reflex.get("path")
+        needs_llm = reflex.get("needs_llm", False)
+        
+        if not needs_llm:
+            if rpath == "thinking_path":
+                return "thinking_path"
+            if rpath in ("trivial", "tool", "fast_path", "swarm", "harness"):
+                # swarm / harness paths are handled by main.py's auto-spawn gate
+                # BEFORE route() is called; if we end up here, fall through safely.
+                return "fast_path"
+            if isinstance(rpath, str) and rpath.startswith("think_partner:"):
+                return "thinking_path"
+        
+        # If Reflex was low-confidence, the LLM classification determines the path.
         if classification.get("intent") == "skill_activation": return "thinking_path"
         if classification.get("requires_tools"): return "thinking_path"
         # Use .get() to prevent KeyError if model omits 'complexity'
@@ -167,14 +224,38 @@ class ParallelExecutor:
                     elif "checkout" in step['action']: res.update(self.git.checkout(step['input_data']))
                     else: res.update(self.git.status())
                 elif step['tool'] == "python_executor":
-                    if any(k in step['action'].lower() for k in ["write", "coding"]):
+                    if any(k in step['action'].lower() for k in ["write", "coding", "implement", "create"]):
                         pres = await self.coding_pipeline.execute_task(step['input_data'])
-                        res.update({"success": pres["validation"].success, "output": pres["code"]})
+                        res.update({
+                            "success": pres["validation"].success,
+                            "output": f"Code Generated and Validated:\n{pres['code']}"
+                        })
                     else:
                         res.update(self.sandbox.execute(step['input_data']))
                 elif step['tool'] == "filesystem":
                     active = self.workspace.get_active()
                     root = active.root_dir if active else "."
+
+                    def _coerce_path(raw) -> str:
+                        """
+                        Accept either bare path string or JSON {"path": "..."}.
+                        Gemini occasionally emits the latter for read/list/delete/glob.
+                        """
+                        if raw is None:
+                            return ""
+                        if isinstance(raw, str):
+                            s = raw.strip()
+                            if s.startswith("{") and s.endswith("}"):
+                                try:
+                                    obj = json.loads(s)
+                                    if isinstance(obj, dict):
+                                        return str(obj.get("path") or obj.get("pattern") or obj.get("file") or "")
+                                except Exception:
+                                    pass
+                            return s
+                        if isinstance(raw, dict):
+                            return str(raw.get("path") or raw.get("pattern") or raw.get("file") or "")
+                        return str(raw)
 
                     if "write" in step['action']:
                         try:
@@ -185,17 +266,17 @@ class ParallelExecutor:
                         target_path = os.path.join(root, data['path'])
                         res.update(await self.fs.write_file(target_path, data['content']))
                     elif "read" in step['action']:
-                        target_path = os.path.join(root, step['input_data'])
+                        target_path = os.path.join(root, _coerce_path(step['input_data']))
                         res.update(await self.fs.read_file(target_path))
                     elif "search" in step['action'] or "grep" in step['action']:
-                        res.update(await self.fs.search_grep(step['input_data'], dir_path=root))
+                        res.update(await self.fs.search_grep(_coerce_path(step['input_data']), dir_path=root))
                     elif "glob" in step['action'] or "find" in step['action']:
-                        res.update(await self.fs.find_glob(step['input_data'], dir_path=root))
+                        res.update(await self.fs.find_glob(_coerce_path(step['input_data']) or "**/*", dir_path=root))
                     elif "delete" in step['action']:
-                        target_path = os.path.join(root, step['input_data'])
+                        target_path = os.path.join(root, _coerce_path(step['input_data']))
                         res.update(await self.fs.delete_file(target_path))
                     elif "list" in step['action']:
-                        target_path = os.path.join(root, step['input_data'] or ".")
+                        target_path = os.path.join(root, _coerce_path(step['input_data']) or ".")
                         res.update(await self.fs.list_dir(target_path))
                 elif step['tool'] == "shell":
                     res.update(await self.shell.execute(step['input_data']))

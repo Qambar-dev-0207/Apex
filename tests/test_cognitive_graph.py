@@ -27,7 +27,7 @@ class TestCognitiveGraph(unittest.TestCase):
         self.workspace.get_active.return_value = MagicMock(root_dir=".")
         
         # Mock Chroma search
-        self.memory_manager.chroma.search_memories = MagicMock(return_value=[
+        self.memory_manager.chroma.search_memories = AsyncMock(return_value=[
             {"content": "The APEX Engine is fast.", "id": "m1", "metadata": {}}
         ])
         
@@ -37,11 +37,23 @@ class TestCognitiveGraph(unittest.TestCase):
         self.mock_client = self.mock_genai_class.return_value
         
         self.visualizer = KnowledgeVisualizer(self.memory_manager, self.workspace)
+        # Mock _get_map_path to return isolated path
+        self.visualizer._get_map_path = MagicMock(return_value="data/test_knowledge_map.json")
         # Reset map for testing
         self.visualizer.current_map = KnowledgeMap()
 
     def tearDown(self):
         self.patcher_genai.stop()
+        if os.path.exists("data/test_knowledge_map.json"):
+            try:
+                os.remove("data/test_knowledge_map.json")
+            except:
+                pass
+        if os.path.exists("data/knowledge_graph.svg"):
+            try:
+                os.remove("data/knowledge_graph.svg")
+            except:
+                pass
 
     async def run_extraction_test(self):
         self.visualizer.current_map = KnowledgeMap() # Reset

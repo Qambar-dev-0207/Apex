@@ -126,8 +126,8 @@ class APEXSystemAudit(unittest.TestCase):
             self.spend.log_interaction("audit_sid", "gemini-2.5-flash", 100, 100)
             self.report["L11: Telemetry & Spend"] = "✅ PASS"
             
-            self.memory.cache.cache_response("Repeat Query", "Cached Answer")
-            cached = self.memory.cache.get_cached_response("Repeat Query")
+            await self.memory.cache.cache_response("Repeat Query", "Cached Answer")
+            cached = await self.memory.cache.get_cached_response("Repeat Query")
             self.assertEqual(cached, "Cached Answer")
             self.report["L12: Semantic Cache"] = "✅ PASS"
         except Exception as e: self.report["L11/L12"] = f"❌ FAIL: {e}"
