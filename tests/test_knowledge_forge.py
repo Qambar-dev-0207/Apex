@@ -880,7 +880,7 @@ class TestPipSandbox(unittest.TestCase):
     def test_run_timeout_returns_error(self):
         async def do():
             with patch("asyncio.wait_for", side_effect=asyncio.TimeoutError):
-                rc, out, err = await self.sandbox._run(["echo", "hi"], timeout=0.001)
+                rc, out, err = await self.sandbox._run([sys.executable, "-V"], timeout=0.001)
             return rc, out, err
         rc, out, err = run(do())
         self.assertEqual(rc, -1)

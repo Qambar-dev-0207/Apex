@@ -77,7 +77,11 @@ class PipSandbox:
                 stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
                 return proc.returncode, stdout.decode("utf-8", errors="ignore"), stderr.decode("utf-8", errors="ignore")
             except asyncio.TimeoutError:
-                proc.kill()
+                try:
+                    proc.kill()
+                    await proc.wait()
+                except Exception:
+                    pass
                 return -1, "", "TIMEOUT"
         except Exception as e:
             return -2, "", str(e)

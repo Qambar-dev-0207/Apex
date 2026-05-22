@@ -46,3 +46,10 @@ starlette<0.42.0
 # ── Code intel ───────────────────────────────────────────────────────────
 rapidfuzz
 tiktoken
+
+# ── Voice & System Automation (Phase 1) ──────────────────────────────────
+openwakeword
+kokoro-onnx
+pyttsx3
+uiautomation
+

@@ -35,6 +35,10 @@ class HookManager:
         "ForgeProposalAdded",   # fired when synthesizer enqueues new proposals
         "ForgeApplied",         # fired after a proposal is successfully applied
         "ForgeRolledBack",      # fired after a regression rollback
+        # Ambient Layer
+        "AmbientScreenChange",
+        "AmbientClipboardChange",
+        "AmbientFileChange",
     }
 
     def __init__(self, project_root: Optional[str] = None):

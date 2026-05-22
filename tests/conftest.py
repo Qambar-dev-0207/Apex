@@ -106,6 +106,28 @@ class FakeRedis:
     def ping(self):
         return True
 
+class FakeAsyncRedis:
+    def __init__(self, *args, **kwargs):
+        self.db = {}
+
+    async def get(self, key):
+        return self.db.get(key)
+
+    async def set(self, key, value, *args, **kwargs):
+        self.db[key] = value
+        return True
+
+    async def delete(self, *keys):
+        for k in keys:
+            self.db.pop(k, None)
+        return True
+
+    async def keys(self, pattern="*"):
+        return [k for k in self.db.keys() if fnmatch.fnmatch(k, pattern)]
+
+    async def ping(self):
+        return True
+
 # Start global patches before any test runs to prevent network and disk activity
 _chroma_patcher = patch("chromadb.PersistentClient")
 _chroma_mock = _chroma_patcher.start()
@@ -152,9 +174,15 @@ _redis_patcher = patch("redis.Redis")
 _redis_mock = _redis_patcher.start()
 _redis_mock.side_effect = FakeRedis
 
+# Mock redis.asyncio.Redis to return our FakeAsyncRedis in-memory simulator
+_redis_async_patcher = patch("redis.asyncio.Redis")
+_redis_async_mock = _redis_async_patcher.start()
+_redis_async_mock.side_effect = FakeAsyncRedis
+
 @pytest.fixture(scope="session", autouse=True)
 def cleanup_global_patches():
     yield
     _chroma_patcher.stop()
     _ef_patcher.stop()
     _redis_patcher.stop()
+    _redis_async_patcher.stop()

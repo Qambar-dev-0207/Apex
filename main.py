@@ -123,6 +123,10 @@ SLASH_HELP = """\
   /harness max=N <goal>    Cap steps (default 30)
   /harness rollback        Restore touched files from last harness snapshot
 
+[yellow]Voice & Ambient[/yellow]
+  /voice [on|off|status]   Toggle or show status of hands-free Voice Layer
+  /ambient [on|off|status] Toggle or show status of Ambient Layer context
+
 [yellow]Genius Critique[/yellow]
   /genius <prompt>         Full 5-stage critique: cross-question / right / wrong / blind spots / action / wit
   /critique <prompt>       What you're getting right vs wrong (terse)
@@ -185,6 +189,10 @@ class APEXEngine:
         self.ready = False
         self.session_id = str(uuid.uuid4())[:8]
         load_dotenv()
+        self.voice_enabled = False
+        self.ambient_enabled = False
+        self.input_queue = None
+        self.loop = None
 
     async def load_system(self, progress=None):
         """
@@ -232,6 +240,19 @@ class APEXEngine:
         self.sync_manager = SovereignSync()
         self.groq_client = GroqClient()
         self.hooks = HookManager(project_root=os.getcwd())
+
+        self.loop = asyncio.get_running_loop()
+        self.input_queue = asyncio.Queue()
+
+        await _stage("Loading voice layer")
+        from src.services.voice_layer import VoiceLayer
+        self.voice = VoiceLayer(self)
+        self.voice_enabled = os.getenv("APEX_VOICE", "0") == "1"
+
+        await _stage("Loading ambient service")
+        from src.services.ambient import AmbientService
+        self.ambient = AmbientService(self)
+        self.ambient_enabled = os.getenv("APEX_AMBIENT", "0") == "1"
 
         await _stage("Building code compass (AST symbol map)")
         self.code_compass = CodeCompass(root=os.getcwd())
@@ -299,6 +320,11 @@ class APEXEngine:
             console=self.console,
             forge=self.knowledge_forge,
         )
+
+        if self.voice_enabled:
+            self.voice.start(lambda text: self.loop.call_soon_threadsafe(self.input_queue.put_nowait, text))
+        if self.ambient_enabled:
+            self.ambient.start()
 
         await _stage("Systems online")
         self.ready = True
@@ -1324,6 +1350,50 @@ async def handle_slash(engine, cmd_line: str, skills_dir: str) -> bool:
     if cmd == "/status":
         await cmd_status(engine)
         return True
+    if cmd == "/voice":
+        sub = args[0].lower() if args else "status"
+        if sub == "on":
+            if engine.voice_enabled:
+                console.print("[cyan]Voice mode is already active.[/cyan]")
+            else:
+                engine.voice_enabled = True
+                engine.voice.start(lambda text: engine.loop.call_soon_threadsafe(engine.input_queue.put_nowait, text))
+                console.print("[green]Voice systems online. Listening for 'hey apex'...[/green]")
+        elif sub == "off":
+            if not engine.voice_enabled:
+                console.print("[cyan]Voice mode is already offline.[/cyan]")
+            else:
+                engine.voice_enabled = False
+                engine.voice.stop()
+                console.print("[yellow]Voice systems offline.[/yellow]")
+        elif sub == "status":
+            status = "active" if engine.voice_enabled else "offline"
+            console.print(f"[cyan]Voice Mode: {status}[/cyan]")
+        else:
+            console.print("[red]Usage: /voice [on|off|status][/red]")
+        return True
+    if cmd == "/ambient":
+        sub = args[0].lower() if args else "status"
+        if sub == "on":
+            if engine.ambient_enabled:
+                console.print("[cyan]Ambient monitoring is already active.[/cyan]")
+            else:
+                engine.ambient_enabled = True
+                engine.ambient.start()
+                console.print("[green]Ambient monitoring started (Window, Clipboard, File, Screen).[/green]")
+        elif sub == "off":
+            if not engine.ambient_enabled:
+                console.print("[cyan]Ambient monitoring is already offline.[/cyan]")
+            else:
+                engine.ambient_enabled = False
+                engine.ambient.stop()
+                console.print("[yellow]Ambient monitoring stopped.[/yellow]")
+        elif sub == "status":
+            status = "active" if engine.ambient_enabled else "offline"
+            console.print(f"[cyan]Ambient monitoring: {status}[/cyan]")
+        else:
+            console.print("[red]Usage: /ambient [on|off|status][/red]")
+        return True
     if cmd == "/init":
         await cmd_init(engine)
         return True
@@ -1725,7 +1795,31 @@ async def main():
                 f"<grey>·</grey> <{ram_color}>RAM {ram}%</{ram_color}>"
             )
 
-            user_input = await session.prompt_async(HTML(f"\n{status_line}\n<b><cyan>❯</cyan></b> "))
+            kb_task = asyncio.create_task(session.prompt_async(HTML(f"\n{status_line}\n<b><cyan>❯</cyan></b> ")))
+            if engine.voice_enabled:
+                voice_task = asyncio.create_task(engine.input_queue.get())
+                done, pending = await asyncio.wait(
+                    [kb_task, voice_task],
+                    return_when=asyncio.FIRST_COMPLETED
+                )
+                if voice_task in done:
+                    kb_task.cancel()
+                    try:
+                        await kb_task
+                    except asyncio.CancelledError:
+                        pass
+                    user_input = voice_task.result()
+                    console.print(f"\n[Voice Command Heard] {user_input}")
+                else:
+                    voice_task.cancel()
+                    try:
+                        await voice_task
+                    except asyncio.CancelledError:
+                        pass
+                    user_input = kb_task.result()
+            else:
+                user_input = await kb_task
+
             if not user_input.strip():
                 continue
 
@@ -1871,6 +1965,8 @@ async def main():
                         console=console,
                         border_style="bright_cyan",
                     )
+                    if engine.voice_enabled:
+                        engine.voice.speak(response)
                     engine.spend_tracker.log_interaction(
                         session_id=engine.session_id,
                         model=engine.groq_client.model,
@@ -1927,6 +2023,11 @@ async def main():
                 if mode == "cross_question":
                     res = await engine.think_partner.cross_question(effective_input)
                     _render_cross_question(console, res)
+                    if engine.voice_enabled:
+                        q_texts = [f"I have some questions to clarify. Interpretation: {res.get('interpretation', '')}."]
+                        for q in res.get("questions", []):
+                            q_texts.append(q.get("q", ""))
+                        engine.voice.speak(" ".join(q_texts))
                     if res.get("questions"):
                         engine.pending_clarification = {"original_prompt": effective_input}
                         console.print("[dim]Type answers to continue (or any new prompt to abandon clarification).[/dim]")
@@ -1955,6 +2056,8 @@ async def main():
                     title = mode.upper()
                     console.print(Panel(Markdown(res["output"]), title=title, border_style="bright_magenta"))
                     console.print(f"[dim]→ {res.get('next_action','')}[/dim]")
+                    if engine.voice_enabled:
+                        engine.voice.speak(res["output"])
                     await engine.memory_manager.store_interaction(engine.session_id, user_input, res.get("output", ""))
                     continue
 
@@ -2115,6 +2218,8 @@ async def main():
                     console=console,
                     border_style="bright_cyan",
                 )
+                if engine.voice_enabled:
+                    engine.voice.speak(response)
 
                 # Track spend (approx tokens: 1 token ≈ 4 chars)
                 engine.spend_tracker.log_interaction(
@@ -2198,6 +2303,8 @@ async def main():
                     synthesis_prompt = f"Results: {results}\nUser: {user_input}\nSummarize as a cunning architect:"
                     response = engine.groq_client.get_completion(synthesis_prompt)
                     engine.assembler.render_final_response(user_input, response, plan, results, active_proj, vitals)
+                    if engine.voice_enabled:
+                        engine.voice.speak(response)
                     engine.spend_tracker.log_interaction(
                         session_id=engine.session_id,
                         model="gemini-2.5-flash",
@@ -2214,6 +2321,8 @@ async def main():
                 context = await engine.memory_manager.get_relevant_context(user_input, engine.session_id)
                 response = engine.groq_client.get_completion(f"{context}\n\nUser: {user_input}")
                 engine.assembler.render_final_response(user_input, response, project=active_proj, vitals=vitals)
+                if engine.voice_enabled:
+                    engine.voice.speak(response)
                 await engine.memory_manager.store_interaction(engine.session_id, user_input, response)
 
         except KeyboardInterrupt:
@@ -2222,6 +2331,10 @@ async def main():
             console.print(f"[bold red]ERROR: {e}[/bold red]")
 
     await engine.hooks.fire("Stop", {"session_id": engine.session_id})
+    if hasattr(engine, "voice") and engine.voice.is_active:
+        engine.voice.stop()
+    if hasattr(engine, "ambient") and engine.ambient.is_active:
+        engine.ambient.stop()
     evolve_task.cancel()
     forge_task.cancel()
     for t in (evolve_task, forge_task):

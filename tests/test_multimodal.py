@@ -18,7 +18,7 @@ class TestMultimodalCapabilities(unittest.TestCase):
     def setUp(self):
         self.fs = FilesystemAgent()
         
-    async def test_pdf_identification(self):
+    async def verify_pdf_identification(self):
         # Create a dummy PDF path (don't need real content for logic test)
         path = "test_doc.pdf"
         # Mock pypdf
@@ -40,7 +40,7 @@ class TestMultimodalCapabilities(unittest.TestCase):
         asyncio.run(run())
 
     @patch('google.genai.Client')
-    async def test_gemini_multimodal_parts(self, mock_genai):
+    async def verify_gemini_multimodal_parts(self, mock_genai):
         client = GeminiClient()
         # Mock a file existing
         with patch('os.path.exists', return_value=True), \
@@ -54,8 +54,8 @@ class TestMultimodalCapabilities(unittest.TestCase):
             print("[green]✓ Gemini Multimodal Part construction verified.[/green]")
 
     def test_all(self):
-        asyncio.run(self.test_pdf_identification())
-        asyncio.run(self.test_gemini_multimodal_parts())
+        asyncio.run(self.verify_pdf_identification())
+        asyncio.run(self.verify_gemini_multimodal_parts())
 
 if __name__ == "__main__":
     unittest.main()

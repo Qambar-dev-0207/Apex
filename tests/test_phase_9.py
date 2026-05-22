@@ -52,22 +52,21 @@ class TestPhase9(unittest.TestCase):
     def test_relational_memory(self, mock_genai, mock_chroma, mock_redis):
         memory = MemoryManager()
         
-        # Setup mocks
-        mock_chroma_inst = mock_chroma.return_value
-        mock_chroma_inst.search_memories.return_value = [
-            {"id": "uuid-1", "content": "Initial fact", "metadata": {"related_ids": ""}}
-        ]
-        
         # Use AsyncMock for async methods
         from unittest.mock import AsyncMock
-        memory.redis.add_to_history = AsyncMock()
+        memory.redis.load_session = AsyncMock(return_value=None)
+        memory.redis.save_session = AsyncMock()
+        memory.chroma.search_memories = AsyncMock(return_value=[
+            {"id": "uuid-1", "content": "Initial fact", "metadata": {"related_ids": ""}}
+        ])
+        memory.chroma.add_memory = AsyncMock()
         
         # Run test
         asyncio.run(memory.store_interaction("sid", "New info", "Resp"))
         
         # Verify chroma was called with related_ids="uuid-1"
-        mock_chroma_inst.add_memory.assert_called()
-        args, kwargs = mock_chroma_inst.add_memory.call_args
+        memory.chroma.add_memory.assert_called()
+        args, kwargs = memory.chroma.add_memory.call_args
         self.assertEqual(kwargs['metadata']['related_ids'], "uuid-1")
 
 if __name__ == '__main__':

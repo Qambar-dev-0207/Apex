@@ -29,7 +29,7 @@ class TestResilientRecovery(unittest.TestCase):
         self.gemini.model_id = "test-model"
         
         # 3. Mock Tier 3 Success (DeepSeek)
-        mock_tertiary.return_value = "DeepSeek recovered this task."
+        mock_tertiary.return_value = "RECOVERY_TIER_3: DeepSeek recovered this task."
         
         # 4. Trigger recovery
         res = await self.executor._fallback_recovery(step, "Tier 1 Crash")

@@ -9,6 +9,7 @@ from src.tools.web_search import WebSearchTool
 from src.tools.web_fetch import WebFetchTool
 from src.tools.todo import TodoTool
 from src.tools.diff_tool import DiffTool
+from src.tools.desktop_control import DesktopControlTool
 from src.tools.sandbox import SandboxExecutor
 from src.services.coding import CodingPipeline
 from src.tools.safety import SafetyGuard
@@ -153,6 +154,7 @@ class ParallelExecutor:
         self.web_fetch = WebFetchTool()
         self.todo = TodoTool()
         self.diff = DiffTool()
+        self.desktop_control = DesktopControlTool()
         self.coding_pipeline = CodingPipeline()
         self.safety_guard = SafetyGuard(console=console)
         self.workspace = WorkspaceManager()
@@ -433,6 +435,9 @@ class ParallelExecutor:
                         res.update({"success": False, "error": f"todo: unknown action '{action}'"})
                 elif step['tool'] == "diff":
                     res.update(self.diff.run(step['input_data']))
+                elif step['tool'] == "desktop_control":
+                    action = step['action'].lower()
+                    res.update(await self.desktop_control.execute(action, step['input_data']))
                 elif step['tool'] == "think_partner":
                     if not self.think_partner:
                         res.update({"success": False, "error": "think_partner not wired"})

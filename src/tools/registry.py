@@ -181,6 +181,18 @@ REGISTRY: Dict[str, ToolSpec] = {
             'diff:run input_data=\'{"path":"README.md","content":"# new content\\n"}\'',
         ],
     ),
+    "desktop_control": ToolSpec(
+        name="desktop_control",
+        aliases=["desktop", "ui", "automation", "win_automation"],
+        actions=["click", "type", "read", "list_elements", "navigate", "powershell"],
+        input_schema='JSON containing action details (e.g. {"selector": "...", "text": "..."})',
+        when_to_use="Control Windows UI elements via UI Automation, run PowerShell scripts, or automate browser tasks using Playwright.",
+        examples=[
+            'desktop_control:click input_data=\'{"text": "Start"}\'',
+            'desktop_control:type input_data=\'{"text": "notepad", "selector": "Search"}\'',
+            'desktop_control:navigate input_data=\'{"url": "https://google.com"}\'',
+        ],
+    ),
 }
 
 

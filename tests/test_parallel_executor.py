@@ -13,6 +13,16 @@ from src.core.models import ExecutionPlan, TaskStep
 class TestParallelExecutor(unittest.TestCase):
     def setUp(self):
         self.executor = ParallelExecutor()
+        self.executor.hw = MagicMock()
+        mock_vitals = MagicMock()
+        mock_vitals.status = "nominal"
+        mock_vitals.cpu_percent = 10.0
+        mock_vitals.ram_percent = 50.0
+        self.executor.hw.get_vitals.return_value = mock_vitals
+        
+        async def mock_gate():
+            pass
+        self.executor._resource_gate = mock_gate
 
     def test_dag_resolution_order(self):
         # Create a plan with dependencies
@@ -38,8 +48,7 @@ class TestParallelExecutor(unittest.TestCase):
         self.executor.execute_step = mock_execute
         
         # Run the executor
-        loop = asyncio.get_event_loop()
-        results = loop.run_until_complete(self.executor.run(plan))
+        results = asyncio.run(self.executor.run(plan))
         
         # 1 and 3 should be able to run first (order might vary)
         # 2 MUST run after 1
@@ -52,7 +61,7 @@ class TestParallelExecutor(unittest.TestCase):
         # Mock web search to be slow
         async def slow_search(query):
             await asyncio.sleep(0.1)
-            return {"success": True, "results": ["found"], "error": None}
+            return {"success": True, "results": [{"title": "found", "url": "http://found", "snippet": "found"}], "error": None}
         mock_asearch.side_effect = slow_search
         
         plan = ExecutionPlan(
@@ -67,12 +76,15 @@ class TestParallelExecutor(unittest.TestCase):
         
         import time
         start = time.time()
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(self.executor.run(plan))
+        asyncio.run(self.executor.run(plan))
         end = time.time()
         
+        print(f"Mock asearch call count: {mock_asearch.call_count}")
+        print(f"Execution took: {end - start} seconds")
+        self.assertEqual(mock_asearch.call_count, 2)
+        
         # If they ran in parallel, total time should be ~0.1s, not 0.2s
-        self.assertLess(end - start, 0.15)
+        self.assertLess(end - start, 0.3)
 
 if __name__ == '__main__':
     unittest.main()

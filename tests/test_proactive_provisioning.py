@@ -17,10 +17,9 @@ from src.core.models import CapabilityGap
 class TestAutoProvisioning(unittest.TestCase):
     def setUp(self):
         self.skill_manager = MagicMock(spec=SkillManager)
-        # Mock the ChromaDB collection nested inside skill_manager.skill_manager
-        self.skill_manager.skill_manager = MagicMock()
-        self.skill_manager.skill_manager.collection = MagicMock()
-        self.skill_manager.skill_manager.collection.get.return_value = {'metadatas': []}
+        # Mock the ChromaDB collection inside skill_manager
+        self.skill_manager.collection = MagicMock()
+        self.skill_manager.collection.get.return_value = {'metadatas': []}
         
         self.mcp_client = MagicMock(spec=MCPClient)
         self.workspace = MagicMock(spec=WorkspaceManager)
@@ -70,7 +69,7 @@ class TestAutoProvisioning(unittest.TestCase):
         self.mock_client.models.generate_content.return_value = mock_skill_res
         
         await self.provisioner.provision_skill(gaps[0])
-        self.skill_manager.skill_manager.add_skill.assert_called()
+        self.skill_manager.add_skill.assert_called()
         print("[Test] Skill provisioning verified.")
 
         # 3. Test MCP Provisioning
