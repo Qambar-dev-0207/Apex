@@ -46,7 +46,7 @@ class RetinaTool:
     """
 
     def __init__(self, storage_dir: str = "data/vision",
-                 gemini_model: str = "gemini-2.5-flash"):
+                 gemini_model: str = "gemini-3.5-flash"):
         load_dotenv()
         self.storage_dir = storage_dir
         os.makedirs(self.storage_dir, exist_ok=True)

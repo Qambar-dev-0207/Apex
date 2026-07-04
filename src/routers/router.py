@@ -164,7 +164,8 @@ class SmartRouter:
         if user_input:
             low_input = user_input.lower().strip()
             # If the user is asking a greeting or a single word query, block paid calls
-            if any(g in low_input for g in ["hello", "hi", "hey", "test", "status"]):
+            words = set(re.findall(r"\b\w+\b", low_input))
+            if any(g in words for g in ["hello", "hi", "hey", "test", "status"]):
                 return "frugal_refusal"
             # Extremely short queries that shouldn't invoke paid thinking path
             if len(low_input.split()) < 3 and classification.get("intent") not in ("git", "exploration"):
@@ -270,7 +271,7 @@ class ParallelExecutor:
             canonical = resolve_tool_name(raw_tool)
             if canonical and canonical != raw_tool:
                 if self.console:
-                    self.console.print(f"[dim]NODE_{step['id']} alias '{raw_tool}' → '{canonical}'[/dim]")
+                    self.console.print(f"[dim]NODE_{step['id']} alias '{raw_tool}' -> '{canonical}'[/dim]")
                 step['tool'] = canonical
             if self.console: self.console.print(f"[cyan]NODE_{step['id']} -> {step['action']}...[/cyan]")
             res = {"success": True, "output": "", "error": None}

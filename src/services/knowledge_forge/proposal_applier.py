@@ -168,7 +168,7 @@ class ProposalApplier:
 
         api_key = os.getenv("GEMINI_API_KEY")
         self.client = genai.Client(api_key=api_key) if (genai and api_key) else None
-        self.model_id = "gemini-2.5-flash"
+        self.model_id = "gemini-3.5-flash"
 
         venvs_dir = str(Path(backups_dir).parent / "venvs")
         self.pip_sandbox = PipSandbox(venvs_dir=venvs_dir, console=console)

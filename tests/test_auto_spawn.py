@@ -54,7 +54,7 @@ async def test_reflex_classifies_do_it_for_me_as_harness():
 class _FakeMemory:
     def __init__(self):
         self.stored = []
-    async def store_interaction(self, sid, q, r):
+    async def store_interaction(self, sid, q, r, project_name=None, **kwargs):
         self.stored.append((sid, q, r))
 
 
@@ -96,6 +96,7 @@ class _FakeEngine:
         self.session_id = "test-session"
         self.auto_swarm_enabled = False
         self.pending_clarification = None
+        self.active_project_name = "test-project"
 
 
 class _SilentConsole:

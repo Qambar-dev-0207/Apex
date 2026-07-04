@@ -82,7 +82,7 @@ class SafetyGuard:
     def set_mode(self, mode: str):
         if mode in ("default", "auto-approve", "plan"):
             self.mode = mode
-            self.console.print(f"[bold cyan]Safety mode → {mode}[/bold cyan]")
+            self.console.print(f"[bold cyan]Safety mode -> {mode}[/bold cyan]")
 
     def scan(self, code: str) -> List[str]:
         findings = []
@@ -96,7 +96,7 @@ class SafetyGuard:
         Consults policy and potentially asks user for permission.
         """
         if self.mode == "plan":
-            self.console.print(f"[bold magenta]PLAN MODE: would run → {command}[/bold magenta]")
+            self.console.print(f"[bold magenta]PLAN MODE: would run -> {command}[/bold magenta]")
             return False
         status = self.policy.check(command)
 

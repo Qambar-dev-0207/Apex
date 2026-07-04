@@ -6,20 +6,18 @@ Every brain in APEX has a specific role. No provider is used for everything — 
 
 ## Provider map
 
-| Provider | Model | File | Role |
-|---|---|---|---|
-| Google Gemini | `gemini-2.5-flash` | `src/models/thinking_path.py` | DAG planner, JSON-forced reasoning, vision, resume rewrite, genius critique |
+| Google Gemini | `gemini-3.5-flash` | `src/models/thinking_path.py` | DAG planner, JSON-forced reasoning, vision, resume rewrite, genius critique |
 | Google Gemini | `gemini-2.5-flash-lite` | inline | Input classification, LLM auto-selector tier 2, summarize-before-drop |
 | Groq | `llama-3.1-8b` | `src/models/fast_path.py` | Fast path streaming, AgentHarness fallback brain, GeniusMode fallback |
 | Groq | `whisper-large-v3` | `src/tools/vision.py` | Audio transcription |
 | Xiaomi MiMo | `mimo-v2.5-pro` | `src/models/mimo_path.py` | Code implementation (CodingPipeline), AgentHarness primary brain |
-| MiniMax | `minimax-2.5` | `src/models/minimax_path.py` | CodingPipeline stage 1 — architecture spec |
+| MiniMax | `minimax-2.5` | `src/models/minimax_path.py` | CodingPipeline stage 1 - architecture spec |
 | OpenRouter | `gpt-oss-120b` | `src/models/fallback_path.py` | Tertiary fallback when Gemini + agent retry both fail (DAG planner) |
 | OpenRouter | `inclusionai/ring-2.6-1t:free` | `src/models/fallback_path.py` | High-reasoning fallback for ThinkPartner + GeniusMode (1T-param, free) |
 
 ---
 
-## Gemini 2.5 Flash (`src/models/thinking_path.py`)
+## Gemini 3.5 Flash (`src/models/thinking_path.py`)
 
 **Used for:** planning, JSON generation, vision, analysis
 
@@ -72,7 +70,7 @@ Every brain in APEX has a specific role. No provider is used for everything — 
 
 **CodingPipeline role:**
 ```
-MiniMax 2.5 (arch spec) → MiMo v2.5-pro (implementation) → Gemini 2.5 Flash (validation)
+MiniMax 2.5 (arch spec) -> MiMo v2.5-pro (implementation) -> Gemini 3.5 Flash (validation)
 ```
 
 **AgentHarness role:** Primary brain for all tool-calling decisions. Falls back to Groq on error.
@@ -106,22 +104,22 @@ Two clients, two roles:
 
 ```
 Simple prompt
-  → regex auto-selector → execute directly (no brain needed for tool dispatch)
+  -> regex auto-selector -> execute directly (no brain needed for tool dispatch)
 
 Moderate prompt
-  → LLM auto-selector → Gemini Flash Lite classify → single tool
+  -> LLM auto-selector -> Gemini Flash Lite classify -> single tool
 
 Complex prompt
-  → SmartRouter → thinking_path (Gemini 2.5 Flash) → DAG plan → ParallelExecutor
+  -> SmartRouter -> thinking_path (Gemini 3.5 Flash) -> DAG plan -> ParallelExecutor
 
 AgentHarness task
-  → MiMo v2.5-pro (primary) → Groq (fallback on error)
+  -> MiMo v2.5-pro (primary) -> Groq (fallback on error)
 
 GeniusMode critique
-  → Gemini 2.5 Flash (JSON-forced) → MiMo → Groq → offline stub
+  -> Gemini 3.5 Flash (JSON-forced) -> MiMo -> Groq -> offline stub
 
 ResumeTool rewrite
-  → Gemini 2.5 Flash (JSON-forced) → offline stub dict
+  -> Gemini 3.5 Flash (JSON-forced) -> offline stub dict
 ```
 
 ---

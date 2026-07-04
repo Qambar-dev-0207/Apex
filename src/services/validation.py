@@ -11,7 +11,7 @@ class CodeValidator:
     """
     Validates generated code by creating and running automated tests.
     """
-    def __init__(self, model_name: str = "gemini-2.5-flash"):
+    def __init__(self, model_name: str = "gemini-3.5-flash"):
         load_dotenv()
         self.api_key = os.getenv("GEMINI_API_KEY")
         self.client = genai.Client(api_key=self.api_key)

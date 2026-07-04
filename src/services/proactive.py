@@ -79,7 +79,7 @@ class BriefingAgent:
             Format: One paragraph of direct, uncompromising, and protective advice. If the forge digest shows new applicable papers/proposals, highlight their integration risk/value. Remind them of spend/budget health and command discipline. Do not be deferential.
             """
             try:
-                res = self.client.models.generate_content(model="gemini-2.5-flash", contents=prompt)
+                res = self.client.models.generate_content(model="gemini-3.5-flash", contents=prompt)
                 strategy = res.text.strip()
             except:
                 pass

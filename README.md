@@ -23,7 +23,7 @@ APEX operates on a multi-tiered architecture designed for reliability, speed, an
 
 ### Tier 3: Execution & Validation (The Muscle)
 *   **Parallel TaskGroup Dispatcher**: Orchestrates concurrent tool execution with atomic error handling.
-*   **Multi-Stage Coding Pipeline**: Architecture Spec → Core Implementation → Automated Validation.
+*   **Multi-Stage Coding Pipeline**: Architecture Spec -> Core Implementation -> Automated Validation.
 *   **Isolated Sandbox Execution**: Secure, timeout-limited environment for all auto-generated code.
 *   **Multi-Agent Research Swarm**: Specialized agents (Web, File, Code) building high-density Knowledge Artifacts.
 

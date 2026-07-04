@@ -319,13 +319,21 @@ def test_animations_safe_on_non_tty(capsys):
 
 def test_mimo_client_construction():
     from src.models.mimo_path import MimoClient
-    c = MimoClient()
-    assert c.model == "mimo-v2.5-pro"
-    assert hasattr(c, "is_online")
-    # Force offline path by passing a non-existent env var.
-    c2 = MimoClient(api_key_env="DOES_NOT_EXIST_XYZ_123")
-    assert c2.is_online is False
-    assert c2.get_completion("hi").startswith("[MiMo Offline]")
+    from unittest.mock import patch
+    import os
+    orig_getenv = os.getenv
+    def mock_getenv(key, default=None):
+        if key == "NVIDIA_API_KEY":
+            return None
+        return orig_getenv(key, default)
+    with patch("os.getenv", side_effect=mock_getenv):
+        c = MimoClient()
+        assert c.model == "mimo-v2.5-pro"
+        assert hasattr(c, "is_online")
+        # Force offline path by passing a non-existent env var.
+        c2 = MimoClient(api_key_env="DOES_NOT_EXIST_XYZ_123")
+        assert c2.is_online is False
+        assert c2.get_completion("hi").startswith("[Client Offline]")
 
 
 def test_groq_client_construct():

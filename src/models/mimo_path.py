@@ -39,18 +39,29 @@ class MimoClient:
 
     def __init__(
         self,
-        model: str = DEFAULT_MODEL,
-        base_url: str = DEFAULT_BASE_URL,
+        model: Optional[str] = None,
+        base_url: Optional[str] = None,
         api_key_env: str = "MIMO_API_KEY",
         thinking: bool = False,
     ):
         load_dotenv()
-        api_key = os.getenv(api_key_env)
-        self.model = model
+        
+        nvidia_key = os.getenv("NVIDIA_API_KEY")
+        if nvidia_key and nvidia_key.strip():
+            self.model = model or "z-ai/glm-5.2"
+            self.base_url = base_url or "https://integrate.api.nvidia.com/v1"
+            self.api_key = nvidia_key
+            self.is_nvidia = True
+        else:
+            self.model = model or self.DEFAULT_MODEL
+            self.base_url = base_url or self.DEFAULT_BASE_URL
+            self.api_key = os.getenv(api_key_env)
+            self.is_nvidia = False
+            
         self.thinking = thinking
         self.client: Optional[OpenAI] = None
-        if api_key:
-            self.client = OpenAI(api_key=api_key, base_url=base_url)
+        if self.api_key:
+            self.client = OpenAI(api_key=self.api_key, base_url=self.base_url)
 
     @property
     def is_online(self) -> bool:
@@ -76,24 +87,30 @@ class MimoClient:
         top_p: float = 0.95,
     ) -> str:
         if not self.client:
-            return "[MiMo Offline] MIMO_API_KEY missing."
+            return "[Client Offline] API key missing."
         try:
-            completion = self.client.chat.completions.create(
-                model=self.model,
-                messages=self._build_messages(prompt, system_prompt),
-                max_completion_tokens=max_tokens,
-                temperature=temperature,
-                top_p=top_p,
-                stream=False,
-                frequency_penalty=0,
-                presence_penalty=0,
-                extra_body={
+            kwargs = {
+                "model": self.model,
+                "messages": self._build_messages(prompt, system_prompt),
+                "temperature": temperature,
+                "top_p": top_p,
+                "stream": False,
+            }
+            if self.is_nvidia:
+                kwargs["max_tokens"] = max_tokens
+                kwargs["seed"] = 42
+            else:
+                kwargs["max_completion_tokens"] = max_tokens
+                kwargs["frequency_penalty"] = 0
+                kwargs["presence_penalty"] = 0
+                kwargs["extra_body"] = {
                     "thinking": {"type": "enabled" if self.thinking else "disabled"}
-                },
-            )
+                }
+                
+            completion = self.client.chat.completions.create(**kwargs)
             return completion.choices[0].message.content or ""
         except Exception as e:
-            return f"[MiMo error] {sanitize_error(e)}"
+            return f"[Client error] {sanitize_error(e)}"
 
     async def aget_completion(
         self,
@@ -120,23 +137,31 @@ class MimoClient:
         top_p: float = 0.95,
     ):
         if not self.client:
-            yield "[MiMo Offline]"
+            yield "[Client Offline]"
             return
         try:
-            stream = self.client.chat.completions.create(
-                model=self.model,
-                messages=self._build_messages(prompt, system_prompt),
-                max_completion_tokens=max_tokens,
-                temperature=temperature,
-                top_p=top_p,
-                stream=True,
-                extra_body={
+            kwargs = {
+                "model": self.model,
+                "messages": self._build_messages(prompt, system_prompt),
+                "temperature": temperature,
+                "top_p": top_p,
+                "stream": True,
+            }
+            if self.is_nvidia:
+                kwargs["max_tokens"] = max_tokens
+                kwargs["seed"] = 42
+            else:
+                kwargs["max_completion_tokens"] = max_tokens
+                kwargs["extra_body"] = {
                     "thinking": {"type": "enabled" if self.thinking else "disabled"}
-                },
-            )
+                }
+                
+            stream = self.client.chat.completions.create(**kwargs)
             for chunk in stream:
-                delta = chunk.choices[0].delta.content
-                if delta:
-                    yield delta
+                if not getattr(chunk, "choices", None) or len(chunk.choices) == 0:
+                    continue
+                delta = chunk.choices[0].delta
+                if getattr(delta, "content", None) is not None:
+                    yield delta.content
         except Exception as e:
-            yield f"[MiMo stream error] {sanitize_error(e)}"
+            yield f"[Client stream error] {sanitize_error(e)}"

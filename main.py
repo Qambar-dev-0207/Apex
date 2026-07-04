@@ -4,6 +4,13 @@ import uuid
 import asyncio
 import time
 import sys
+
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+        sys.stderr.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
 import re
 import pyfiglet
 from pathlib import Path
@@ -114,7 +121,7 @@ SLASH_HELP = """\
   /architect <idea> | <yours>   Same, with your architecture after the |
   /debate <claim>          Adversarial pushback (steelman opposing view)
   /brainstorm <topic>      Divergent ideation — 6 distinct angles
-  /teach <topic>           Layered explanation: intuition → mechanism → test
+  /teach <topic>           Layered explanation: intuition -> mechanism -> test
   /intent <prompt>         Show structured intent decomposition (debug aid)
 
 [yellow]Multi-Agent Swarm[/yellow]
@@ -141,7 +148,7 @@ SLASH_HELP = """\
   /audit resolve <rival> <index> <winner> Resolve a dispute (winner: user|rival)
 
 [yellow]Resume[/yellow]
-  /resume <path>           Rewrite resume (PDF/DOCX/TXT/MD) → polished PDF + feedback
+  /resume <path>           Rewrite resume (PDF/DOCX/TXT/MD) -> polished PDF + feedback
   /resume <path> | <role>  Target a specific role (e.g. "Senior Backend Engineer")
 
 [yellow]Self-Evolution[/yellow]
@@ -252,8 +259,8 @@ class APEXEngine:
         self.codebase_indexer = CodebaseIndexer(self.memory_manager, self.workspace)
         self.repo_map_generator = RepoMapGenerator(root_dir=os.getcwd())
 
-        await _stage("Wiring brains — Gemini 2.5 / Groq / MiMo")
-        self.gemini_client = GeminiClient(model_name="gemini-2.5-flash", mcp_client=self.mcp_client) if os.getenv("GEMINI_API_KEY") else None
+        await _stage("Wiring brains — Gemini 3.5 / Groq / MiMo")
+        self.gemini_client = GeminiClient(model_name="gemini-3.5-flash", mcp_client=self.mcp_client) if os.getenv("GEMINI_API_KEY") else None
         self.provisioner = AutoProvisioner(self.learning_manager.skill_manager, self.mcp_client, self.workspace)
 
         await _stage("Spawning parallel executor + 17 tools")
@@ -2803,7 +2810,7 @@ async def main():
                         _plan_model = engine.ollama_client.llm_model
                     else:
                         response = engine.groq_client.get_completion(synthesis_prompt)
-                        _plan_model = "gemini-2.5-flash"
+                        _plan_model = "gemini-3.5-flash"
                     engine.assembler.render_final_response(user_input, response, plan, results, active_proj, vitals)
                     if engine.voice_enabled:
                         engine.voice.speak(response)

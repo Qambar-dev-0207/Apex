@@ -119,7 +119,7 @@ class GeniusMode:
     for direct rendering or for feeding back into a planning loop.
     """
 
-    DEFAULT_MODEL = "gemini-2.5-flash"
+    DEFAULT_MODEL = "gemini-3.5-flash"
 
     def __init__(self, model_name: str = DEFAULT_MODEL,
                  mimo_client=None, groq_client=None):

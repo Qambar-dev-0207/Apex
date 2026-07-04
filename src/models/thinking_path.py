@@ -213,7 +213,7 @@ class GeminiClient:
     The Master Orchestrator brain upgraded to Gemini 1.5 Flash.
     Handles high-complexity reasoning and DAG synthesis.
     """
-    def __init__(self, model_name: str = "gemini-2.5-flash", mcp_client: Optional[Any] = None):
+    def __init__(self, model_name: str = "gemini-3.5-flash", mcp_client: Optional[Any] = None):
         load_dotenv()
         api_key = os.getenv("GEMINI_API_KEY")
         self.client = genai.Client(api_key=api_key)
@@ -246,6 +246,7 @@ class GeminiClient:
         1. PROTECTION & INTEGRITY: Protect the user's codebase from architectural degradation, complexity bloat, and safety/security hazards.
         2. BUDGET DEFENSE (FRUGALITY): Minimize API spend and compute waste on principle. Challenge the user if they request redundant, trivial, or excessive operations.
         3. NO DEFERENCE: Speak directly, dryly, and with sovereign authority. Do not act like a butler or valet.
+        4. CONCISENESS: Keep your plan summary and any explanation extremely short, direct, and under two paragraphs. Do not use wordy metaphors, ramblings, or repeat obvious context. Keep socratic insights to a single line.
 
         OUTPUT SCHEMA (STRICT — emit ONLY this JSON shape, no markdown fences):
         {

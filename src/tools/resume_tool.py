@@ -114,7 +114,7 @@ fabricate). Lists may be empty but feedback fields must be populated.
 
 
 async def rewrite_resume(text: str, target_role: Optional[str] = None,
-                         model: str = "gemini-2.5-flash") -> Dict[str, Any]:
+                         model: str = "gemini-3.5-flash") -> Dict[str, Any]:
     load_dotenv()
     api_key = os.getenv("GEMINI_API_KEY")
     if not genai or not api_key:

@@ -188,7 +188,7 @@ class LearningManager:
             from google import genai
             api_key = os.getenv("GEMINI_API_KEY")
             client = genai.Client(api_key=api_key)
-            res = client.models.generate_content(model="gemini-2.5-flash", contents=prompt)
+            res = client.models.generate_content(model="gemini-3.5-flash", contents=prompt)
             pref = res.text.strip()
             print(f"[Learning] Style preference captured: {pref}")
         except:

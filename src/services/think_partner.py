@@ -153,7 +153,7 @@ class ThinkPartner:
         "next_action": str (suggested follow-up) }
     """
 
-    def __init__(self, console=None, model_id: str = "gemini-2.5-flash",
+    def __init__(self, console=None, model_id: str = "gemini-3.5-flash",
                  deep_model_id: str = "gemini-2.5-pro",
                  fast_model_id: str = "gemini-2.5-flash-lite"):
         load_dotenv()

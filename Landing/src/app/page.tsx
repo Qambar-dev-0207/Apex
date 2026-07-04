@@ -25,7 +25,7 @@ const DAG_STEPS: DagNode[] = [
     color: "cyan",
     logs: [
       "$ apex run router --input='tailor resume for Google SWE'",
-      "⏳ [Strategy] Parsing intent signature using Gemini-2.0-Flash...",
+      "⏳ [Strategy] Parsing intent signature using Gemini-3.5-Flash...",
       "🔍 [Router] Query intent resolved: 'RESUME_TAILORING'.",
       "🔋 [Vitals] Available RAM: 32.4GB, CPU temperature stable.",
       "🟢 [Router] Active skill compiled: 'resume_tailor_skill.json'. Stage 1 Complete."

@@ -430,11 +430,11 @@ class TestThinkPartnerConstruction(unittest.TestCase):
             os.environ.pop("GEMINI_API_KEY", None)
             tp = ThinkPartner(console=None)
             # client may be None if no key — that's the safe path
-            self.assertEqual(tp.model_id, "gemini-2.5-flash")
+            self.assertEqual(tp.model_id, "gemini-3.5-flash")
 
     def test_default_model_ids(self):
         tp = ThinkPartner(console=None)
-        self.assertEqual(tp.model_id, "gemini-2.5-flash")
+        self.assertEqual(tp.model_id, "gemini-3.5-flash")
         self.assertEqual(tp.deep_model_id, "gemini-2.5-pro")
 
     def test_custom_model_ids(self):

@@ -11,7 +11,7 @@ class KnowledgeSynthesizer:
     """
     Uses Gemini Flash to merge heterogeneous research data.
     """
-    def __init__(self, model_name: str = "gemini-2.5-flash"):
+    def __init__(self, model_name: str = "gemini-3.5-flash"):
         load_dotenv()
         api_key = os.getenv("GEMINI_API_KEY")
         self.client = genai.Client(api_key=api_key) if api_key else None

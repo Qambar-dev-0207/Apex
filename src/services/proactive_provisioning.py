@@ -94,7 +94,7 @@ class AutoProvisioner:
         
         try:
             res = self.client.models.generate_content(
-                model="gemini-2.5-flash", # Use higher reasoning for manifest generation
+                model="gemini-3.5-flash", # Use higher reasoning for manifest generation
                 contents=prompt,
                 config={'response_mime_type': 'application/json'}
             )
@@ -128,7 +128,7 @@ class AutoProvisioner:
         
         try:
             res = self.client.models.generate_content(
-                model="gemini-2.5-flash",
+                model="gemini-3.5-flash",
                 contents=prompt
             )
             code = res.text.replace("```python", "").replace("```", "").strip()
