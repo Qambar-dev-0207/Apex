@@ -382,6 +382,18 @@ class TestMemoryManager(unittest.TestCase):
         self.assertIn("cache_stats", s)
         self.assertIn("history_cap", s)
 
+    def test_project_isolation(self):
+        # 1. Test store_interaction saves project_name in metadata
+        self.mm.redis.load_session = AsyncMock(return_value=None)
+        run(self.mm.store_interaction("s1", "u", "a", project_name="my_proj"))
+        args, kwargs = self.mm.chroma.add_memory.call_args
+        self.assertEqual(kwargs["metadata"]["project_name"], "my_proj")
+
+        # 2. Test get_relevant_context queries with project_name filter
+        self.mm.chroma.search_memories = AsyncMock(return_value=[])
+        run(self.mm.get_relevant_context("query", "s1", project_name="my_proj"))
+        self.mm.chroma.search_memories.assert_awaited_with("query", where={"project_name": "my_proj"})
+
 
 # ════════════════════════════════════════════════════════════════════════════
 # Shared embedding function

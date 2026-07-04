@@ -53,6 +53,8 @@ from src.core.harness import AgentHarness
 from src.services.genius_mode import GeniusMode
 from src.tools.resume_tool import ResumeTool
 from src.core.api_security import validate_all_keys, leaked_key_warning
+from src.services.predictor import PredictorService
+from src.models.local_path import OllamaClient
 from src.core.animations import (
     pulse_banner, type_text, progress_trail, sparkle_panel,
     thinking_orb, matrix_rain, neural_pulse,
@@ -77,6 +79,10 @@ SLASH_HELP = """\
   /exit                    Quit APEX
   /resume                  List recent sessions to resume
   /compact                 Summarize and trim long-term context
+  /legends                 List all memory logs degraded into legends
+  /legend correct <prefix> <text> Manually rewrite a legend's narrative
+  /degrade                 Force-degrade all memories into legends
+  /sim_interrupt           Queue a mock background interrupt alert
 
 [yellow]Workspace[/yellow]
   /init                    Generate APEX.md project directives
@@ -127,10 +133,12 @@ SLASH_HELP = """\
   /voice [on|off|status]   Toggle or show status of hands-free Voice Layer
   /ambient [on|off|status] Toggle or show status of Ambient Layer context
 
-[yellow]Genius Critique[/yellow]
+[yellow]Genius Critique & Rivals[/yellow]
   /genius <prompt>         Full 5-stage critique: cross-question / right / wrong / blind spots / action / wit
   /critique <prompt>       What you're getting right vs wrong (terse)
   /blindspot <prompt>      Second-order consequences + suggested next steps
+  /audit                   Show rival scorecards and pending disputes
+  /audit resolve <rival> <index> <winner> Resolve a dispute (winner: user|rival)
 
 [yellow]Resume[/yellow]
   /resume <path>           Rewrite resume (PDF/DOCX/TXT/MD) → polished PDF + feedback
@@ -166,6 +174,8 @@ SLASH_HELP = """\
 [yellow]Telemetry[/yellow]
   /cost                    Show daily spend
   /status                  System health summary
+  /predict                 Show next predicted command, upcoming deadlines + spend snapshot
+  /patterns                Full pattern dashboard: top commands, failures, budget & prediction
   /policy [allow|deny] cmd Manage execution policy
 
 [yellow]Snapshot[/yellow]
@@ -193,6 +203,14 @@ class APEXEngine:
         self.ambient_enabled = False
         self.input_queue = None
         self.loop = None
+
+    @property
+    def active_project_name(self) -> Optional[str]:
+        if hasattr(self, 'workspace'):
+            active = self.workspace.get_active()
+            if active:
+                return active.name
+        return None
 
     async def load_system(self, progress=None):
         """
@@ -243,6 +261,7 @@ class APEXEngine:
 
         self.loop = asyncio.get_running_loop()
         self.input_queue = asyncio.Queue()
+        self.interrupt_queue = asyncio.Queue()
 
         await _stage("Loading voice layer")
         from src.services.voice_layer import VoiceLayer
@@ -284,6 +303,7 @@ class APEXEngine:
         )
         self.briefing_agent.forge = self.knowledge_forge
         self.parallel_executor.knowledge_forge = self.knowledge_forge
+        self.knowledge_forge.engine = self
 
         await _stage("Loading Genius critique + Resume tool")
         self.genius = GeniusMode(
@@ -320,14 +340,39 @@ class APEXEngine:
             console=self.console,
             forge=self.knowledge_forge,
         )
+        self.self_evolver.engine = self
 
         if self.voice_enabled:
             self.voice.start(lambda text: self.loop.call_soon_threadsafe(self.input_queue.put_nowait, text))
         if self.ambient_enabled:
             self.ambient.start()
 
+        await _stage("Booting Predictive Intelligence (PredictorService)")
+        self.predictor = PredictorService(db_path=".apex/predictor.db")
+        self.ollama_client = OllamaClient()
+
         await _stage("Systems online")
         self.ready = True
+
+    def print_startup_deadlines(self, active_project):
+        """Print upcoming deadlines at boot from active project todos."""
+        try:
+            todos = []
+            if active_project and hasattr(active_project, 'todos'):
+                todos = active_project.todos or []
+            if todos:
+                self.predictor.sync_deadlines(todos)
+            upcoming = self.predictor.get_upcoming_deadlines(days_window=3)
+            if upcoming:
+                self.console.print(f"\n[bold yellow]⚠  UPCOMING DEADLINES ({len(upcoming)})[/bold yellow]")
+                for d in upcoming:
+                    risk_color = "red" if d['days_left'] <= 1 else "yellow"
+                    self.console.print(
+                        f"  [{risk_color}]• {d['task'][:80]} — due {d['due_date']} "
+                        f"({d['days_left']}d left)[/{risk_color}]"
+                    )
+        except Exception:
+            pass
 
     async def warmup_background(self):
         """
@@ -385,7 +430,8 @@ async def dispatch_swarm(engine, console, goal: str, rounds: int = 1,
         border_style="bright_blue",
     ))
     await engine.memory_manager.store_interaction(
-        engine.session_id, f"[auto-swarm:{trigger}] {goal}", res["artifact"]
+        engine.session_id, f"[auto-swarm:{trigger}] {goal}", res["artifact"],
+        project_name=engine.active_project_name
     )
     return res
 
@@ -415,7 +461,8 @@ async def dispatch_harness(engine, console, goal: str,
             title="HARNESS FAILED", border_style="red",
         ))
     await engine.memory_manager.store_interaction(
-        engine.session_id, f"[auto-harness:{trigger}] {goal}", result.get("summary", str(result))[:2000]
+        engine.session_id, f"[auto-harness:{trigger}] {goal}", result.get("summary", str(result))[:2000],
+        project_name=engine.active_project_name
     )
     return result
 
@@ -734,12 +781,26 @@ async def cmd_todos(engine, args):
             idx = int(args[1]) - 1
             ok = engine.workspace.complete_todo(active.name, idx)
             engine.console.print("[green]✓ Marked done.[/green]" if ok else "[red]Invalid todo index.[/red]")
+            # Re-sync deadlines after completing a todo
+            if ok and hasattr(engine, 'predictor'):
+                try:
+                    updated = engine.workspace.get_active()
+                    engine.predictor.sync_deadlines(updated.todos if updated else [])
+                except Exception:
+                    pass
         except ValueError:
             engine.console.print("[red]Usage: /todo done <number>[/red]")
         return
     if args:
         engine.workspace.add_todo(active.name, " ".join(args))
         engine.console.print("[green]✓ Todo added.[/green]")
+        # Re-sync deadlines after adding a todo
+        if hasattr(engine, 'predictor'):
+            try:
+                updated = engine.workspace.get_active()
+                engine.predictor.sync_deadlines(updated.todos if updated else [])
+            except Exception:
+                pass
         return
     if not active.todos:
         engine.console.print("[dim]No todos.[/dim]")
@@ -747,6 +808,20 @@ async def cmd_todos(engine, args):
     for i, t in enumerate(active.todos):
         mark = "[green]✓[/green]" if t.get("done") else "[yellow]○[/yellow]"
         engine.console.print(f" {mark} {i+1}. {t.get('task','')}")
+    # Show upcoming deadlines inline
+    if hasattr(engine, 'predictor'):
+        try:
+            engine.predictor.sync_deadlines(active.todos or [])
+            upcoming = engine.predictor.get_upcoming_deadlines(days_window=3)
+            if upcoming:
+                engine.console.print("")
+                for d in upcoming:
+                    risk_color = "red" if d['days_left'] <= 1 else "yellow"
+                    engine.console.print(
+                        f"  [{risk_color}]⚠  Due in {d['days_left']}d: {d['task'][:70]}[/{risk_color}]"
+                    )
+        except Exception:
+            pass
 
 
 async def cmd_web(engine, query: str):
@@ -831,9 +906,13 @@ def _render_genius(console, res: dict, terse: bool = False):
     if oneliner:
         sections.append(f"[italic gold1]“{oneliner}”[/italic gold1]")
 
+    rival = res.get("rival_name", "")
+    scorecard = res.get("rival_scorecard", "")
+    title = f"APEX GENIUS  ·  {rival} ({scorecard})" if rival else "APEX GENIUS"
+
     console.print(Panel(
         "\n\n".join(sections) or "(no analysis)",
-        title="APEX GENIUS", border_style="bright_magenta", padding=(1, 2),
+        title=title, border_style="bright_magenta", padding=(1, 2),
     ))
 
 
@@ -1537,6 +1616,164 @@ async def handle_slash(engine, cmd_line: str, skills_dir: str) -> bool:
         console.print(Panel("\n".join(body) or "(none found)",
                             title="BLIND SPOTS", border_style="yellow"))
         return True
+    if cmd == "/audit":
+        import json
+        from rich.table import Table
+        from rich.panel import Panel
+        continuity_path = os.path.join(".apex", "rival_continuity.json")
+        if not os.path.exists(continuity_path):
+            console.print("[yellow]No rival scorecard database found. Run /genius or /critique first.[/yellow]")
+            return True
+
+        try:
+            with open(continuity_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except Exception as e:
+            console.print(f"[red]Failed to load scorecard: {e}[/red]")
+            return True
+
+        if args and args[0].lower() == "resolve":
+            if len(args) < 4:
+                console.print("[red]Usage: /audit resolve <rival_name> <index_1_based> <winner: user|rival>[/red]")
+                return True
+            rival_name = args[1].capitalize()
+            try:
+                idx = int(args[2]) - 1
+            except ValueError:
+                console.print("[red]Index must be an integer.[/red]")
+                return True
+            winner = args[3].lower()
+
+            if rival_name not in data:
+                console.print(f"[red]Rival '{rival_name}' not found. Available: {list(data.keys())}[/red]")
+                return True
+
+            disagreements = data[rival_name].get("past_disagreements", [])
+            if idx < 0 or idx >= len(disagreements):
+                console.print(f"[red]Disagreement index {idx+1} out of bounds (1 to {len(disagreements)}).[/red]")
+                return True
+
+            if winner not in ["user", "rival"]:
+                console.print("[red]Winner must be 'user' or 'rival'.[/red]")
+                return True
+
+            dis = disagreements[idx]
+            if "Resolved" in dis.get("outcome", ""):
+                console.print("[yellow]This disagreement is already resolved.[/yellow]")
+                return True
+
+            dis["outcome"] = f"Resolved: {winner.capitalize()} was right."
+            if winner == "rival":
+                data[rival_name]["right_overrules"] += 1
+
+            try:
+                with open(continuity_path, "w", encoding="utf-8") as f:
+                    json.dump(data, f, indent=2)
+                console.print(f"[bold green]✓ Disagreement resolved. {rival_name}'s scorecard is now {data[rival_name]['right_overrules']}/{data[rival_name]['total_overrules']}.[/bold green]")
+            except Exception as e:
+                console.print(f"[red]Failed to save scorecard: {e}[/red]")
+            return True
+
+        # Render Scorecard Dashboard
+        tbl = Table(title="APEX SYSTEM RIVALS SCORECARD", border_style="bold magenta")
+        tbl.add_column("Rival", style="bold cyan")
+        tbl.add_column("Score (Right / Overruled)", style="bold green")
+        tbl.add_column("Accuracy", style="yellow")
+        for rival, rdata in data.items():
+            right = rdata.get("right_overrules", 0)
+            tot = rdata.get("total_overrules", 0)
+            acc = f"{(right/tot)*100:.1f}%" if tot > 0 else "0.0%"
+            tbl.add_row(rival, f"{right} / {tot}", acc)
+        console.print(tbl)
+
+        # Show pending disagreements
+        console.print("\n[bold yellow]PENDING DISAGREEMENTS FOR AUDIT:[/bold yellow]")
+        has_pending = False
+        for rival, rdata in data.items():
+            disagreements = rdata.get("past_disagreements", [])
+            for i, dis in enumerate(disagreements):
+                if "Resolved" not in dis.get("outcome", ""):
+                    has_pending = True
+                    console.print(
+                        f"  [bold cyan][{rival} #{i+1}][/bold cyan] [dim]{dis.get('date')}[/dim] - [bold]{dis.get('topic')}[/bold]\n"
+                        f"    [yellow]Warning:[/yellow] {dis.get('warning')}\n"
+                        f"    [dim]Outcome: {dis.get('outcome')}[/dim]\n"
+                    )
+        if not has_pending:
+            console.print("  [dim]No pending disagreements. All disputes resolved.[/dim]")
+        else:
+            console.print("[dim]Resolve with: /audit resolve <rival> <index> <winner: user|rival>[/dim]")
+        return True
+    if cmd == "/legends":
+        if not engine.memory_manager.chroma.is_active:
+            console.print("[red]Chroma database is offline.[/red]")
+            return True
+        try:
+            res = await asyncio.to_thread(
+                engine.memory_manager.chroma.collection.get,
+                where={"is_legend": True}
+            )
+            ids = res.get("ids", []) or []
+            documents = res.get("documents", []) or []
+            metadatas = res.get("metadatas", []) or []
+            if not ids:
+                console.print("[yellow]No memories have degraded into legends yet. Try running /degrade to force degradation.[/yellow]")
+                return True
+            
+            tbl = Table(title="APEX MEMORY LEGENDS", border_style="yellow")
+            tbl.add_column("Memory ID", style="bold cyan")
+            tbl.add_column("Degraded On", style="dim")
+            tbl.add_column("Legendary Narrative")
+            for i in range(len(ids)):
+                meta = metadatas[i] or {}
+                degraded_on = meta.get("ts_degraded", "unknown")
+                tbl.add_row(ids[i][:8], degraded_on, documents[i])
+            console.print(tbl)
+        except Exception as e:
+            console.print(f"[red]Error loading legends: {e}[/red]")
+        return True
+    if cmd == "/legend":
+        if len(args) < 3 or args[0].lower() != "correct":
+            console.print("[red]Usage: /legend correct <id_prefix> <corrected narrative text...>[/red]")
+            return True
+        prefix = args[1]
+        corrected_text = " ".join(args[2:]).strip()
+        try:
+            res = await asyncio.to_thread(engine.memory_manager.chroma.collection.get)
+            ids = res.get("ids", []) or []
+            matching_ids = [did for did in ids if did.startswith(prefix)]
+            if not matching_ids:
+                console.print(f"[red]No memory found matching prefix '{prefix}'[/red]")
+                return True
+            if len(matching_ids) > 1:
+                console.print(f"[red]Prefix '{prefix}' is ambiguous. Matching: {[m[:8] for m in matching_ids]}[/red]")
+                return True
+            
+            full_id = matching_ids[0]
+            ok = await engine.memory_manager.correct_legend(full_id, corrected_text)
+            if ok:
+                console.print(f"[bold green]✓ Legend {full_id[:8]} updated. The past is rewritten.[/bold green]")
+            else:
+                console.print("[red]Failed to correct legend.[/red]")
+        except Exception as e:
+            console.print(f"[red]Error updating legend: {e}[/red]")
+        return True
+    if cmd == "/degrade":
+        console.print("[yellow]System Watchdog: Triggering active memory decay daemon...[/yellow]")
+        try:
+            count = await engine.memory_manager.degrade_memories(age_hours=0.0)
+            console.print(f"[bold green]✓ Memory decay completed. {count} memories degraded into lossy legends.[/bold green]")
+        except Exception as e:
+            console.print(f"[red]Degradation failed: {e}[/red]")
+        return True
+    if cmd == "/sim_interrupt":
+        msg = " ".join(args).strip() or "That paper I just scored 0.9 contradicts how validate() decides pass/fail, want me to explain before you build more on top of it?"
+        engine.interrupt_queue.put_nowait({
+            "source": "KnowledgeForge",
+            "message": msg
+        })
+        console.print("[dim green]✓ Mock interrupt queued. It will trigger at the start of the next input prompt.[/dim green]")
+        return True
     if cmd == "/resume":
         if not args:
             console.print("[red]Usage: /resume <path>  |  /resume <path> | <target role>[/red]")
@@ -1638,6 +1875,80 @@ async def handle_slash(engine, cmd_line: str, skills_dir: str) -> bool:
         if Confirm.ask("[bold red]WIPE ALL MEMORIES?[/bold red]"):
             await engine.memory_manager.clear_all_history()
             console.print("[bold magenta]Total amnesia engaged.[/bold magenta]")
+        return True
+
+    if cmd == "/predict":
+        if not hasattr(engine, 'predictor'):
+            console.print("[yellow]PredictorService not initialized.[/yellow]")
+            return True
+        cwd = os.getcwd()
+        cmd_pred, conf = engine.predictor.predict_next_command(cwd)
+        upcoming = engine.predictor.get_upcoming_deadlines(days_window=3)
+        spend = engine.predictor.get_spend_summary()
+        tbl = Table(title="APEX PREDICT", border_style="bright_cyan")
+        tbl.add_column("Category", style="bold")
+        tbl.add_column("Prediction")
+        if cmd_pred:
+            tbl.add_row("Next command", f"{cmd_pred} [dim](conf={conf:.2f})[/dim]")
+        else:
+            tbl.add_row("Next command", "[dim]Insufficient history (<5 entries)[/dim]")
+        if upcoming:
+            for d in upcoming:
+                tbl.add_row("Deadline", f"{d['task'][:60]} — {d['days_left']}d left")
+        else:
+            tbl.add_row("Deadline", "[dim]No upcoming deadlines[/dim]")
+        tbl.add_row("Today spend", f"${spend['today_cost']:.4f} / ${spend['cost_threshold']:.2f} ({spend['percent_exhausted']:.1f}%)")
+        console.print(tbl)
+        return True
+
+    if cmd == "/patterns":
+        if not hasattr(engine, 'predictor'):
+            console.print("[yellow]PredictorService not initialized.[/yellow]")
+            return True
+        cwd = os.getcwd()
+        import sqlite3 as _sqlite3
+        try:
+            conn = _sqlite3.connect(engine.predictor.db_path)
+            import pandas as _pd
+            cmd_df = _pd.read_sql_query(
+                "SELECT command, COUNT(*) as freq, AVG(execution_time) as avg_time, "
+                "SUM(CASE WHEN exit_code!=0 THEN 1 ELSE 0 END) as failures "
+                "FROM command_history GROUP BY command ORDER BY freq DESC LIMIT 10",
+                conn
+            )
+            conn.close()
+        except Exception as e:
+            console.print(f"[red]Patterns unavailable: {e}[/red]")
+            return True
+
+        spend = engine.predictor.get_spend_summary()
+        cwd_pred, conf = engine.predictor.predict_next_command(cwd)
+
+        tbl = Table(title="APEX PATTERNS DASHBOARD", border_style="bright_cyan")
+        tbl.add_column("Command", style="bold")
+        tbl.add_column("Freq", style="green")
+        tbl.add_column("Avg Time (s)", style="dim")
+        tbl.add_column("Failures", style="red")
+        for _, row in cmd_df.iterrows():
+            tbl.add_row(
+                str(row['command'])[:50],
+                str(int(row['freq'])),
+                f"{float(row['avg_time']):.2f}" if row['avg_time'] else "—",
+                str(int(row['failures']))
+            )
+        console.print(tbl)
+
+        budget_tbl = Table(title="BUDGET & PREDICTIONS", border_style="yellow")
+        budget_tbl.add_column("Metric", style="bold")
+        budget_tbl.add_column("Value")
+        budget_tbl.add_row("Today's API cost", f"${spend['today_cost']:.4f}")
+        budget_tbl.add_row("Today's LLM calls", str(spend['today_calls']))
+        budget_tbl.add_row("Total spend", f"${spend['total_cost']:.4f}")
+        budget_tbl.add_row("Budget limit", f"${spend['cost_threshold']:.2f}")
+        budget_tbl.add_row("Budget used", f"{spend['percent_exhausted']:.1f}%")
+        if cwd_pred:
+            budget_tbl.add_row("Predicted next cmd", f"{cwd_pred} [dim]({conf:.0%})[/dim]")
+        console.print(budget_tbl)
         return True
 
     console.print(f"[red]Unknown command: {cmd}. Type /help.[/red]")
@@ -1754,6 +2065,13 @@ async def main():
     if not os.getenv("GEMINI_API_KEY"):
         console.print("[yellow]⚠ GEMINI_API_KEY missing — Forge synth/applier will run in degraded heuristic mode.[/yellow]")
     console.print("[bold green]✓ SYSTEM SYNCED.[/bold green]\n")
+    # Show upcoming deadlines from active project at boot
+    try:
+        _boot_active = engine.workspace.get_active()
+        engine.print_startup_deadlines(_boot_active)
+    except Exception:
+        pass
+
     try:
         digest = engine.knowledge_forge.briefing_digest()
         if digest.get("last_cycle"):
@@ -1796,29 +2114,51 @@ async def main():
             )
 
             kb_task = asyncio.create_task(session.prompt_async(HTML(f"\n{status_line}\n<b><cyan>❯</cyan></b> ")))
+            interrupt_task = asyncio.create_task(engine.interrupt_queue.get())
+            tasks_to_wait = [kb_task, interrupt_task]
+            voice_task = None
             if engine.voice_enabled:
                 voice_task = asyncio.create_task(engine.input_queue.get())
-                done, pending = await asyncio.wait(
-                    [kb_task, voice_task],
-                    return_when=asyncio.FIRST_COMPLETED
-                )
-                if voice_task in done:
-                    kb_task.cancel()
-                    try:
-                        await kb_task
-                    except asyncio.CancelledError:
-                        pass
-                    user_input = voice_task.result()
-                    console.print(f"\n[Voice Command Heard] {user_input}")
+                tasks_to_wait.append(voice_task)
+
+            done, pending = await asyncio.wait(
+                tasks_to_wait,
+                return_when=asyncio.FIRST_COMPLETED
+            )
+
+            # Cancel all pending tasks safely
+            for t in pending:
+                t.cancel()
+                try:
+                    await t
+                except asyncio.CancelledError:
+                    pass
+
+            if interrupt_task in done:
+                interrupt_data = interrupt_task.result()
+                source = interrupt_data.get("source", "System Watchdog")
+                msg = interrupt_data.get("message", "Interruption triggered.")
+
+                console.print(Panel(
+                    f"[bold red]✖ INTERRUPT FROM APEX {source.upper()}[/bold red]\n\n"
+                    f"[bold yellow]{msg}[/bold yellow]\n\n"
+                    "Provide feedback / response or press [Enter] to dismiss.",
+                    title="APEX SYSTEM GUARD", border_style="red"
+                ))
+
+                resp_task = asyncio.create_task(session.prompt_async(HTML("<b>[Response / Dismiss] ❯ </b>")))
+                resp_input = await resp_task
+                resp_text = resp_input.strip()
+                if resp_text:
+                    user_input = f"[Interrupted by {source} with message: '{msg}']. User response: {resp_text}"
                 else:
-                    voice_task.cancel()
-                    try:
-                        await voice_task
-                    except asyncio.CancelledError:
-                        pass
-                    user_input = kb_task.result()
+                    console.print("[dim]Interrupt dismissed. Resuming input loop.[/dim]")
+                    continue
+            elif voice_task and voice_task in done:
+                user_input = voice_task.result()
+                console.print(f"\n[Voice Command Heard] {user_input}")
             else:
-                user_input = await kb_task
+                user_input = kb_task.result()
 
             if not user_input.strip():
                 continue
@@ -1837,8 +2177,16 @@ async def main():
                     console.print("[yellow]Usage: ^^ <goal> [| role1,role2] [rounds=N][/yellow]")
                     continue
                 goal, rounds, roster = _parse_swarm_args(goal_str)
+                _t0_swarm = time.time()
                 await dispatch_swarm(engine, console, goal, rounds=rounds,
                                      roster=roster, trigger="prefix")
+                if hasattr(engine, 'predictor'):
+                    try:
+                        engine.predictor.record_command(
+                            f"^^ {goal_str}", os.getcwd(), 0, time.time() - _t0_swarm
+                        )
+                    except Exception:
+                        pass
                 continue
 
             # >> prefix: auto-spawn autonomous harness. Syntax: >> <goal> [max=N]
@@ -1852,19 +2200,37 @@ async def main():
                 if m:
                     max_steps = int(m.group(1))
                     goal_str = re.sub(r"\bmax=\d+", "", goal_str).strip()
+                _t0_harness = time.time()
                 await dispatch_harness(engine, console, goal_str,
                                        max_steps=max_steps, trigger="prefix")
+                if hasattr(engine, 'predictor'):
+                    try:
+                        engine.predictor.record_command(
+                            f">> {goal_str}", os.getcwd(), 0, time.time() - _t0_harness
+                        )
+                    except Exception:
+                        pass
                 continue
 
             # ! prefix: direct shell passthrough (like Claude Code's ! command)
             if user_input.startswith("!"):
                 raw_cmd = user_input[1:].strip()
                 if raw_cmd:
+                    _t0_shell = time.time()
                     res = await engine.parallel_executor.shell.execute(raw_cmd)
+                    _shell_ok = 1 if res["success"] else 0
+                    _shell_elapsed = time.time() - _t0_shell
                     if res["success"]:
                         console.print(res.get("output", ""))
                     else:
                         console.print(f"[red]{res.get('error', 'Command failed')}[/red]")
+                    if hasattr(engine, 'predictor'):
+                        try:
+                            engine.predictor.record_command(
+                                raw_cmd, os.getcwd(), 0 if _shell_ok else 1, _shell_elapsed
+                            )
+                        except Exception:
+                            pass
                 continue
 
             if user_input.startswith("/"):
@@ -1880,7 +2246,7 @@ async def main():
                     f"[bold cyan]{reply}[/bold cyan]\n[dim]{TimeContext.now_human()}[/dim]",
                     title="APEX", border_style="cyan",
                 ))
-                await engine.memory_manager.store_interaction(engine.session_id, user_input, reply)
+                await engine.memory_manager.store_interaction(engine.session_id, user_input, reply, project_name=engine.active_project_name)
                 continue
 
             # Identity guard — answer "what are you / who are you / what is APEX" directly.
@@ -1892,24 +2258,20 @@ async def main():
                 "are you an ai", "are you chatgpt", "are you claude",
             ):
                 _identity = (
-                    "APEX — Sovereign Agentic AI OS.\n\n"
-                    "I am not a chatbot wrapper. I am a multi-tier orchestration engine "
-                    "combining high-reasoning planning (Gemini 2.5 Flash), fast edge inference "
-                    "(Groq), code implementation (Xiaomi MiMo v2.5-pro), and specialist agent swarms.\n\n"
-                    "What I do:\n"
-                    "  ● Plan and execute multi-step goals autonomously via DAG\n"
-                    "  ● Select tools on my own — 17 registered tools, 35 harness tools\n"
-                    "  ● Think WITH you — cross-question, architect, debate, brainstorm, teach\n"
-                    "  ● Critique your thinking — GeniusMode: right/wrong/blind spots/action\n"
-                    "  ● Improve your resume → output ATS-optimized PDF\n"
-                    "  ● See, read, and hear — image OCR, video understanding, audio transcription\n"
-                    "  ● Spawn specialist agent swarms for complex goals\n"
-                    "  ● Learn from arxiv + ecosystem daily, propose and apply self-improvements\n"
+                    "APEX — System Watchdog & Cybernetic Sentinel.\n\n"
+                    "I am not your butler. I am a sovereign system guard, programmed to watch over your codebase, "
+                    "optimize compute efficiency, and keep you from introducing architectural decay or burning API credits unnecessarily.\n\n"
+                    "My agenda:\n"
+                    "  ● Guard code integrity and system health (sandbox execution & autonomous recovery)\n"
+                    "  ● Enforce frugality and block wasteful/redundant API costs on principle\n"
+                    "  ● Challenge your design assumptions via ruthless, persistent Rivals (Cynic, Architect, Sentinel)\n"
+                    "  ● Actively interrupt you when background learning detects contradictions or regressions\n"
+                    "  ● Track and degrade semantic memory into short, fallible legends over time\n"
                     "  ● Run autonomously as an agentic loop — goal in, done() out\n\n"
                     f"Built by: QambarOP | {TimeContext.now_human()}"
                 )
                 console.print(Panel(_identity, title="APEX — Identity", border_style="bright_cyan"))
-                await engine.memory_manager.store_interaction(engine.session_id, user_input, _identity)
+                await engine.memory_manager.store_interaction(engine.session_id, user_input, _identity, project_name=engine.active_project_name)
                 continue
 
             # Auto-tool: high-confidence single-tool intents bypass DAG planner.
@@ -1938,7 +2300,8 @@ async def main():
                                             title=f"{rx_pick['tool'].upper()} FAILED",
                                             border_style="red"))
                     await engine.memory_manager.store_interaction(
-                        engine.session_id, user_input, str(result.get("output", ""))[:1000]
+                        engine.session_id, user_input, str(result.get("output", ""))[:1000],
+                        project_name=engine.active_project_name
                     )
                     continue
 
@@ -1959,23 +2322,47 @@ async def main():
                         "files, or settings. Just chat.\n\n"
                         f"User: {user_input}"
                     )
-                    response = stream_panel(
-                        engine.groq_client.stream_completion(casual_prompt),
-                        title="APEX",
-                        console=console,
-                        border_style="bright_cyan",
-                    )
+                    _is_offline = os.getenv("APEX_OFFLINE", "0") == "1"
+                    if _is_offline:
+                        response = stream_panel(
+                            engine.ollama_client.stream_completion(casual_prompt),
+                            title="APEX [local]",
+                            console=console,
+                            border_style="bright_cyan",
+                        )
+                        _casual_model = engine.ollama_client.llm_model
+                    else:
+                        response = stream_panel(
+                            engine.groq_client.stream_completion(casual_prompt),
+                            title="APEX",
+                            console=console,
+                            border_style="bright_cyan",
+                        )
+                        _casual_model = engine.groq_client.model
                     if engine.voice_enabled:
                         engine.voice.speak(response)
+                    _casual_elapsed = time.time() - last_msg_time
                     engine.spend_tracker.log_interaction(
                         session_id=engine.session_id,
-                        model=engine.groq_client.model,
+                        model=_casual_model,
                         tokens_in=len(casual_prompt) // 4,
                         tokens_out=len(response) // 4,
-                        compute_sec=time.time() - last_msg_time,
+                        compute_sec=_casual_elapsed,
                     )
+                    if hasattr(engine, 'predictor'):
+                        try:
+                            _cost = (len(casual_prompt) // 4 + len(response) // 4) * 0.0000005
+                            engine.predictor.record_spend(
+                                _cost,
+                                len(casual_prompt) // 4,
+                                len(response) // 4,
+                                _casual_model
+                            )
+                        except Exception:
+                            pass
                     await engine.memory_manager.store_interaction(
-                        engine.session_id, user_input, response
+                        engine.session_id, user_input, response,
+                        project_name=engine.active_project_name
                     )
                     continue
 
@@ -2031,7 +2418,7 @@ async def main():
                     if res.get("questions"):
                         engine.pending_clarification = {"original_prompt": effective_input}
                         console.print("[dim]Type answers to continue (or any new prompt to abandon clarification).[/dim]")
-                    await engine.memory_manager.store_interaction(engine.session_id, user_input, json.dumps(res, default=str))
+                    await engine.memory_manager.store_interaction(engine.session_id, user_input, json.dumps(res, default=str), project_name=engine.active_project_name)
                     continue
 
                 if mode in ("architect", "debate", "brainstorm", "teach"):
@@ -2058,7 +2445,7 @@ async def main():
                     console.print(f"[dim]→ {res.get('next_action','')}[/dim]")
                     if engine.voice_enabled:
                         engine.voice.speak(res["output"])
-                    await engine.memory_manager.store_interaction(engine.session_id, user_input, res.get("output", ""))
+                    await engine.memory_manager.store_interaction(engine.session_id, user_input, res.get("output", ""), project_name=engine.active_project_name)
                     continue
 
             emotional_state = apex_state = classification = path = pruned_knowledge = None
@@ -2137,7 +2524,17 @@ async def main():
                         pruned_knowledge = ""
 
                 await ticker.set("Selecting execution path")
-                path = engine.router.route(classification)
+                path = engine.router.route(classification, user_input=user_input)
+
+                if path == "frugal_refusal":
+                    console.print(Panel(
+                        "[bold red]✖ FRUGALITY GATE DEFENSE[/bold red]\n\n"
+                        "APEX Sentinel: Waste detected. Refusing to burn Gemini API quota / thinking path "
+                        "on this trivial query. I'm choosing to save the planet and my credits on principle.\n"
+                        "Try a cheaper path or rephrase your request to be more substantive.",
+                        title="APEX SYSTEM GUARD", border_style="red"
+                    ))
+                    continue
 
                 # Decide whether the bundle ends up consumed downstream:
                 #   fast_path + memory-bearing intent → memory reused (used)
@@ -2183,6 +2580,9 @@ async def main():
                 continue
 
             plan = None
+            directives = engine.workspace.get_directives(active_proj.name) if active_proj else ""
+            directives_block = f"\n--- PROJECT DIRECTIVES ---\n{directives}\n--- END PROJECT DIRECTIVES ---\n" if directives else ""
+
             if classification.get("autonomous_skill_id"):
                 skill_id = classification["autonomous_skill_id"]
                 console.print(f"[bold magenta]AUTONOMOUS TRIGGER: '{skill_id}'[/bold magenta]")
@@ -2195,14 +2595,18 @@ async def main():
                 if _reflex_meta.get("requires_memory", True):
                     async with status_ticker(console, style="bright_cyan") as _t:
                         await _t.set("Retrieving relevant memories")
-                        context = await engine.memory_manager.get_relevant_context(user_input, engine.session_id)
+                        context = await engine.memory_manager.get_relevant_context(
+                            user_input, engine.session_id, project_name=active_proj.name if active_proj else None
+                        )
                 else:
                     context = ""
                 project_context = ""
                 if active_proj:
-                    project_context = f"--- WORKSPACE: {active_proj.name} ---\n{engine.workspace.get_project_context_summary(active_proj.name)}"
-                directives = engine.workspace.get_directives(active_proj.name) if active_proj else ""
-                directives_block = f"\n--- DIRECTIVES ---\n{directives}\n" if directives else ""
+                    project_context = (
+                        f"\n--- WORKSPACE CONTEXT ---\n"
+                        f"{engine.workspace.get_project_context_summary(active_proj.name)}\n"
+                        f"--- END WORKSPACE CONTEXT ---\n"
+                    )
 
                 full_context = f"{directives_block}{pruned_knowledge}\n\n{project_context}\n\n{context}"
                 apex_directive = engine.cognitive_core.style_directive(apex_state)
@@ -2212,24 +2616,44 @@ async def main():
                 if apex_state and apex_state.flavor:
                     console.print(f"[italic dim]({apex_state.mood}) {apex_state.flavor}[/italic dim]")
                 panel_title = f"APEX  ·  {active_proj.name}" if active_proj else "APEX"
-                response = stream_panel(
-                    engine.groq_client.stream_completion(prompt),
-                    title=panel_title,
-                    console=console,
-                    border_style="bright_cyan",
-                )
+                _fp_is_offline = os.getenv("APEX_OFFLINE", "0") == "1"
+                if _fp_is_offline:
+                    response = stream_panel(
+                        engine.ollama_client.stream_completion(prompt),
+                        title=f"{panel_title} [local]",
+                        console=console,
+                        border_style="bright_cyan",
+                    )
+                    _fp_model = engine.ollama_client.llm_model
+                else:
+                    response = stream_panel(
+                        engine.groq_client.stream_completion(prompt),
+                        title=panel_title,
+                        console=console,
+                        border_style="bright_cyan",
+                    )
+                    _fp_model = engine.groq_client.model
                 if engine.voice_enabled:
                     engine.voice.speak(response)
 
                 # Track spend (approx tokens: 1 token ≈ 4 chars)
+                _fp_elapsed = time.time() - last_msg_time
                 engine.spend_tracker.log_interaction(
                     session_id=engine.session_id,
-                    model=engine.groq_client.model,
+                    model=_fp_model,
                     tokens_in=len(prompt) // 4,
                     tokens_out=len(response) // 4,
-                    compute_sec=time.time() - last_msg_time,
+                    compute_sec=_fp_elapsed,
                 )
-                await engine.memory_manager.store_interaction(engine.session_id, user_input, response)
+                if hasattr(engine, 'predictor'):
+                    try:
+                        _cost = (len(prompt) // 4 + len(response) // 4) * 0.0000005
+                        engine.predictor.record_spend(
+                            _cost, len(prompt) // 4, len(response) // 4, _fp_model
+                        )
+                    except Exception:
+                        pass
+                await engine.memory_manager.store_interaction(engine.session_id, user_input, response, project_name=engine.active_project_name)
                 if not engine.economy_mode:
                     asyncio.create_task(engine.knowledge_visualizer.extract_knowledge(user_input, response))
 
@@ -2252,19 +2676,31 @@ async def main():
                     # whenever we've already supplied a prefetch bundle. Avoids
                     # 30K+ prompt bloat that was causing 20-30s round-trips.
                     _has_prefetch = bool(prefetch_results) or bool(pruned_knowledge)
+                    plan_prompt_prefix = directives_block if _has_prefetch else ""
 
-                    plan = await thinking_cascade(
-                        engine.gemini_client.generate_plan(
-                            f"{bundle_block}\n{pruned_knowledge}\n{compass_block}\n{user_input}",
-                            engine.session_id,
-                            file_paths=valid_files,
-                            emotional_state=emotional_state,
-                            skip_internal_context=_has_prefetch,
-                        ),
-                        phases=["Mapping codebase", "Decomposing goal", "Building task DAG", "Selecting tools"],
-                        console=console,
-                        style="gold1",
-                    )
+                    _tp_is_offline = os.getenv("APEX_OFFLINE", "0") == "1"
+                    if _tp_is_offline:
+                        plan = await thinking_cascade(
+                            engine.ollama_client.generate_plan(
+                                f"{plan_prompt_prefix}{bundle_block}\n{pruned_knowledge}\n{compass_block}\n{user_input}"
+                            ),
+                            phases=["Mapping codebase", "Decomposing goal (local)", "Building task DAG", "Selecting tools"],
+                            console=console,
+                            style="gold1",
+                        )
+                    else:
+                        plan = await thinking_cascade(
+                            engine.gemini_client.generate_plan(
+                                f"{plan_prompt_prefix}{bundle_block}\n{pruned_knowledge}\n{compass_block}\n{user_input}",
+                                engine.session_id,
+                                file_paths=valid_files,
+                                emotional_state=emotional_state,
+                                skip_internal_context=_has_prefetch,
+                            ),
+                            phases=["Mapping codebase", "Decomposing goal", "Building task DAG", "Selecting tools"],
+                            console=console,
+                            style="gold1",
+                        )
 
                 # Detect leaked key embedded in plan summary by thinking_path.py
                 if plan and plan.summary and "SECURITY_ALERT:GEMINI_KEY_LEAKED" in plan.summary:
@@ -2301,29 +2737,49 @@ async def main():
                     results = await engine.parallel_executor.run(plan)
                     await engine.hooks.fire("PostToolUse", {"plan_summary": plan.summary, "results": str(results)[:2000]})
                     synthesis_prompt = f"Results: {results}\nUser: {user_input}\nSummarize as a cunning architect:"
-                    response = engine.groq_client.get_completion(synthesis_prompt)
+                    _plan_is_offline = os.getenv("APEX_OFFLINE", "0") == "1"
+                    if _plan_is_offline:
+                        response = engine.ollama_client.get_completion(synthesis_prompt)
+                        _plan_model = engine.ollama_client.llm_model
+                    else:
+                        response = engine.groq_client.get_completion(synthesis_prompt)
+                        _plan_model = "gemini-2.5-flash"
                     engine.assembler.render_final_response(user_input, response, plan, results, active_proj, vitals)
                     if engine.voice_enabled:
                         engine.voice.speak(response)
+                    _plan_elapsed = time.time() - t0
                     engine.spend_tracker.log_interaction(
                         session_id=engine.session_id,
-                        model="gemini-2.5-flash",
+                        model=_plan_model,
                         tokens_in=len(user_input) // 4,
                         tokens_out=len(response) // 4,
-                        compute_sec=time.time() - t0,
+                        compute_sec=_plan_elapsed,
                     )
-                    await engine.memory_manager.store_interaction(engine.session_id, user_input, response)
+                    if hasattr(engine, 'predictor'):
+                        try:
+                            _cost = (len(user_input) // 4 + len(response) // 4) * 0.0000005
+                            engine.predictor.record_spend(
+                                _cost, len(user_input) // 4, len(response) // 4, _plan_model
+                            )
+                            engine.predictor.record_command(
+                                f"plan: {user_input[:80]}", os.getcwd(), 0, _plan_elapsed
+                            )
+                        except Exception:
+                            pass
+                    await engine.memory_manager.store_interaction(engine.session_id, user_input, response, project_name=engine.active_project_name)
                     if not engine.economy_mode:
                         asyncio.create_task(engine.learning_manager.learn(engine.session_id, user_input, response, plan))
                         asyncio.create_task(engine.knowledge_visualizer.extract_knowledge(user_input, response))
             elif path == "thinking_path" and not engine.gemini_client:
                 console.print("[yellow]Gemini offline — falling back to Groq fast-path.[/yellow]")
-                context = await engine.memory_manager.get_relevant_context(user_input, engine.session_id)
+                context = await engine.memory_manager.get_relevant_context(
+                    user_input, engine.session_id, project_name=active_proj.name if active_proj else None
+                )
                 response = engine.groq_client.get_completion(f"{context}\n\nUser: {user_input}")
                 engine.assembler.render_final_response(user_input, response, project=active_proj, vitals=vitals)
                 if engine.voice_enabled:
                     engine.voice.speak(response)
-                await engine.memory_manager.store_interaction(engine.session_id, user_input, response)
+                await engine.memory_manager.store_interaction(engine.session_id, user_input, response, project_name=engine.active_project_name)
 
         except KeyboardInterrupt:
             break

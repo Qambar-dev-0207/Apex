@@ -52,6 +52,15 @@ APEX is evolving through 5 major phases to reach full ambient embodiment.
 ### Phase 3: The "HUD" (Web Dashboard)
 *   **Visual Nerve Center**: Live telemetry, knowledge graph visualization, and proposal queue.
 *   **Voice Waveform**: Real-time audio interaction visualization.
+*   **Landing Page**: [High-fidelity Next.js App](./frontend/README.md) implemented with the Armory UI/UX.
+
+---
+
+## 💻 Web Dashboard (HUD)
+APEX now includes a sophisticated web interface located in the `/frontend` directory. 
+- **Style**: Cyberpunk/Armory aesthetic.
+- **Tech**: Next.js, Framer Motion, CSS Modules.
+- **Access**: Run `npm run dev` in `/frontend`.
 
 ### Phase 4: Autonomous Operator Mode
 *   **Long-Horizon Goals**: Autonomous execution of multi-step plans with rollback and reflection loops.

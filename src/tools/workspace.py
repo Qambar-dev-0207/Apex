@@ -133,7 +133,7 @@ class WorkspaceManager:
                 return True
         return False
 
-    def get_project_context_summary(self, name: str) -> str:
+    def get_project_context_summary(self, name: str, include_directives: bool = False) -> str:
         if name not in self.projects:
             return ""
 
@@ -152,9 +152,10 @@ class WorkspaceManager:
             "\n".join(tree_lines),
         ]
 
-        directives = self.get_directives(name)
-        if directives:
-            summary.append("\nPROJECT DIRECTIVES (auto-loaded):\n" + directives)
+        if include_directives:
+            directives = self.get_directives(name)
+            if directives:
+                summary.append("\nPROJECT DIRECTIVES (auto-loaded):\n" + directives)
 
         anchors = ["README.md", "architecture.md", "requirements.txt", "package.json", "pyproject.toml", ".env.example"]
         anchor_data = []

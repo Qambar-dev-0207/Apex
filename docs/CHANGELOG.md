@@ -4,6 +4,20 @@
 
 ---
 
+## 2026-06-16 — Workspace Memory Isolation & Prompt Formatting Fixes
+
+Resolved workspace context bleeding issues, prompt bloating, and LLM directive duplication.
+
+### Added & Modified — Memory Isolation (`src/services/memory.py`)
+- **Project-Specific Chroma Filtering**: Modified `MemoryManager.get_relevant_context` and `MemoryManager.store_interaction` to store and filter memories based on `project_name` metadata (`where={"project_name": project_name}`).
+- **Integration Across Core Layers**: Propagated active project name context through the prefetch layer (`reflex.py`), thinking path generation (`thinking_path.py`), and the main system loop (`main.py`).
+
+### Added & Modified — Prompt Formatting (`src/tools/workspace.py`, `main.py`, `src/models/thinking_path.py`)
+- **Clean Prompt Boundary Tags**: Enclosed `--- PROJECT DIRECTIVES ---` and `--- WORKSPACE CONTEXT ---` sections in distinct opening and closing tags, preventing reasoning models from leaking or repeating headers.
+- **Directives Duplication Fix**: Modified workspace context summary generation (`get_project_context_summary`) to exclude directives by default, and conditionalized directive prepending in thinking path prompts to only run when prefetch is active.
+
+---
+
 ## 2026-05-08 — Cognitive + Tools + Time + Memory rewrite
 
 Massive build session. 7 new modules + 1 full rewrite + 7 test suites.

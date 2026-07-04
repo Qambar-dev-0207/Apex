@@ -74,7 +74,46 @@ class InputClassifier:
 
         # Stage 2 — LLM escalation only when Reflex confidence is low.
         skill = self.skill_manager.find_matching_skill(text, threshold=0.05)
-        if not self.client:
+        is_offline = os.getenv("APEX_OFFLINE", "0") == "1"
+        if is_offline or not self.client:
+            try:
+                from src.models.local_path import OllamaClient
+                ollama = OllamaClient()
+                if await ollama.check_connection():
+                    prompt = f"""
+                    Classify for APEX OMEGA.
+                    INPUT: {text}
+                    SKILL_MATCH: {skill.name if skill else 'None'}
+
+                    Output MUST be valid JSON with these keys:
+                    - intent: (chat, coding, search, git, exploration, skill_activation)
+                    - complexity: (low, medium, high)
+                    - priority: (1, 2, 3)
+                    - requires_tools: (true/false)
+                    - requires_vision: (true/false)
+                    - autonomous_skill_id: (string or null)
+                    """
+                    response = await ollama.client.chat(
+                        model=ollama.llm_model,
+                        messages=[{"role": "user", "content": prompt}],
+                        options={"temperature": 0.1}
+                    )
+                    content = response.message.content.strip()
+                    if content.startswith("```"):
+                        lines = content.splitlines()
+                        if lines[0].startswith("```"):
+                            lines = lines[1:]
+                        if lines and lines[-1].startswith("```"):
+                            lines = lines[:-1]
+                        content = "\n".join(lines).strip()
+                    classification = json.loads(content)
+                    if skill and not classification.get('autonomous_skill_id'):
+                        classification['autonomous_skill_id'] = skill.name
+                    classification.setdefault("_reflex", decision.to_classification()["_reflex"])
+                    self._cache_put(cache_key, classification)
+                    return classification
+            except Exception:
+                pass
             return self._heuristic_classify(text, skill)
 
         prompt = f"""
@@ -120,7 +159,17 @@ class InputClassifier:
         return {"intent": intent, "complexity": complexity, "priority": 3, "requires_tools": intent != "chat", "requires_vision": vision, "autonomous_skill_id": matched_skill.name if matched_skill else None}
 
 class SmartRouter:
-    def route(self, classification: Dict[str, Any]) -> str:
+    def route(self, classification: Dict[str, Any], user_input: str = "") -> str:
+        # Frugality gate check
+        if user_input:
+            low_input = user_input.lower().strip()
+            # If the user is asking a greeting or a single word query, block paid calls
+            if any(g in low_input for g in ["hello", "hi", "hey", "test", "status"]):
+                return "frugal_refusal"
+            # Extremely short queries that shouldn't invoke paid thinking path
+            if len(low_input.split()) < 3 and classification.get("intent") not in ("git", "exploration"):
+                return "frugal_refusal"
+
         # Reflex path takes precedence ONLY when it's high-confidence (needs_llm is False).
         reflex = classification.get("_reflex") or {}
         rpath = reflex.get("path")
@@ -186,6 +235,18 @@ class ParallelExecutor:
             self.concurrency_limit = asyncio.Semaphore(10)
 
     async def _fallback_recovery(self, step: Dict[str, Any], error: str) -> Dict[str, Any]:
+        is_offline = os.getenv("APEX_OFFLINE", "0") == "1"
+        if is_offline:
+            try:
+                from src.models.local_path import OllamaClient
+                ollama = OllamaClient()
+                response = await ollama.client.chat(
+                    model=ollama.llm_model,
+                    messages=[{"role": "user", "content": f"FAIL_RECOVERY: {step['action']} Error: {error}"}]
+                )
+                return {"success": True, "output": response.message.content.strip(), "error": None}
+            except Exception:
+                pass
         if self.primary:
             try:
                 res = self.primary.client.models.generate_content(

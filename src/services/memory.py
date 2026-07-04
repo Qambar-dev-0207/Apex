@@ -410,6 +410,7 @@ class MemoryManager:
     # ---- public ops ----
 
     async def get_relevant_context(self, query: str, session_id: str,
+                                   project_name: Optional[str] = None,
                                    max_tokens: int = 8000) -> str:
         history_str = ""
         context = await self.redis.load_session(session_id)
@@ -418,7 +419,8 @@ class MemoryManager:
                 f"{e.role}: {e.content}" for e in context.history
             )
 
-        memories = await self.chroma.search_memories(query)
+        where = {"project_name": project_name} if project_name else None
+        memories = await self.chroma.search_memories(query, where=where)
         parts: List[str] = []
         if history_str:
             parts.append(history_str)
@@ -456,7 +458,8 @@ class MemoryManager:
         return full
 
     async def store_interaction(self, session_id: str,
-                                user_input: str, assistant_output: str):
+                                user_input: str, assistant_output: str,
+                                project_name: Optional[str] = None):
         # Single Redis round-trip — no race between user-add and assistant-add
         context = await self.redis.load_session(session_id) or SessionContext(session_id=session_id)
         context.history.append(MemoryEntry(role="user", content=user_input))
@@ -466,19 +469,24 @@ class MemoryManager:
 
         # Long-term semantic memory
         related_ids: List[str] = []
+        where = {"project_name": project_name} if project_name else None
         try:
-            recent = await self.chroma.search_memories(user_input, n_results=2)
+            recent = await self.chroma.search_memories(user_input, n_results=2, where=where)
             related_ids = [r["id"] for r in recent]
         except Exception as e:
             logger.warning(f"search_memories during store failed: {e}")
 
         doc_id = str(uuid.uuid4())
+        metadata = {
+            "session_id": session_id,
+            "related_ids": ",".join(related_ids),
+        }
+        if project_name:
+            metadata["project_name"] = project_name
+
         await self.chroma.add_memory(
             text=f"User: {user_input}\nAssistant: {assistant_output}",
-            metadata={
-                "session_id": session_id,
-                "related_ids": ",".join(related_ids),
-            },
+            metadata=metadata,
             doc_id=doc_id,
         )
 
@@ -514,6 +522,96 @@ class MemoryManager:
     async def prune_old_memories(self, days: int = 60) -> int:
         """Remove Chroma memories older than `days`. Returns count removed."""
         return await self.chroma.prune_older_than(days)
+
+    async def degrade_memories(self, age_hours: float = 24) -> int:
+        """
+        Scans Chroma for non-legend memories older than `age_hours` and degrades
+        them into a lossy, subjective, folklore-style 'legend' (1-2 sentences).
+        """
+        if not self.chroma.is_active:
+            return 0
+        cutoff = time.time() - age_hours * 3600
+        try:
+            res = await asyncio.to_thread(
+                self.chroma.collection.get,
+                where={"ts_unix": {"$lt": cutoff}}
+            )
+        except Exception as e:
+            logger.warning(f"degrade get failed: {e}")
+            return 0
+
+        ids = res.get("ids", []) or []
+        documents = res.get("documents", []) or []
+        metadatas = res.get("metadatas", []) or []
+
+        degraded_count = 0
+        for i, doc_id in enumerate(ids):
+            meta = metadatas[i] or {}
+            if meta.get("is_legend"):
+                continue
+            
+            raw_text = documents[i]
+            legend_text = raw_text
+            if self._gemini:
+                prompt = f"""
+                You are the memory decay daemon of APEX.
+                Your task: compress the following precise conversation log into a short, legendary story (1-2 sentences).
+                Add a touch of human subjectivity or slightly exaggerated folklore (e.g., 'the time we fought the validation regex bug for hours and triumphed' instead of 'user fixed code regex error at 12:00').
+                Keep it brief and memorable.
+
+                CONVERSATION LOG:
+                {raw_text}
+                """
+                try:
+                    r = await asyncio.to_thread(
+                        self._gemini.models.generate_content,
+                        model="gemini-2.5-flash-lite",
+                        contents=prompt
+                    )
+                    legend_text = (r.text or "").strip()
+                except Exception as e:
+                    logger.warning(f"degrade LLM failed for {doc_id}: {e}")
+                    legend_text = f"[Legend fallback]: {raw_text[:100]}..."
+
+            try:
+                new_meta = dict(meta)
+                new_meta["is_legend"] = True
+                new_meta["ts_degraded"] = datetime.now().isoformat()
+                await asyncio.to_thread(
+                    self.chroma.collection.update,
+                    ids=[doc_id],
+                    documents=[legend_text],
+                    metadatas=[new_meta]
+                )
+                degraded_count += 1
+            except Exception as e:
+                logger.warning(f"degrade update failed for {doc_id}: {e}")
+
+        return degraded_count
+
+    async def correct_legend(self, doc_id: str, corrected_text: str) -> bool:
+        """
+        Manually overwrites the text of a memory legend.
+        """
+        if not self.chroma.is_active:
+            return False
+        try:
+            res = await asyncio.to_thread(self.chroma.collection.get, ids=[doc_id])
+            if not res.get("ids"):
+                return False
+            meta = (res.get("metadatas", [{}])[0] or {})
+            meta["is_legend"] = True
+            meta["ts_corrected"] = datetime.now().isoformat()
+            await asyncio.to_thread(
+                self.chroma.collection.update,
+                ids=[doc_id],
+                documents=[corrected_text],
+                metadatas=[meta]
+            )
+            return True
+        except Exception as e:
+            logger.warning(f"correct_legend failed: {e}")
+            return False
 
     def stats(self) -> Dict[str, Any]:
         return {

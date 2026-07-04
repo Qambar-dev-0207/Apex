@@ -141,10 +141,16 @@ class KnowledgeForge:
     async def run_papers(self, max_total: int = 12) -> Dict[str, Any]:
         res = await self.paper_reader.scan(max_per_category=6, max_total=max_total)
         for p in res.get("applicable", []):
+            score = (p.get("score") or {}).get("applicability", 0)
             await self._fire_hook("ApexPaperFound", {
                 "id": p.get("id"), "title": p.get("title"),
-                "applicability": (p.get("score") or {}).get("applicability", 0),
+                "applicability": score,
             })
+            if score >= 0.8 and hasattr(self, "engine") and self.engine and self.engine.interrupt_queue:
+                self.engine.interrupt_queue.put_nowait({
+                    "source": "KnowledgeForge",
+                    "message": f"High-applicability paper scored {score}: '{p.get('title')}' contradicts how validate() decides pass/fail. Want me to explain before you build more on top of it?"
+                })
         return res
 
     async def run_ecosystem(self) -> Dict[str, Any]:
@@ -177,6 +183,11 @@ class KnowledgeForge:
         record["regression_check"] = reg
         if reg.get("regression"):
             self._log(f"REGRESSION DETECTED: {reg['details']}", level="err")
+            if hasattr(self, "engine") and self.engine and self.engine.interrupt_queue:
+                self.engine.interrupt_queue.put_nowait({
+                    "source": "KnowledgeForge Benchmark",
+                    "message": f"Regression detected in codebase: {reg.get('details')}. System integrity is compromised. Shall we roll back or investigate?"
+                })
         return record
 
     async def _fire_hook(self, event: str, payload: Dict[str, Any]):

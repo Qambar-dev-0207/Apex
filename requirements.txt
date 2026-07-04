@@ -53,3 +53,7 @@ kokoro-onnx
 pyttsx3
 uiautomation
 
+# ── Predictive Intelligence & Local Sovereignty (Phase 2) ───────────────
+ollama
+scikit-learn
+pandas

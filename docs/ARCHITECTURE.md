@@ -49,6 +49,8 @@ Every layer ships with a fallback so degradation is graceful, not fatal.
 
 ### Primary planner — Gemini 2.5 Flash (`src/models/thinking_path.py`)
 - System prompt auto-prefixed with `TimeContext.system_prefix()` + `tool_registry.get_prompt_block()`
+- **Prompt Boundary Tags**: Encloses directives (`--- PROJECT DIRECTIVES ---` ... `--- END PROJECT DIRECTIVES ---`) and workspace context (`--- WORKSPACE CONTEXT ---` ... `--- END WORKSPACE CONTEXT ---`) in clear opening/closing tags to prevent LLM leaking/repetition.
+- **Conditional Directives**: Resolves directives early and prepends them to the thinking path plan prompt only when prefetch is active (`_has_prefetch` is `True`), avoiding context duplication.
 - Modes: `socratic_mode`, `steelman_mode`, `genius_mode` (multi-pass: hypothesis → counters → blind-spot → synthesis)
 - Outputs `ExecutionPlan` with task DAG + dependency graph
 - Also used for: GeniusMode critique, ResumeTool rewrite, KnowledgeForge scoring
@@ -118,11 +120,13 @@ Key behaviors:
 | Component | Backend | Role |
 |---|---|---|
 | `RedisManager` | Redis | Short-term session history, self-healing (30s retry) |
-| `ChromaManager` | ChromaDB | Long-term semantic memory, async, TTL pruning |
+| `ChromaManager` | ChromaDB | Long-term semantic memory, async, TTL pruning, project-specific isolation |
 | `ResponseCache` | ChromaDB collection | Semantic LLM dedup, hit/miss stats |
-| `MemoryManager` | Orchestrator | summarize-before-drop at `history_cap`, single round-trip store |
+| `MemoryManager` | Orchestrator | summarize-before-drop at `history_cap`, single round-trip store, project name propagation |
 
 **Summarize-before-drop**: when history > `APEX_HISTORY_CAP` (default 20), oldest entries collapse into a `[SUMMARY]` via `gemini-2.5-flash-lite`.
+
+**Project-Specific Memory Isolation**: Chroma long-term semantic memory stores the active `project_name` in document metadata and queries it with `where={"project_name": project_name}` to isolate retrieval results. The project context propagates cleanly through the prefetch layer (`reflex.py`), thinking path (`thinking_path.py`), and the main engine loop (`main.py`) to prevent cross-project context bleeding.
 
 ---
 

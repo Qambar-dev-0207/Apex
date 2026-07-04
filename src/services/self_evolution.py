@@ -241,6 +241,15 @@ class SelfEvolver:
                         if self.console:
                             self.console.print(f"[dim red][SelfEvolver] Auto-provision failed: {e}[/dim red]")
 
+            # Queue interrupt for high priority proposals
+            high_pri = [p for p in proposals if int(p.get("priority", 3) or 3) >= 4]
+            if high_pri and hasattr(self, "engine") and self.engine and self.engine.interrupt_queue:
+                top = high_pri[0]
+                self.engine.interrupt_queue.put_nowait({
+                    "source": "SelfEvolver",
+                    "message": f"Critical self-evolution proposal generated: '{top.get('title')}' targeting '{top.get('target_file')}' (Priority {top.get('priority')}). Rationale: {top.get('rationale')}. Should we execute?"
+                })
+
             cycle = {"ts": datetime.now().isoformat(), "totals": report["totals"], "proposals": len(proposals)}
             self.cycle_log.append(cycle)
             self.cycle_log = self.cycle_log[-20:]

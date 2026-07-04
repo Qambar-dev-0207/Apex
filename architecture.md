@@ -46,6 +46,8 @@ APEX layers smart routing under a "fast path always wins" rule. Simple prompts e
 ### Thinking path (`src/models/thinking_path.py`)
 - Gemini 2.5 Flash for plan generation
 - System prompt auto-prefixed with `TimeContext.system_prefix()` and `tool_registry.get_prompt_block()` — no hardcoded tool drift
+- **Prompt Boundary Tags**: Encloses `--- PROJECT DIRECTIVES ---` and `--- WORKSPACE CONTEXT ---` in clear opening/closing tags to prevent LLM leaking/repetition.
+- **Conditional Directives**: Resolves directives early and prepends them to the thinking path plan prompt only when prefetch is active (`_has_prefetch` is `True`), avoiding context duplication.
 - Modes: `socratic_mode`, `steelman_mode`, `genius_mode` (multi-pass: hypothesis → counters → blind-spot → synthesis)
 - Outputs `ExecutionPlan` with task DAG + dependencies
 
@@ -88,6 +90,7 @@ APEX layers smart routing under a "fast path always wins" rule. Simple prompts e
 - All ops via `asyncio.to_thread` — no event loop blocking
 - `prune_older_than(days)` — TTL-based cleanup
 - Auto-injects `ts_unix` metadata for time-aware queries
+- **Project-Specific Isolation**: stores active project name in Chroma document metadata and filters long-term semantic memory queries using `where={"project_name": project_name}` to prevent cross-project context bleeding.
 
 ### `ResponseCache` — semantic LLM dedup
 - Threshold-gated semantic similarity match
@@ -98,6 +101,7 @@ APEX layers smart routing under a "fast path always wins" rule. Simple prompts e
 - `history_cap=20` (configurable via `APEX_HISTORY_CAP` env)
 - **Summarize-before-drop**: when history exceeds cap, oldest entries collapse into `[SUMMARY]` entry via `gemini-2.5-flash-lite` (heuristic fallback if no key)
 - `get_relevant_context` drops oldest history first instead of mid-truncating (preserves structure of recent code/JSON)
+- **Project Isolation**: ensures active project context is isolated and propagated through the prefetch layer (`reflex.py`), thinking path (`thinking_path.py`), and the main engine loop (`main.py`).
 - `clear_all_history(include_forge=True)` wipes Redis + Chroma + cache + (optionally) forge collections
 
 ### Shared embedding function

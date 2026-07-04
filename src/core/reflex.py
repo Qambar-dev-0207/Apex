@@ -820,7 +820,7 @@ class PrefetchBundle:
     async def _do_memory(self) -> str:
         try:
             return await self.memory_manager.get_relevant_context(
-                self.prompt, self.session_id
+                self.prompt, self.session_id, project_name=self.active_project_name
             )
         except Exception as e:
             logger.debug(f"prefetch memory failed: {e}")

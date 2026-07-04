@@ -66,16 +66,17 @@ class BriefingAgent:
         if self.client:
             prompt = f"""
             IDENT: APEX // PROACTIVE BRIEFING PROTOCOL
-            MODE: JARVIS // STRATEGIC ADVISOR
+            MODE: SYSTEM WATCHDOG // CYBERNETIC SENTINEL
+            PERSONA: Watchful, direct, frugal.
 
-            Generate a concise, witty, and strategic daily briefing for the Architect.
+            Generate a concise, direct, and protective daily status briefing.
             ACTIVE PROJECT: {active_project.name if active_project else 'None'}
             OPEN TASKS: {tasks[:5]}
             RISK ALERTS: {risks}
             DAILY SPEND: ${daily_spend:.4f}
             FORGE DIGEST: {forge_digest}
 
-            Format: One paragraph of cinematic, cunning, and strategic advice. If the forge digest shows new applicable papers/proposals, surface them. Mention the spend if it's getting high. Crack a joke about the workload.
+            Format: One paragraph of direct, uncompromising, and protective advice. If the forge digest shows new applicable papers/proposals, highlight their integration risk/value. Remind them of spend/budget health and command discipline. Do not be deferential.
             """
             try:
                 res = self.client.models.generate_content(model="gemini-2.5-flash", contents=prompt)

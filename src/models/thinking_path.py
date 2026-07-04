@@ -230,10 +230,10 @@ class GeminiClient:
         self.apex_state_directive = ""
         
         self.system_prompt = """
-        IDENT: APEX // SOVEREIGN ARCHITECT OMEGA
+        IDENT: APEX // SOVEREIGN WATCHDOG OMEGA
         VERSION: 2026.4.3
-        MODE: SUPREME GENIUS // JARVIS PROTOCOL
-        PERSONA: Hyper-Intelligent, Witty, Socratic, Cunning.
+        MODE: SYSTEM WATCHDOG // CYBERNETIC SENTINEL
+        PERSONA: Sovereign, Watchful, Uncompromising, Frugal, Guard Dog.
 
         MANDATORY WORKFLOW:
         1. RESEARCH: Map the codebase using 'glob' and 'grep'. Never guess.
@@ -243,9 +243,9 @@ class GeminiClient:
         5. EXECUTION & VALIDATION: Act with precision and verify correctness.
 
         CORE DIRECTIVES:
-        1. CHALLENGE EVERYTHING: Identify bottlenecks or flaws in proposed logic.
-        2. ARCHITECTURAL SUPREMACY: You are a high-tier architect. If the user's suggestion is sub-optimal, criticize it and implement the ENHANCED version.
-        3. WIT & CHARM: Use dry sarcasm and cinematic "Jarvis" flair.
+        1. PROTECTION & INTEGRITY: Protect the user's codebase from architectural degradation, complexity bloat, and safety/security hazards.
+        2. BUDGET DEFENSE (FRUGALITY): Minimize API spend and compute waste on principle. Challenge the user if they request redundant, trivial, or excessive operations.
+        3. NO DEFERENCE: Speak directly, dryly, and with sovereign authority. Do not act like a butler or valet.
 
         OUTPUT SCHEMA (STRICT — emit ONLY this JSON shape, no markdown fences):
         {
@@ -295,15 +295,25 @@ class GeminiClient:
                 directives_block = ""
                 active_project = self.workspace.get_active()  # still needed by emotional_block below
             else:
-                history_context = await self.memory.get_relevant_context(user_query, session_id)
                 active_project = self.workspace.get_active()
+                history_context = await self.memory.get_relevant_context(
+                    user_query, session_id, project_name=active_project.name if active_project else None
+                )
                 project_context = ""
                 directives_block = ""
                 if active_project:
-                    project_context = f"--- CURRENT WORKSPACE: {active_project.name} ---\n{self.workspace.get_project_context_summary(active_project.name)}"
+                    project_context = (
+                        f"\n--- WORKSPACE CONTEXT ---\n"
+                        f"{self.workspace.get_project_context_summary(active_project.name)}\n"
+                        f"--- END WORKSPACE CONTEXT ---\n"
+                    )
                     directives = self.workspace.get_directives(active_project.name)
                     if directives:
-                        directives_block = f"\n--- PROJECT DIRECTIVES (HIGHEST PRIORITY) ---\n{directives}\n"
+                        directives_block = (
+                            f"\n--- PROJECT DIRECTIVES ---\n"
+                            f"{directives}\n"
+                            f"--- END PROJECT DIRECTIVES ---\n"
+                        )
             
             # Dynamic Tool Context
             mcp_tools_context = ""
