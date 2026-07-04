@@ -193,6 +193,18 @@ REGISTRY: Dict[str, ToolSpec] = {
             'desktop_control:navigate input_data=\'{"url": "https://google.com"}\'',
         ],
     ),
+    "codebase_index": ToolSpec(
+        name="codebase_index",
+        aliases=["code_index", "vector_index", "codebase_search"],
+        actions=["search", "index"],
+        input_schema="search: query string; index: 'rebuild' or empty",
+        when_to_use="Query the local codebase vector index for matching code snippets semantically, or run indexing.",
+        examples=[
+            "codebase_index:search input_data='database connection pool'",
+            "codebase_index:index input_data=''",
+            "codebase_index:index input_data='rebuild'",
+        ],
+    ),
 }
 
 

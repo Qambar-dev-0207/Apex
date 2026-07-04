@@ -170,6 +170,9 @@ SLASH_HELP = """\
   /analyze                 Build/refresh token-efficient code map
   /analyze <term>          Find symbols across codebase (compressed)
   /map-stats               Show compression ratio + savings
+  /index-codebase [--rebuild] Index codebase to vector DB (ChromaDB)
+  /search-codebase <query> Semantic local search inside code index
+  /repomap [level]         Export structured Repository Map (1|2|3)
 
 [yellow]Telemetry[/yellow]
   /cost                    Show daily spend
@@ -243,12 +246,23 @@ class APEXEngine:
         self.learning_manager = LearningManager(self.memory_manager)
         self.learning_manager.seed_skills()
 
+        await _stage("Linking codebase indexer + repo map")
+        from src.services.codebase_index import CodebaseIndexer
+        from src.services.repo_map import RepoMapGenerator
+        self.codebase_indexer = CodebaseIndexer(self.memory_manager, self.workspace)
+        self.repo_map_generator = RepoMapGenerator(root_dir=os.getcwd())
+
         await _stage("Wiring brains — Gemini 2.5 / Groq / MiMo")
         self.gemini_client = GeminiClient(model_name="gemini-2.5-flash", mcp_client=self.mcp_client) if os.getenv("GEMINI_API_KEY") else None
         self.provisioner = AutoProvisioner(self.learning_manager.skill_manager, self.mcp_client, self.workspace)
 
         await _stage("Spawning parallel executor + 17 tools")
-        self.parallel_executor = ParallelExecutor(console=self.console, primary_brain=self.gemini_client, mcp_client=self.mcp_client)
+        self.parallel_executor = ParallelExecutor(
+            console=self.console,
+            primary_brain=self.gemini_client,
+            mcp_client=self.mcp_client,
+            codebase_indexer=self.codebase_indexer
+        )
         self.assembler = ResponseAssembler(self.console)
         self.spend_tracker = SpendTracker()
         self.retina = RetinaTool()
@@ -1546,6 +1560,53 @@ async def handle_slash(engine, cmd_line: str, skills_dir: str) -> bool:
         path = engine.knowledge_visualizer.generate_svg()
         console.print(f"[bold green]✓ KNOWLEDGE MAP: {path}[/bold green]")
         return True
+    if cmd == "/index-codebase":
+        rebuild = "--rebuild" in args
+        with Live(Spinner("dots", text="Indexing codebase to ChromaDB...", style="cyan"), refresh_per_second=10, transient=True):
+            stats = await engine.codebase_indexer.index_codebase(rebuild=rebuild)
+        if "error" in stats:
+            console.print(f"[red]Indexing failed: {stats['error']}[/red]")
+        else:
+            console.print(f"[bold green]✓ CODEBASE INDEXED[/bold green]")
+            console.print(
+                f"  Scanned: {stats['scanned']} | Skipped: {stats['skipped']} | "
+                f"Indexed: {stats['indexed']} | Chunks Added: {stats['chunks_added']} | "
+                f"Chunks Deleted: {stats['chunks_deleted']}"
+            )
+        return True
+    if cmd == "/search-codebase":
+        if not args:
+            console.print("[red]Usage: /search-codebase <query>[/red]")
+            return True
+        query = " ".join(args)
+        with Live(Spinner("dots", text=f"Searching codebase for: {query}...", style="cyan"), refresh_per_second=10, transient=True):
+            hits = await engine.codebase_indexer.search(query, limit=5)
+        if not hits:
+            console.print(f"[yellow]No matches found for '{query}'[/yellow]")
+            return True
+        for idx, hit in enumerate(hits, 1):
+            meta = hit.get("metadata", {})
+            title = f"{idx}. {meta.get('path')} (Lines {meta.get('start_line')}-{meta.get('end_line')})"
+            console.print(Panel(
+                hit.get("content", ""),
+                title=title,
+                border_style="cyan"
+            ))
+        return True
+    if cmd == "/repomap":
+        try:
+            level = int(args[0]) if args and args[0].isdigit() else 3
+        except Exception:
+            level = 3
+        with Live(Spinner("dots", text="Generating Repository Map...", style="magenta"), refresh_per_second=10, transient=True):
+            repomap = engine.repo_map_generator.save_map(level=level)
+        console.print(f"[bold green]✓ REPOSITORY MAP EXPORTED: .apex/repo_map.txt[/bold green]")
+        lines = repomap.splitlines()
+        preview = "\n".join(lines[:40])
+        if len(lines) > 40:
+            preview += f"\n... ({len(lines) - 40} more lines)"
+        console.print(Panel(preview, title="REPOSITORY MAP PREVIEW", border_style="magenta"))
+        return True
     if cmd == "/prune":
         context = await engine.knowledge_visualizer.get_pruned_context("current focus")
         console.print(Panel(context or "(empty)", title="PRUNED CONTEXT"))
@@ -1619,7 +1680,6 @@ async def handle_slash(engine, cmd_line: str, skills_dir: str) -> bool:
     if cmd == "/audit":
         import json
         from rich.table import Table
-        from rich.panel import Panel
         continuity_path = os.path.join(".apex", "rival_continuity.json")
         if not os.path.exists(continuity_path):
             console.print("[yellow]No rival scorecard database found. Run /genius or /critique first.[/yellow]")

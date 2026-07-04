@@ -197,7 +197,7 @@ class ParallelExecutor:
     """
     def __init__(self, console=None, primary_brain=None, mcp_client=None,
                  retina=None, code_compass=None, knowledge_forge=None,
-                 agent_swarm=None, think_partner=None):
+                 agent_swarm=None, think_partner=None, codebase_indexer=None):
         self.sandbox = SandboxExecutor()
         self.web_search = WebSearchTool()
         self.web_fetch = WebFetchTool()
@@ -220,6 +220,8 @@ class ParallelExecutor:
         self.knowledge_forge = knowledge_forge
         self.agent_swarm = agent_swarm
         self.think_partner = think_partner
+        from src.tools.codebase_index import CodebaseIndexTool
+        self.codebase_index = CodebaseIndexTool(indexer=codebase_indexer)
         self.primary = primary_brain
         self.console = console
         self.concurrency_limit = asyncio.Semaphore(10)
@@ -499,6 +501,15 @@ class ParallelExecutor:
                 elif step['tool'] == "desktop_control":
                     action = step['action'].lower()
                     res.update(await self.desktop_control.execute(action, step['input_data']))
+                elif step['tool'] == "codebase_index":
+                    action = step['action'].lower()
+                    if action == "search":
+                        res.update(await self.codebase_index.search(step['input_data']))
+                    elif action == "index":
+                        rebuild = step['input_data'] == "rebuild"
+                        res.update(await self.codebase_index.index(rebuild=rebuild))
+                    else:
+                        res.update({"success": False, "error": f"codebase_index: unknown action '{action}'"})
                 elif step['tool'] == "think_partner":
                     if not self.think_partner:
                         res.update({"success": False, "error": "think_partner not wired"})
