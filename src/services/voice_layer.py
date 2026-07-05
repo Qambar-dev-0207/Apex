@@ -12,6 +12,7 @@ sounddevice = None
 whisper = None
 openwakeword = None
 win32com = None
+kokoro_onnx = None
 
 try:
     import sounddevice as sd
@@ -32,6 +33,11 @@ except ImportError:
 try:
     import win32com.client
     win32com = win32com.client
+except ImportError:
+    pass
+
+try:
+    import kokoro_onnx
 except ImportError:
     pass
 
@@ -56,6 +62,8 @@ class VoiceLayer:
         self.speak_thread = None
         self.whisper_model = None
         self.sapi_speaker = None
+        self.kokoro = None
+        self.use_kokoro = False
         self.wake_word = "hey apex"
         
         # Audio stream settings
@@ -72,7 +80,21 @@ class VoiceLayer:
         self._initialize_stt()
 
     def _initialize_tts(self):
-        """Initialize Windows SAPI5 TTS with Microsoft David (male voice)."""
+        """Initialize Kokoro ONNX local TTS or fallback to Windows SAPI5."""
+        apex_dir = os.path.join(os.path.expanduser("~"), ".apex")
+        model_path = os.path.join(apex_dir, "kokoro-v0_19.onnx")
+        voices_path = os.path.join(apex_dir, "voices.bin")
+
+        if kokoro_onnx and os.path.exists(model_path) and os.path.exists(voices_path) and sounddevice:
+            try:
+                from kokoro_onnx import Kokoro
+                self.kokoro = Kokoro(model_path, voices_path)
+                self.use_kokoro = True
+                print(f"[Voice] TTS initialized using Kokoro ONNX local model.")
+                return
+            except Exception as e:
+                print(f"[Voice] Kokoro ONNX TTS initialization failed: {e}. Falling back to SAPI5.")
+
         if win32com:
             try:
                 self.sapi_speaker = win32com.Dispatch("SAPI.SpVoice")
@@ -89,7 +111,7 @@ class VoiceLayer:
             except Exception as e:
                 print(f"[Voice] SAPI5 TTS initialization failed: {e}")
         else:
-            print("[Voice] win32com not available, speech output will be printed only.")
+            print("[Voice] win32com/Kokoro not available, speech output will be printed only.")
 
     def _initialize_stt(self):
         """Initialize local Whisper model or setup fallback."""
@@ -157,7 +179,20 @@ class VoiceLayer:
                 text = self.speak_queue.get(timeout=1.0)
                 if text is None:  # Exit sentinel
                     break
-                if self.sapi_speaker:
+                if self.use_kokoro and sounddevice:
+                    try:
+                        # Use a pleasant female voice 'af_bella' as the default APEX voice
+                        samples, sample_rate = self.kokoro.create(text, voice="af_bella", speed=1.0, lang="en-us")
+                        sounddevice.play(samples, sample_rate)
+                        sounddevice.wait()
+                    except Exception as e:
+                        print(f"[Voice] Kokoro TTS playback failed: {e}")
+                        # Fallback to SAPI5 if available
+                        if self.sapi_speaker:
+                            self.sapi_speaker.Speak(text)
+                        else:
+                            print(f"\n[Voice Output] {text}\n")
+                elif self.sapi_speaker:
                     # Speak blockingly in this background thread
                     self.sapi_speaker.Speak(text)
                 else:

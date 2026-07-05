@@ -51,7 +51,8 @@ class MockEngine:
 
 # 1. Voice Layer Tests
 def test_voice_layer_init_and_speak():
-    with patch('src.services.voice_layer.win32com') as mock_win32com:
+    with patch('src.services.voice_layer.win32com') as mock_win32com, \
+         patch('src.services.voice_layer.kokoro_onnx', None):
         mock_sapi = MagicMock()
         mock_win32com.client = MagicMock()
         mock_win32com.Dispatch.return_value = mock_sapi

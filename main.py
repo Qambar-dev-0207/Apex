@@ -457,6 +457,37 @@ async def dispatch_swarm(engine, console, goal: str, rounds: int = 1,
     return res
 
 
+def parse_test_results(output: str) -> Optional[dict]:
+    import re
+    passed_match = re.search(r'(\d+)\s+passed', output)
+    failed_match = re.search(r'(\d+)\s+failed', output)
+    errors_match = re.search(r'(\d+)\s+error', output)
+    ran_match = re.search(r'Ran\s+(\d+)\s+test', output)
+    
+    if passed_match or failed_match or ran_match:
+        passed = int(passed_match.group(1)) if passed_match else 0
+        failed = int(failed_match.group(1)) if failed_match else 0
+        errors = int(errors_match.group(1)) if errors_match else 0
+        total = int(ran_match.group(1)) if ran_match else (passed + failed + errors)
+        
+        if ran_match and not passed_match and not failed_match:
+            if "OK" in output:
+                passed = total
+            else:
+                failures_m = re.search(r'failures=(\d+)', output)
+                errors_m = re.search(r'errors=(\d+)', output)
+                failed = int(failures_m.group(1)) if failures_m else 0
+                errors = int(errors_m.group(1)) if errors_m else 0
+                passed = total - failed - errors
+        
+        return {
+            "total": total,
+            "passed": passed,
+            "failed": failed + errors
+        }
+    return None
+
+
 async def dispatch_harness(engine, console, goal: str,
                            max_steps=None, trigger: str = "manual") -> Dict[str, Any]:
     """Run engine.harness and render its result panel."""
@@ -465,16 +496,59 @@ async def dispatch_harness(engine, console, goal: str,
         return {"success": False, "error": "empty goal"}
     if max_steps is not None:
         engine.harness.max_steps = max_steps
-    console.print(f"[dim bright_magenta][auto-harness ({trigger}) → '{goal[:60]}'][/dim bright_magenta]")
+    console.print(f"[dim bright_magenta][auto-harness ({trigger}) -> '{goal[:60]}'][/dim bright_magenta]")
     result = await engine.harness.run(goal)
     if result.get("success"):
         summary = result.get("summary", "(no summary)")
         touched = result.get("touched_files", []) or []
         body = f"[bold green]✓ DONE[/bold green]\n\n{summary}"
-        if touched:
-            body += f"\n\n[dim]Touched {len(touched)} file(s):[/dim]\n" + "\n".join(f"  • {p}" for p in touched[:20])
-            if result.get("snapshot_dir"):
-                body += f"\n\n[dim]Snapshot:[/dim] {result['snapshot_dir']}  ([cyan]/harness rollback[/cyan] to revert)"
+        
+        # Parse test results from harness execution log
+        steps_log = getattr(engine.harness, "steps_log", [])
+        test_summary = None
+        for step_item in steps_log:
+            tool_name = step_item.get("tool")
+            res_output = step_item.get("result", {}).get("output", "")
+            if tool_name in ("bash", "python_run") and res_output:
+                parsed = parse_test_results(res_output)
+                if parsed:
+                    test_summary = parsed
+        
+        if test_summary:
+            body += f"\n\n[bold cyan]Tests Run:[/bold cyan] {test_summary['total']} | [bold green]Passed:[/bold green] {test_summary['passed']} | [bold red]Failed:[/bold red] {test_summary['failed']}"
+
+        # Get line diff stats using git diff HEAD
+        import subprocess
+        try:
+            diff_proc = subprocess.run(["git", "diff", "HEAD", "--numstat"], capture_output=True, text=True)
+            if diff_proc.returncode == 0 and diff_proc.stdout.strip():
+                diff_lines = []
+                total_ins = 0
+                total_del = 0
+                for line in diff_proc.stdout.strip().split("\n"):
+                    parts = line.split("\t")
+                    if len(parts) >= 3:
+                        ins, dels, filename = parts[0], parts[1], parts[2]
+                        try:
+                            ins_val = int(ins)
+                            del_val = int(dels)
+                            total_ins += ins_val
+                            total_del += del_val
+                            diff_lines.append(f"  • {filename} ([green]+{ins}[/green] [red]-{dels}[/red])")
+                        except ValueError:
+                            pass
+                
+                if diff_lines:
+                    body += f"\n\n[bold yellow]Lines Changed:[/bold yellow] [green]+{total_ins}[/green], [red]-{total_del}[/red]\n" + "\n".join(diff_lines[:15])
+            else:
+                if touched:
+                    body += f"\n\n[dim]Touched {len(touched)} file(s):[/dim]\n" + "\n".join(f"  • {p}" for p in touched[:20])
+        except Exception:
+            if touched:
+                body += f"\n\n[dim]Touched {len(touched)} file(s):[/dim]\n" + "\n".join(f"  • {p}" for p in touched[:20])
+
+        if touched and result.get("snapshot_dir"):
+            body += f"\n\n[dim]Snapshot:[/dim] {result['snapshot_dir']}  ([cyan]/harness rollback[/cyan] to revert)"
         console.print(Panel(body, title="HARNESS COMPLETE", border_style="green"))
     else:
         console.print(Panel(
@@ -2792,51 +2866,147 @@ async def main():
                 if plan.socratic_insight:
                     console.print(Panel(f"[italic]{plan.socratic_insight}[/italic]", title="CRITIQUE", border_style="magenta"))
 
-                sg = engine.parallel_executor.safety_guard
-                if sg.mode == "plan":
-                    console.print("[bold magenta]PLAN MODE: execution skipped.[/bold magenta]")
-                    continue
+                is_coding_task = (classification or {}).get("intent") == "coding" or any(k in user_input.lower() for k in ["code", "implement", "refactor", "write tool", "fix bug"])
 
-                authorize = sg.mode == "auto-approve" or Confirm.ask("\n[bold yellow]Authorize compute sequence?[/bold yellow]")
-                if authorize:
+                if is_coding_task:
+                    approved = False
+                    while not approved:
+                        console.print("\n[bold yellow]Do you want any changes to this plan?[/bold yellow]")
+                        console.print("[dim]Type changes to refine the plan, or press Enter / type 'ok', 'go ahead', 'fine', 'proceed' to execute:[/dim]")
+                        
+                        feedback = await asyncio.to_thread(Prompt.ask, "❯ ")
+                        feedback_clean = feedback.strip().lower()
+                        
+                        if feedback_clean in ("", "ok", "go ahead", "fine", "proceed", "yes", "y"):
+                            approved = True
+                            break
+                        else:
+                            console.print(f"[cyan]Regenerating plan with feedback: '{feedback}'...[/cyan]")
+                            
+                            compass_ctx = prefetch_results.get("compass") if prefetch_results else None
+                            if not compass_ctx:
+                                if not engine.code_compass.index:
+                                    engine.code_compass.build()
+                                compass_ctx = engine.code_compass.context_for_query(user_input, max_files=5)
+                            compass_block = f"\n--- CODE COMPASS (compressed symbol map) ---\n{compass_ctx}\n" if compass_ctx else ""
+                            bundle_block = PrefetchBundle.render_as_prompt_block(prefetch_results or {})
+                            _has_prefetch = bool(prefetch_results) or bool(pruned_knowledge)
+                            plan_prompt_prefix = directives_block if _has_prefetch else ""
+                            
+                            user_input_with_feedback = f"{user_input}\n[User Feedback/Required Changes: {feedback}]"
+                            
+                            _tp_is_offline = os.getenv("APEX_OFFLINE", "0") == "1"
+                            if _tp_is_offline:
+                                plan = await thinking_cascade(
+                                    engine.ollama_client.generate_plan(
+                                        f"{plan_prompt_prefix}{bundle_block}\n{pruned_knowledge}\n{compass_block}\n{user_input_with_feedback}"
+                                    ),
+                                    phases=["Mapping codebase", "Decomposing goal (local)", "Building task DAG", "Selecting tools"],
+                                    console=console,
+                                    style="gold1",
+                                )
+                            else:
+                                plan = await thinking_cascade(
+                                    engine.gemini_client.generate_plan(
+                                        f"{plan_prompt_prefix}{bundle_block}\n{pruned_knowledge}\n{compass_block}\n{user_input_with_feedback}",
+                                        engine.session_id,
+                                        file_paths=valid_files,
+                                        emotional_state=emotional_state,
+                                        skip_internal_context=_has_prefetch,
+                                    ),
+                                    phases=["Re-mapping codebase", "Incorporating user changes", "Re-building task DAG", "Selecting tools"],
+                                    console=console,
+                                    style="gold1",
+                                )
+                            
+                            response_reveal(
+                                engine.assembler.render_plan(plan),
+                                title="Updated Task DAG",
+                                console=console,
+                                final_border="yellow",
+                                cycles=5,
+                            )
+                            if plan.socratic_insight:
+                                console.print(Panel(f"[italic]{plan.socratic_insight}[/italic]", title="CRITIQUE", border_style="magenta"))
+
+                    # Spawning coding agent (GLM 5.2) with the approved plan
+                    plan_details = ""
+                    for step in plan.task_plan:
+                        plan_details += f"Step {step.id}: {step.action} using {step.tool} with input {step.input_data}\n"
+                    
+                    harness_goal = f"""
+Execute the following coding task according to this approved plan.
+
+Original Request: {user_input}
+
+Plan Summary: {plan.summary}
+Plan Steps:
+{plan_details}
+"""
+                    console.print("[bold green]Spawning Coding Agent (GLM 5.2) with the approved plan...[/bold green]")
                     t0 = time.time()
-                    await engine.hooks.fire("PreToolUse", {"plan_summary": plan.summary, "tools": plan.tools_required})
-                    results = await engine.parallel_executor.run(plan)
-                    await engine.hooks.fire("PostToolUse", {"plan_summary": plan.summary, "results": str(results)[:2000]})
-                    synthesis_prompt = f"Results: {results}\nUser: {user_input}\nSummarize as a cunning architect:"
-                    _plan_is_offline = os.getenv("APEX_OFFLINE", "0") == "1"
-                    if _plan_is_offline:
-                        response = engine.ollama_client.get_completion(synthesis_prompt)
-                        _plan_model = engine.ollama_client.llm_model
-                    else:
-                        response = engine.groq_client.get_completion(synthesis_prompt)
-                        _plan_model = "gemini-3.5-flash"
-                    engine.assembler.render_final_response(user_input, response, plan, results, active_proj, vitals)
-                    if engine.voice_enabled:
-                        engine.voice.speak(response)
+                    results = await dispatch_harness(engine, console, harness_goal, trigger="coding_intent")
+                    response = results.get("summary", "Coding task executed.")
+                    
                     _plan_elapsed = time.time() - t0
+                    # Log the spend for the execution
                     engine.spend_tracker.log_interaction(
                         session_id=engine.session_id,
-                        model=_plan_model,
-                        tokens_in=len(user_input) // 4,
+                        model=engine.harness.mimo.model if (engine.harness.mimo and engine.harness.mimo.is_online) else "z-ai/glm-5.2",
+                        tokens_in=len(harness_goal) // 4,
                         tokens_out=len(response) // 4,
                         compute_sec=_plan_elapsed,
                     )
-                    if hasattr(engine, 'predictor'):
-                        try:
-                            _cost = (len(user_input) // 4 + len(response) // 4) * 0.0000005
-                            engine.predictor.record_spend(
-                                _cost, len(user_input) // 4, len(response) // 4, _plan_model
-                            )
-                            engine.predictor.record_command(
-                                f"plan: {user_input[:80]}", os.getcwd(), 0, _plan_elapsed
-                            )
-                        except Exception:
-                            pass
+                    
                     await engine.memory_manager.store_interaction(engine.session_id, user_input, response, project_name=engine.active_project_name)
-                    if not engine.economy_mode:
-                        asyncio.create_task(engine.learning_manager.learn(engine.session_id, user_input, response, plan))
-                        asyncio.create_task(engine.knowledge_visualizer.extract_knowledge(user_input, response))
+                    continue
+
+                else:
+                    sg = engine.parallel_executor.safety_guard
+                    if sg.mode == "plan":
+                        console.print("[bold magenta]PLAN MODE: execution skipped.[/bold magenta]")
+                        continue
+
+                    authorize = sg.mode == "auto-approve" or Confirm.ask("\n[bold yellow]Authorize compute sequence?[/bold yellow]")
+                    if authorize:
+                        t0 = time.time()
+                        await engine.hooks.fire("PreToolUse", {"plan_summary": plan.summary, "tools": plan.tools_required})
+                        results = await engine.parallel_executor.run(plan)
+                        await engine.hooks.fire("PostToolUse", {"plan_summary": plan.summary, "results": str(results)[:2000]})
+                        synthesis_prompt = f"Results: {results}\nUser: {user_input}\nSummarize as a cunning architect:"
+                        _plan_is_offline = os.getenv("APEX_OFFLINE", "0") == "1"
+                        if _plan_is_offline:
+                            response = engine.ollama_client.get_completion(synthesis_prompt)
+                            _plan_model = engine.ollama_client.llm_model
+                        else:
+                            response = engine.groq_client.get_completion(synthesis_prompt)
+                            _plan_model = "gemini-3.5-flash"
+                        engine.assembler.render_final_response(user_input, response, plan, results, active_proj, vitals)
+                        if engine.voice_enabled:
+                            engine.voice.speak(response)
+                        _plan_elapsed = time.time() - t0
+                        engine.spend_tracker.log_interaction(
+                            session_id=engine.session_id,
+                            model=_plan_model,
+                            tokens_in=len(user_input) // 4,
+                            tokens_out=len(response) // 4,
+                            compute_sec=_plan_elapsed,
+                        )
+                        if hasattr(engine, 'predictor'):
+                            try:
+                                _cost = (len(user_input) // 4 + len(response) // 4) * 0.0000005
+                                engine.predictor.record_spend(
+                                    _cost, len(user_input) // 4, len(response) // 4, _plan_model
+                                )
+                                engine.predictor.record_command(
+                                    f"plan: {user_input[:80]}", os.getcwd(), 0, _plan_elapsed
+                                )
+                            except Exception:
+                                pass
+                        await engine.memory_manager.store_interaction(engine.session_id, user_input, response, project_name=engine.active_project_name)
+                        if not engine.economy_mode:
+                            asyncio.create_task(engine.learning_manager.learn(engine.session_id, user_input, response, plan))
+                            asyncio.create_task(engine.knowledge_visualizer.extract_knowledge(user_input, response))
             elif path == "thinking_path" and not engine.gemini_client:
                 console.print("[yellow]Gemini offline — falling back to Groq fast-path.[/yellow]")
                 context = await engine.memory_manager.get_relevant_context(
