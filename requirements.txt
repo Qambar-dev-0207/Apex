@@ -33,6 +33,7 @@ markdown-it-py
 opencv-python
 imageio-ffmpeg
 pyautogui
+pytesseract
 
 # ── System ───────────────────────────────────────────────────────────────
 psutil
@@ -52,6 +53,13 @@ openwakeword
 kokoro-onnx
 pyttsx3
 uiautomation
+sounddevice
+soundfile
+numpy
+silero-vad
+onnxruntime
+mistral-common
+vllm
 
 # ── Predictive Intelligence & Local Sovereignty (Phase 2) ───────────────
 ollama

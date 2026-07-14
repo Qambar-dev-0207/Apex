@@ -32,6 +32,11 @@ try:
 except Exception:  # pragma: no cover
     pyautogui = None
 
+try:
+    import pytesseract  # type: ignore
+except Exception:  # pragma: no cover
+    pytesseract = None
+
 
 # Supported file extensions
 IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif"}
@@ -105,9 +110,100 @@ class RetinaTool:
             return await self.transcribe_audio(path)
         return f"[unknown media type: {ext}]"
 
+    def _is_ocr_request(self, path: str, prompt: Optional[str]) -> bool:
+        if not prompt:
+            # If no prompt, it's a generic description. If it's a screenshot, treat as OCR-shaped.
+            abs_path = os.path.abspath(path)
+            abs_storage = os.path.abspath(self.storage_dir)
+            return "snap_" in os.path.basename(path) or abs_path.startswith(abs_storage)
+            
+        p = prompt.lower()
+        ocr_keywords = {
+            "read", "text", "ocr", "extract", "verbatim", "transcribe", 
+            "written", "code", "error", "message", "what does it say", 
+            "what is on my screen", "read the text", "terminal", "log", 
+            "console", "screenshot", "screen"
+        }
+        if any(kw in p for kw in ocr_keywords):
+            return True
+            
+        # Also check file source
+        abs_path = os.path.abspath(path)
+        abs_storage = os.path.abspath(self.storage_dir)
+        if "snap_" in os.path.basename(path) or abs_path.startswith(abs_storage):
+            return True
+            
+        return False
+
+    def _is_pure_extraction_prompt(self, prompt: str) -> bool:
+        p = prompt.lower()
+        if "extract all visible text from this image verbatim" in p:
+            return True
+        if p.strip() in ("extract text", "ocr", "read text", "get text"):
+            return True
+        return False
+
+    async def _run_local_ocr(self, path: str) -> Optional[str]:
+        if not pytesseract or not Image:
+            return None
+        try:
+            loop = asyncio.get_event_loop()
+            
+            def _ocr():
+                try:
+                    return pytesseract.image_to_string(Image.open(path))
+                except Exception:
+                    # Try common Windows paths for tesseract binary
+                    common_paths = [
+                        r"C:\Program Files\Tesseract-OCR\tesseract.exe",
+                        r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
+                        r"C:\Users\qamba\AppData\Local\Tesseract-OCR\tesseract.exe",
+                    ]
+                    for cp in common_paths:
+                        if os.path.exists(cp):
+                            pytesseract.pytesseract.tesseract_cmd = cp
+                            return pytesseract.image_to_string(Image.open(path))
+                    raise
+            
+            text = await loop.run_in_executor(None, _ocr)
+            return text.strip() if text else None
+        except Exception:
+            return None
+
     async def describe_image(self, path: str, prompt: Optional[str] = None) -> str:
         if not os.path.exists(path):
             return f"[image not found: {path}]"
+
+        # 1. Tier 1: Local OCR check for OCR-shaped requests
+        if self._is_ocr_request(path, prompt):
+            ocr_text = await self._run_local_ocr(path)
+            if ocr_text:
+                # If it's a pure extraction request, return the text directly
+                if not prompt or self._is_pure_extraction_prompt(prompt):
+                    return ocr_text
+                
+                # If specific question, query Gemini using text-only call
+                client = self._ensure_gemini()
+                if client:
+                    try:
+                        instruction = (
+                            f"Below is the OCR text extracted from a screenshot/image.\n"
+                            f"Answer this prompt using that text:\n{prompt}\n\n"
+                            f"OCR Text:\n{ocr_text}"
+                        )
+                        loop = asyncio.get_event_loop()
+                        res = await loop.run_in_executor(
+                            None,
+                            lambda: client.models.generate_content(
+                                model=self.gemini_model,
+                                contents=instruction,
+                            ),
+                        )
+                        return (res.text or "").strip()
+                    except Exception:
+                        pass # Fall through to multimodal on API failure
+
+        # 2. Fall through to Gemini Multimodal
         client = self._ensure_gemini()
         if not client:
             return "[vision unavailable: GEMINI_API_KEY missing]"
