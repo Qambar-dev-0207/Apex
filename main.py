@@ -349,7 +349,8 @@ class APEXEngine:
             think_partner=self.think_partner,
             workspace=self.workspace,
             project_root=os.getcwd(),
-            max_steps=10,
+            genius=self.genius,
+            max_steps=30,
         )
 
         await _stage("Priming self-evolver")

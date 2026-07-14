@@ -362,3 +362,73 @@ def test_harness_tool_schemas_complete():
     }
     missing = expected - names
     assert not missing, f"missing harness tools: {missing}"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Harness self-verification and critique tests
+# ─────────────────────────────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_harness_auto_verification_detects_syntax_errors():
+    from src.core.harness import AgentHarness
+    tmp = tempfile.mkdtemp()
+    h = AgentHarness(project_root=tmp)
+
+    # 1. Mutate file with valid python content
+    r = await h._dispatch("write", {"path": "valid.py", "content": "def test():\n    pass\n"})
+    assert r["success"]
+
+    # Run AST check directly via _verify
+    vres = await h._verify()
+    assert vres["ran"] is True
+    assert vres["success"] is True
+    assert h._last_verify_failed is False
+
+    # 2. Mutate file with invalid python content (syntax error)
+    r = await h._dispatch("write", {"path": "invalid.py", "content": "def test(:\n    pass\n"})
+    assert r["success"]
+
+    vres = await h._verify()
+    assert vres["ran"] is True
+    assert vres["success"] is False
+    assert h._last_verify_failed is True
+
+
+@pytest.mark.asyncio
+async def test_harness_done_rejected_when_verify_failed():
+    from src.core.harness import AgentHarness
+    from unittest.mock import MagicMock
+    h = AgentHarness(project_root=".")
+    h._last_verify_failed = True
+
+    # Mock brain selection to return a mock client
+    mock_client = MagicMock()
+    h._select_brain = lambda: (mock_client, "mock-model")
+
+    # Mock client's chat.completions.create response
+    mock_choice_1 = MagicMock()
+    mock_choice_1.message.content = ""
+    tc_done = MagicMock()
+    tc_done.id = "tc_1"
+    tc_done.function.name = "done"
+    tc_done.function.arguments = '{"summary": "completed"}'
+    mock_choice_1.message.tool_calls = [tc_done]
+
+    mock_choice_2 = MagicMock()
+    mock_choice_2.message.content = "Stopped."
+    mock_choice_2.message.tool_calls = []
+
+    mock_response_1 = MagicMock()
+    mock_response_1.choices = [mock_choice_1]
+    mock_response_2 = MagicMock()
+    mock_response_2.choices = [mock_choice_2]
+
+    # Return mock_response_1 first (calls done, gets rejected), then mock_response_2 (finishes)
+    mock_client.chat.completions.create.side_effect = [mock_response_1, mock_response_2]
+
+    res = await h.run("dummy goal")
+    assert res["success"] is True
+    # The first response choice was processed, but done was rejected, so we continued.
+    # The second response choice had no tool calls, finishing the run.
+    assert h.steps_log == []  # No tools logged successfully (done was rejected and skipped)
+

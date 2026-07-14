@@ -582,6 +582,7 @@ class AgentHarness:
     BLOCKED_EXTENSIONS = frozenset({
         ".pem", ".key", ".p12", ".pfx", ".crt", ".cer", ".der",
     })
+    MUTATING_TOOLS = {"write", "edit", "multi_edit"}
 
     def __init__(
         self,
@@ -601,6 +602,9 @@ class AgentHarness:
         think_partner: Optional[Any] = None,
         workspace: Optional[Any] = None,
         project_root: Optional[str] = None,
+        genius: Optional[Any] = None,
+        verify_command: Optional[str] = None,
+        verify_every_steps: int = 4,
         max_steps: int = 25,
         brain: str = "auto",  # "auto" | "mimo" | "groq"
     ):
@@ -624,6 +628,10 @@ class AgentHarness:
         self.swarm = swarm or (executor.agent_swarm if executor else None)
         self.think_partner = think_partner or (executor.think_partner if executor else None)
         self.workspace = workspace or (executor.workspace if executor else None)
+        self.genius = genius or (executor.genius if (executor and hasattr(executor, "genius")) else None)
+        self.verify_command = verify_command
+        self.verify_every_steps = verify_every_steps
+        self._last_verify_failed = False
         self.project_root = os.path.abspath(project_root or os.getcwd())
         self.max_steps = max_steps
         self.touched_files: List[str] = []
@@ -639,6 +647,43 @@ class AgentHarness:
         if pref in ("auto", "groq") and self.groq.client:
             return self.groq.client, self.groq.model
         return None, ""
+
+    def _detect_verify_command(self) -> Optional[str]:
+        """Cheap heuristic: prefer the project's real test suite if one exists."""
+        if os.path.isdir(os.path.join(self.project_root, "tests")):
+            return "python -m pytest tests/ -q --no-header -x"
+        if os.path.exists(os.path.join(self.project_root, "package.json")):
+            return "npm test --silent"
+        return None
+
+    async def _verify(self) -> Dict[str, Any]:
+        """
+        Runs after any mutating tool call. Falls back to AST syntax-check on
+        touched .py files if no test command exists — cheap but catches the
+        most common self-inflicted breakage (broken edit, bad indent, etc).
+        """
+        cmd = self.verify_command or self._detect_verify_command()
+        if not cmd:
+            py_files = [f for f in self.touched_files if f.endswith(".py") and os.path.exists(f)]
+            if not py_files:
+                self._last_verify_failed = False
+                return {"ran": False}
+            import ast
+            errors = []
+            for f in py_files:
+                try:
+                    ast.parse(open(f, encoding="utf-8", errors="ignore").read(), filename=f)
+                except SyntaxError as e:
+                    errors.append(f"{os.path.relpath(f, self.project_root)}: {e}")
+            success = not errors
+            self._last_verify_failed = not success
+            return {"ran": True, "success": success,
+                    "output": "\n".join(errors) or "syntax OK (no test suite found)"}
+        res = await self.shell.execute(cmd, timeout=120)
+        success = bool(res.get("success"))
+        self._last_verify_failed = not success
+        out = (res.get("output") or res.get("error") or "")[:3000]
+        return {"ran": True, "success": success, "output": out, "command": cmd}
 
     # ── path safety ──────────────────────────────────────────────────────
     def _resolve(self, path: str) -> str:
@@ -1291,6 +1336,14 @@ class AgentHarness:
                     args = {}
 
                 if name == "done":
+                    if self._last_verify_failed:
+                        messages.append({
+                            "role": "tool",
+                            "tool_call_id": tc.id,
+                            "name": name,
+                            "content": "REJECTED: last verification failed. Fix it first.",
+                        })
+                        continue
                     finished_summary = args.get("summary", "(no summary)")
                     self._render_step(step, name, args, _ok(finished_summary))
                     self.steps_log.append({"step": step, "tool": name, "args": args, "result": _ok(finished_summary)})
@@ -1310,6 +1363,36 @@ class AgentHarness:
                         max_chars=6000,
                     ),
                 })
+
+            mutated_this_step = any(
+                tc.function.name in self.MUTATING_TOOLS
+                for tc in tool_calls
+            )
+            if mutated_this_step and finished_summary is None:
+                vres = await self._verify()
+                if vres.get("ran"):
+                    marker = "✓ VERIFY PASSED" if vres["success"] else "✗ VERIFY FAILED"
+                    self.console.print(f"  [{'green' if vres['success'] else 'red'}]{marker}[/]")
+                    messages.append({
+                        "role": "user",
+                        "content": (
+                            f"[AUTO-VERIFY]\n{marker}\n{vres.get('output','')[:2000]}\n\n"
+                            + ("Fix the failure before calling done."
+                               if not vres["success"]
+                               else "Verification passed — you may proceed or call done.")
+                        ),
+                    })
+
+            # periodic self-critique
+            if self.genius and step % self.verify_every_steps == 0 and finished_summary is None:
+                crit = await self.genius.pre_step_critique(
+                    goal=goal, proposed_step=f"about to continue past step {step}"
+                )
+                if crit.get("wrong"):
+                    messages.append({
+                        "role": "user",
+                        "content": "[SELF-CRITIQUE] " + "; ".join(crit["wrong"][:2])[:800],
+                    })
 
             if finished_summary is not None:
                 break
