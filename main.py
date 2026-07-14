@@ -137,7 +137,7 @@ SLASH_HELP = """\
   /harness rollback        Restore touched files from last harness snapshot
 
 [yellow]Voice & Ambient[/yellow]
-  /voice [on|off|status]   Toggle or show status of hands-free Voice Layer
+  /voice [on|off|mute|unmute|status] Toggle or show status of hands-free Voice Layer
   /ambient [on|off|status] Toggle or show status of Ambient Layer context
 
 [yellow]Genius Critique & Rivals[/yellow]
@@ -286,8 +286,14 @@ class APEXEngine:
 
         await _stage("Loading voice layer")
         from src.services.voice_layer import VoiceLayer
-        self.voice = VoiceLayer(self)
+        self.voice = VoiceLayer(console=self.console)
         self.voice_enabled = os.getenv("APEX_VOICE", "0") == "1"
+        self.voice_task = None
+
+        async def _on_voice_transcript(text: str):
+            await self.input_queue.put(text)
+
+        self.voice.on_transcript = _on_voice_transcript
 
         await _stage("Loading ambient service")
         from src.services.ambient import AmbientService
@@ -365,7 +371,7 @@ class APEXEngine:
         self.self_evolver.engine = self
 
         if self.voice_enabled:
-            self.voice.start(lambda text: self.loop.call_soon_threadsafe(self.input_queue.put_nowait, text))
+            self.voice_task = asyncio.create_task(self.voice.run())
         if self.ambient_enabled:
             self.ambient.start()
 
@@ -413,6 +419,629 @@ class APEXEngine:
                 await asyncio.to_thread(self.code_compass.build)
         except Exception:
             pass
+
+    async def handle_user_turn(self, user_input: str) -> bool:
+        """
+        Processes a single turn of user input (typed or voiced).
+        Returns True to keep the REPL running, False to terminate the session.
+        """
+        engine = self
+        console = self.console
+        skills_dir = getattr(self, "skills_dir", "")
+        if not user_input.strip():
+            return True
+
+        try:
+            await engine.hooks.fire("UserPromptSubmit", {"input": user_input, "session_id": engine.session_id})
+            engine.self_evolver.mark_input()
+            engine.knowledge_forge.mark_input()
+
+            if not hasattr(engine, "last_msg_time"):
+                engine.last_msg_time = time.time()
+            velocity = 1.0 / (time.time() - engine.last_msg_time + 0.1)
+            engine.last_msg_time = time.time()
+
+            # ^^ prefix: auto-spawn agent swarm. Syntax: ^^ <goal> [| role1,role2] [rounds=N]
+            if user_input.startswith("^^"):
+                goal_str = user_input[2:].strip()
+                if not goal_str:
+                    console.print("[yellow]Usage: ^^ <goal> [| role1,role2] [rounds=N][/yellow]")
+                    return True
+                goal, rounds, roster = _parse_swarm_args(goal_str)
+                _t0_swarm = time.time()
+                await dispatch_swarm(engine, console, goal, rounds=rounds,
+                                     roster=roster, trigger="prefix")
+                if hasattr(engine, 'predictor'):
+                    try:
+                        engine.predictor.record_command(
+                            f"^^ {goal_str}", os.getcwd(), 0, time.time() - _t0_swarm
+                        )
+                    except Exception:
+                        pass
+                return True
+
+            # >> prefix: auto-spawn autonomous harness. Syntax: >> <goal> [max=N]
+            if user_input.startswith(">>"):
+                goal_str = user_input[2:].strip()
+                if not goal_str:
+                    console.print("[yellow]Usage: >> <goal> [max=N][/yellow]")
+                    return True
+                max_steps = None
+                m = re.search(r"\bmax=(\d+)", goal_str)
+                if m:
+                    max_steps = int(m.group(1))
+                    goal_str = re.sub(r"\bmax=\d+", "", goal_str).strip()
+                _t0_harness = time.time()
+                await dispatch_harness(engine, console, goal_str,
+                                       max_steps=max_steps, trigger="prefix")
+                if hasattr(engine, 'predictor'):
+                    try:
+                        engine.predictor.record_command(
+                            f">> {goal_str}", os.getcwd(), 0, time.time() - _t0_harness
+                        )
+                    except Exception:
+                        pass
+                return True
+
+            # ! prefix: direct shell passthrough (like Claude Code's ! command)
+            if user_input.startswith("!"):
+                raw_cmd = user_input[1:].strip()
+                if raw_cmd:
+                    _t0_shell = time.time()
+                    res = await engine.parallel_executor.shell.execute(raw_cmd)
+                    _shell_ok = 1 if res["success"] else 0
+                    _shell_elapsed = time.time() - _t0_shell
+                    if res["success"]:
+                        console.print(res.get("output", ""))
+                    else:
+                        console.print(f"[red]{res.get('error', 'Command failed')}[/red]")
+                    if hasattr(engine, 'predictor'):
+                        try:
+                            engine.predictor.record_command(
+                                raw_cmd, os.getcwd(), 0 if _shell_ok else 1, _shell_elapsed
+                            )
+                        except Exception:
+                            pass
+                return True
+
+            if user_input.startswith("/"):
+                handled = await handle_slash(engine, user_input, skills_dir)
+                if handled is None:
+                    return False
+                return True
+
+            # Time-aware greeting — short salutations get instant reply, no plan exec
+            if TimeContext.is_greeting(user_input):
+                reply = TimeContext.craft_greeting_response()
+                console.print(Panel(
+                    f"[bold cyan]{reply}[/bold cyan]\n[dim]{TimeContext.now_human()}[/dim]",
+                    title="APEX", border_style="cyan",
+                ))
+                await engine.memory_manager.store_interaction(engine.session_id, user_input, reply, project_name=engine.active_project_name)
+                return True
+
+            # Identity guard — answer "what are you / who are you / what is APEX" directly.
+            _uid = user_input.strip().lower().rstrip("?!.")
+            if _uid in (
+                "what are you", "who are you", "what is apex", "what is this",
+                "what do you do", "tell me about yourself", "what can you do",
+                "what are your capabilities", "describe yourself", "what is this system",
+                "are you an ai", "are you chatgpt", "are you claude",
+            ):
+                _identity = (
+                    "APEX — System Watchdog & Cybernetic Sentinel.\n\n"
+                    "I am not your butler. I am a sovereign system guard, programmed to watch over your codebase, "
+                    "optimize compute efficiency, and keep you from introducing architectural decay or burning API credits unnecessarily.\n\n"
+                    "My agenda:\n"
+                    "  ● Guard code integrity and system health (sandbox execution & autonomous recovery)\n"
+                    "  ● Enforce frugality and block wasteful/redundant API costs on principle\n"
+                    "  ● Challenge your design assumptions via ruthless, persistent Rivals (Cynic, Architect, Sentinel)\n"
+                    "  ● Actively interrupt you when background learning detects contradictions or regressions\n"
+                    "  ● Track and degrade semantic memory into short, fallible legends over time\n"
+                    "  ● Run autonomously as an agentic loop — goal in, done() out\n\n"
+                    f"Built by: QambarOP | {TimeContext.now_human()}"
+                )
+                console.print(Panel(_identity, title="APEX — Identity", border_style="bright_cyan"))
+                await engine.memory_manager.store_interaction(engine.session_id, user_input, _identity, project_name=engine.active_project_name)
+                return True
+
+            # Auto-tool: high-confidence single-tool intents bypass DAG planner.
+            if engine.auto_tool_enabled and not engine.pending_clarification:
+                rx_pick = tool_regex_match(user_input)
+                if rx_pick:
+                    console.print(f"[dim cyan][auto-tool → {rx_pick['tool']}:{rx_pick['action']}][/dim cyan]")
+                    step = {
+                        "id": "auto",
+                        "tool": rx_pick["tool"],
+                        "action": rx_pick["action"],
+                        "input_data": rx_pick["input_data"],
+                        "dependencies": [],
+                    }
+                    async with status_ticker(console, style="cyan") as ticker:
+                        await ticker.set(f"Running {rx_pick['tool']}:{rx_pick['action']}")
+                        result = await engine.parallel_executor.execute_step(step)
+                    if result.get("success"):
+                        out = str(result.get("output", ""))[:4000]
+                        console.print(Panel(out or "(no output)",
+                                            title=f"{rx_pick['tool'].upper()}:{rx_pick['action']}",
+                                            border_style="cyan"))
+                    else:
+                        console.print(Panel(f"[red]{result.get('error', 'failed')}[/red]",
+                                            title=f"{rx_pick['tool'].upper()} FAILED",
+                                            border_style="red"))
+                    await engine.memory_manager.store_interaction(
+                        engine.session_id, user_input, str(result.get("output", ""))[:1000],
+                        project_name=engine.active_project_name
+                    )
+                    return True
+
+            if not engine.pending_clarification:
+                _kw_decision = await engine.classifier.reflex.decide(user_input)
+
+                if _kw_decision.intent == "conversational":
+                    casual_prompt = (
+                        "You are APEX, a personal AI. Respond conversationally "
+                        "to the user in 1-2 short sentences. Warm, casual, human tone. "
+                        "Do NOT mention your architecture, internals, modules, code, "
+                        "files, or settings. Just chat.\n\n"
+                        f"User: {user_input}"
+                    )
+                    _is_offline = os.getenv("APEX_OFFLINE", "0") == "1"
+                    if _is_offline:
+                        response = stream_panel(
+                            engine.ollama_client.stream_completion(casual_prompt),
+                            title="APEX [local]",
+                            console=console,
+                            border_style="bright_cyan",
+                        )
+                        _casual_model = engine.ollama_client.llm_model
+                    else:
+                        response = stream_panel(
+                            engine.groq_client.stream_completion(casual_prompt),
+                            title="APEX",
+                            console=console,
+                            border_style="bright_cyan",
+                        )
+                        _casual_model = engine.groq_client.model
+                    if engine.voice_enabled:
+                        engine.voice.speak(response)
+                    _casual_elapsed = time.time() - engine.last_msg_time
+                    engine.spend_tracker.log_interaction(
+                        session_id=engine.session_id,
+                        model=_casual_model,
+                        tokens_in=len(casual_prompt) // 4,
+                        tokens_out=len(response) // 4,
+                        compute_sec=_casual_elapsed,
+                    )
+                    if hasattr(engine, 'predictor'):
+                        try:
+                            _cost = (len(casual_prompt) // 4 + len(response) // 4) * 0.0000005
+                            engine.predictor.record_spend(
+                                _cost,
+                                len(casual_prompt) // 4,
+                                len(response) // 4,
+                                _casual_model
+                            )
+                        except Exception:
+                            pass
+                    await engine.memory_manager.store_interaction(
+                        engine.session_id, user_input, response,
+                        project_name=engine.active_project_name
+                    )
+                    return True
+
+                if not engine.economy_mode:
+                    if _kw_decision.intent == "swarm_goal" and _kw_decision.confidence > 0.50:
+                        await dispatch_swarm(engine, console, user_input, trigger="keyword")
+                        return True
+                    if _kw_decision.intent == "harness_goal" and _kw_decision.confidence > 0.50:
+                        await dispatch_harness(engine, console, user_input, trigger="keyword")
+                        return True
+
+            effective_input = user_input
+            if getattr(engine, "pending_clarification", None):
+                pending = engine.pending_clarification
+                effective_input = (
+                    f"{pending['original_prompt']}\n\n"
+                    f"Clarifications:\n{user_input}"
+                )
+                engine.pending_clarification = None
+                console.print("[dim bright_magenta][resuming with clarifications][/dim bright_magenta]")
+
+            try:
+                if engine.spend_tracker.daily_call_count() >= engine.daily_call_limit and not engine.economy_mode:
+                    engine.economy_mode = True
+                    console.print(f"[bold yellow]⚠ Daily call cap ({engine.daily_call_limit}) hit — economy mode forced. /full to override.[/bold yellow]")
+            except Exception:
+                pass
+
+            if engine.auto_think_enabled and engine.think_partner.client and not engine.economy_mode:
+                route = await thinking_cascade(
+                    engine.think_partner.auto_route(effective_input),
+                    phases=["Reading intent", "Classifying mode", "Routing"],
+                    console=console,
+                    style="bright_magenta",
+                )
+                mode = route["mode"]
+                if mode != "execute":
+                    console.print(f"[dim bright_magenta][auto-think → {mode}  ({route['source']}, ambiguity={route['ambiguity_score']:.2f})][/dim bright_magenta]")
+
+                if mode == "cross_question":
+                    res = await engine.think_partner.cross_question(effective_input)
+                    _render_cross_question(console, res)
+                    if engine.voice_enabled:
+                        q_texts = [f"I have some questions to clarify. Interpretation: {res.get('interpretation', '')}."]
+                        for q in res.get("questions", []):
+                            q_texts.append(q.get("q", ""))
+                        engine.voice.speak(" ".join(q_texts))
+                    if res.get("questions"):
+                        engine.pending_clarification = {"original_prompt": effective_input}
+                        console.print("[dim]Type answers to continue (or any new prompt to abandon clarification).[/dim]")
+                    await engine.memory_manager.store_interaction(engine.session_id, user_input, json.dumps(res, default=str), project_name=engine.active_project_name)
+                    return True
+
+                if mode in ("architect", "debate", "brainstorm", "teach"):
+                    _phase_map = {
+                        "architect": ["Analyzing design space", "Evaluating trade-offs", "Proposing architecture"],
+                        "debate": ["Steelmanning opposition", "Building counter-argument", "Synthesizing positions"],
+                        "brainstorm": ["Diverging across models", "Generating angles", "Clustering ideas"],
+                        "teach": ["Framing intuition", "Unpacking mechanism", "Designing test cases"],
+                    }
+                    _coro_map = {
+                        "architect": engine.think_partner.architect(effective_input),
+                        "debate": engine.think_partner.debate(effective_input),
+                        "brainstorm": engine.think_partner.brainstorm(effective_input),
+                        "teach": engine.think_partner.teach(effective_input),
+                    }
+                    res = await thinking_cascade(
+                        _coro_map[mode],
+                        phases=_phase_map[mode],
+                        console=console,
+                        style="bright_magenta",
+                    )
+                    title = mode.upper()
+                    console.print(Panel(Markdown(res["output"]), title=title, border_style="bright_magenta"))
+                    console.print(f"[dim]→ {res.get('next_action','')}[/dim]")
+                    if engine.voice_enabled:
+                        engine.voice.speak(res["output"])
+                    await engine.memory_manager.store_interaction(engine.session_id, user_input, res.get("output", ""), project_name=engine.active_project_name)
+                    return True
+
+            emotional_state = apex_state = classification = path = pruned_knowledge = None
+            valid_files = []
+            prefetch_results: Dict[str, Any] = {}
+            prefetch_bundle: Optional[PrefetchBundle] = None
+
+            active_proj = engine.workspace.get_active()
+            vitals = engine.parallel_executor.hw.get_vitals()
+
+            async with status_ticker(console, style="bright_cyan") as ticker:
+                if engine.economy_mode:
+                    await ticker.set("Heuristic classify (economy mode)")
+                    classification = engine.classifier.heuristic_classify(user_input)
+                else:
+                    # check speculative prefetch
+                    prefetch_bundle = engine.classifier.reflex.check_prefetch(user_input)
+                    if prefetch_bundle is not None:
+                        await ticker.set("Speculative prefetch active")
+                        prefetch_results = await prefetch_bundle.wait_and_consume()
+
+                    await ticker.set("Classifying input")
+                    if prefetch_results.get("classification"):
+                        classification = prefetch_results["classification"]
+                    else:
+                        classification = await engine.classifier.classify(user_input)
+
+                    if classification.get("requires_memory"):
+                        if prefetch_results.get("memory"):
+                            pruned_knowledge = prefetch_results["memory"]
+                        else:
+                            await ticker.set("Pruning knowledge graph")
+                            pruned_knowledge = await engine.knowledge_visualizer.get_pruned_context(user_input)
+                    else:
+                        pruned_knowledge = ""
+
+                await ticker.set("Selecting execution path")
+                path = engine.router.route(classification, user_input=user_input)
+
+                if path == "frugal_refusal":
+                    console.print(Panel(
+                        "[bold red]✖ FRUGALITY GATE DEFENSE[/bold red]\n\n"
+                        "APEX Sentinel: Waste detected. Refusing to burn Gemini API quota / thinking path "
+                        "on this trivial query. I'm choosing to save the planet and my credits on principle.\n"
+                        "Try a cheaper path or rephrase your request to be more substantive.",
+                        title="APEX SYSTEM GUARD", border_style="red"
+                    ))
+                    return True
+
+                if prefetch_bundle is not None:
+                    reflex_path = (classification.get("_reflex") or {}).get("path", "")
+                    mismatch = (
+                        path == "fast_path"
+                        and reflex_path.startswith("think_partner:")
+                    )
+                    if mismatch:
+                        prefetch_bundle.cancel()
+                        prefetch_bundle.mark_wasted()
+                        prefetch_results = {}
+                    else:
+                        prefetch_bundle.mark_used(bytes_saved=sum(
+                            len(v) if isinstance(v, str) else 0
+                            for v in (prefetch_results or {}).values()
+                        ))
+
+                file_matches = re.findall(r"[\w\.\-/\\]+\.(?:pdf|png|jpg|jpeg|webp|md|py|txt|json)", user_input)
+                valid_files = [f for f in file_matches if os.path.exists(f)]
+                if classification.get('requires_vision') and not any(f.endswith(('.png', '.jpg', '.jpeg')) for f in valid_files):
+                    await ticker.set("Capturing screen for vision")
+                    valid_files.append(engine.retina.capture_screen())
+
+            if (
+                engine.auto_swarm_enabled
+                and not engine.pending_clarification
+                and (classification or {}).get("complexity") == "high"
+                and (classification or {}).get("intent") in {"coding", "architect", "skill", "skill_activation"}
+            ):
+                await dispatch_swarm(
+                    engine, console, user_input,
+                    rounds=1,
+                    roster=None,
+                    trigger=f"complexity:{(classification or {}).get('intent')}",
+                )
+                return True
+
+            plan = None
+            directives = engine.workspace.get_directives(active_proj.name) if active_proj else ""
+            directives_block = f"\n--- PROJECT DIRECTIVES ---\n{directives}\n--- END PROJECT DIRECTIVES ---\n" if directives else ""
+
+            if classification.get("autonomous_skill_id"):
+                skill_id = classification["autonomous_skill_id"]
+                console.print(f"[bold magenta]AUTONOMOUS TRIGGER: '{skill_id}'[/bold magenta]")
+                skill = engine.learning_manager.skill_manager.find_matching_skill(skill_id, threshold=1.0)
+                if skill:
+                    plan = skill.plan_template
+
+            if path == "fast_path" and not plan:
+                async with status_ticker(console, style="cyan") as ticker:
+                    await ticker.set("Frugal query (economy fast-path)")
+                    context = await engine.memory_manager.get_relevant_context(
+                        user_input, engine.session_id, project_name=active_proj.name if active_proj else None
+                    )
+                    # Include project directives if prefetch is active (same shape as thinking path)
+                    _tp_is_offline = os.getenv("APEX_OFFLINE", "0") == "1"
+                    _casual_prompt = f"{context}\n\nUser: {user_input}"
+                    if _tp_is_offline:
+                        response = engine.ollama_client.get_completion(_casual_prompt)
+                        _casual_model = engine.ollama_client.llm_model
+                    else:
+                        response = engine.groq_client.get_completion(_casual_prompt)
+                        _casual_model = engine.groq_client.model
+                    engine.assembler.render_final_response(user_input, response, project=active_proj, vitals=vitals)
+                    if engine.voice_enabled:
+                        engine.voice.speak(response)
+                    await engine.memory_manager.store_interaction(engine.session_id, user_input, response, project_name=engine.active_project_name)
+                    return True
+
+            if path == "thinking_path" or plan:
+                t0 = time.time()
+                if not plan:
+                    compass_ctx = prefetch_results.get("compass") if prefetch_results else None
+                    if not compass_ctx:
+                        if not engine.code_compass.index:
+                            engine.code_compass.build()
+                        compass_ctx = engine.code_compass.context_for_query(user_input, max_files=5)
+                    compass_block = f"\n--- CODE COMPASS (compressed symbol map) ---\n{compass_ctx}\n" if compass_ctx else ""
+
+                    bundle_block = PrefetchBundle.render_as_prompt_block(prefetch_results or {})
+                    _has_prefetch = bool(prefetch_results) or bool(pruned_knowledge)
+                    plan_prompt_prefix = directives_block if _has_prefetch else ""
+
+                    # Emotional core analysis (simulated or text-only)
+                    emotional_state = engine.cognitive_core.analyze_input(user_input)
+                    apex_state = engine.cognitive_core.get_system_personality_prompt()
+
+                    synthesis_prompt = (
+                        f"{directives_block}"
+                        f"{bundle_block}"
+                        f"{compass_block}"
+                        f"\nUser Query: {user_input}\n"
+                    )
+
+                    async with status_ticker(console, style="yellow") as ticker:
+                        await ticker.set("Decomposing goal")
+                        # Mock check or direct thinking_path call
+                        if engine.gemini_client:
+                            plan = await thinking_cascade(
+                                engine.gemini_client.generate_plan(
+                                    user_input,
+                                    engine.session_id,
+                                    file_paths=valid_files,
+                                    personality_prompt=apex_state,
+                                    directives=directives,
+                                    knowledge_context=pruned_knowledge,
+                                    compass_context=compass_ctx,
+                                    skip_internal_context=_has_prefetch,
+                                ),
+                                phases=["Mapping codebase", "Decomposing goal", "Building task DAG", "Selecting tools"],
+                                console=console,
+                                style="gold1",
+                            )
+
+                if plan and plan.summary and "SECURITY_ALERT:GEMINI_KEY_LEAKED" in plan.summary:
+                    from src.core.api_security import leaked_key_warning
+                    console.print(Panel(
+                        leaked_key_warning("Gemini", rich=True),
+                        title="[bold red]⚠  KEY COMPROMISED[/bold red]",
+                        border_style="red",
+                    ))
+                    engine.gemini_client = None
+                    engine.parallel_executor.primary_brain = None
+                    return True
+
+                if plan:
+                    response_reveal(
+                        engine.assembler.render_plan(plan),
+                        title="Task DAG",
+                        console=console,
+                        final_border="yellow",
+                        cycles=5,
+                    )
+                    if plan.socratic_insight:
+                        console.print(Panel(f"[italic]{plan.socratic_insight}[/italic]", title="CRITIQUE", border_style="magenta"))
+
+                    is_coding_task = (classification or {}).get("intent") == "coding" or any(k in user_input.lower() for k in ["code", "implement", "refactor", "write tool", "fix bug"])
+
+                    if is_coding_task:
+                        approved = False
+                        while not approved:
+                            console.print("\n[bold yellow]Do you want any changes to this plan?[/bold yellow]")
+                            console.print("[dim]Type changes to refine the plan, or press Enter / type 'ok', 'go ahead', 'fine', 'proceed' to execute:[/dim]")
+                            
+                            feedback = await asyncio.to_thread(Prompt.ask, "❯ ")
+                            feedback_clean = feedback.strip().lower()
+                            
+                            if feedback_clean in ("", "ok", "go ahead", "fine", "proceed", "yes", "y"):
+                                approved = True
+                                break
+                            else:
+                                console.print(f"[cyan]Regenerating plan with feedback: '{feedback}'...[/cyan]")
+                                
+                                compass_ctx = prefetch_results.get("compass") if prefetch_results else None
+                                if not compass_ctx:
+                                    if not engine.code_compass.index:
+                                        engine.code_compass.build()
+                                    compass_ctx = engine.code_compass.context_for_query(user_input, max_files=5)
+                                compass_block = f"\n--- CODE COMPASS (compressed symbol map) ---\n{compass_ctx}\n" if compass_ctx else ""
+                                bundle_block = PrefetchBundle.render_as_prompt_block(prefetch_results or {})
+                                _has_prefetch = bool(prefetch_results) or bool(pruned_knowledge)
+                                plan_prompt_prefix = directives_block if _has_prefetch else ""
+                                
+                                user_input_with_feedback = f"{user_input}\n[User Feedback/Required Changes: {feedback}]"
+                                
+                                _tp_is_offline = os.getenv("APEX_OFFLINE", "0") == "1"
+                                if _tp_is_offline:
+                                    plan = await thinking_cascade(
+                                        engine.ollama_client.generate_plan(
+                                            user_input_with_feedback,
+                                            engine.session_id,
+                                            file_paths=valid_files,
+                                            directives=directives,
+                                            knowledge_context=pruned_knowledge,
+                                            compass_context=compass_ctx,
+                                            skip_internal_context=_has_prefetch,
+                                        ),
+                                        phases=["Integrating feedback", "Re-constructing DAG", "Selecting tools"],
+                                        console=console,
+                                        style="gold1",
+                                    )
+                                else:
+                                    plan = await thinking_cascade(
+                                        engine.gemini_client.generate_plan(
+                                            user_input_with_feedback,
+                                            engine.session_id,
+                                            file_paths=valid_files,
+                                            personality_prompt=apex_state,
+                                            directives=directives,
+                                            knowledge_context=pruned_knowledge,
+                                            compass_context=compass_ctx,
+                                            skip_internal_context=_has_prefetch,
+                                        ),
+                                        phases=["Integrating feedback", "Re-constructing DAG", "Selecting tools"],
+                                        console=console,
+                                        style="gold1",
+                                    )
+
+                    # Dispatch plan execution
+                    harness_goal = f"Execute the plan:\n{plan.summary}\nTasks: {', '.join(t.get('tool','') + ':' + t.get('action','') for t in plan.steps)}"
+                    
+                    if (classification or {}).get("intent") == "coding" or any(k in user_input.lower() for k in ["code", "implement", "refactor", "write tool", "fix bug"]):
+                        console.print("[dim cyan][auto-harness coding task][/dim cyan]")
+                        # Run harness
+                        results = await engine.harness.run(harness_goal)
+                        response = results.get("summary", "Coding task executed.")
+                        
+                        _plan_elapsed = time.time() - t0
+                        engine.spend_tracker.log_interaction(
+                            session_id=engine.session_id,
+                            model=engine.harness.mimo.model if (engine.harness.mimo and engine.harness.mimo.is_online) else "z-ai/glm-5.2",
+                            tokens_in=len(harness_goal) // 4,
+                            tokens_out=len(response) // 4,
+                            compute_sec=_plan_elapsed,
+                        )
+                        
+                        await engine.memory_manager.store_interaction(engine.session_id, user_input, response, project_name=engine.active_project_name)
+                        return True
+
+                    else:
+                        sg = engine.parallel_executor.safety_guard
+                        if sg.mode == "plan":
+                            console.print("[bold magenta]PLAN MODE: execution skipped.[/bold magenta]")
+                            return True
+
+                        authorize = sg.mode == "auto-approve" or Confirm.ask("\n[bold yellow]Authorize compute sequence?[/bold yellow]")
+                        if authorize:
+                            t0 = time.time()
+                            await engine.hooks.fire("PreToolUse", {"plan_summary": plan.summary, "tools": plan.tools_required})
+                            results = await engine.parallel_executor.run(plan)
+                            
+                            # Synthesize results
+                            synthesis_prompt = (
+                                f"Goal: {user_input}\n"
+                                f"Plan summary: {plan.summary}\n"
+                                f"Execution results: {json.dumps(results, default=str)[:6000]}\n"
+                                "Write a concise final summary explaining what was accomplished and any notable results."
+                            )
+                            _tp_is_offline = os.getenv("APEX_OFFLINE", "0") == "1"
+                            if _tp_is_offline:
+                                response = engine.ollama_client.get_completion(synthesis_prompt)
+                                _plan_model = engine.ollama_client.llm_model
+                            else:
+                                response = engine.groq_client.get_completion(synthesis_prompt)
+                                _plan_model = "gemini-3.5-flash"
+                            engine.assembler.render_final_response(user_input, response, plan, results, active_proj, vitals)
+                            if engine.voice_enabled:
+                                engine.voice.speak(response)
+                            _plan_elapsed = time.time() - t0
+                            engine.spend_tracker.log_interaction(
+                                session_id=engine.session_id,
+                                model=_plan_model,
+                                tokens_in=len(user_input) // 4,
+                                tokens_out=len(response) // 4,
+                                compute_sec=_plan_elapsed,
+                            )
+                            if hasattr(engine, 'predictor'):
+                                try:
+                                    _cost = (len(user_input) // 4 + len(response) // 4) * 0.0000005
+                                    engine.predictor.record_spend(
+                                        _cost, len(user_input) // 4, len(response) // 4, _plan_model
+                                    )
+                                    engine.predictor.record_command(
+                                        f"plan: {user_input[:80]}", os.getcwd(), 0, _plan_elapsed
+                                    )
+                                except Exception:
+                                    pass
+                            await engine.memory_manager.store_interaction(engine.session_id, user_input, response, project_name=engine.active_project_name)
+                            if not engine.economy_mode:
+                                asyncio.create_task(engine.learning_manager.learn(engine.session_id, user_input, response, plan))
+                                asyncio.create_task(engine.knowledge_visualizer.extract_knowledge(user_input, response))
+                            return True
+                elif path == "thinking_path" and not engine.gemini_client:
+                    console.print("[yellow]Gemini offline — falling back to Groq fast-path.[/yellow]")
+                    context = await engine.memory_manager.get_relevant_context(
+                        user_input, engine.session_id, project_name=active_proj.name if active_proj else None
+                    )
+                    response = engine.groq_client.get_completion(f"{context}\n\nUser: {user_input}")
+                    engine.assembler.render_final_response(user_input, response, project=active_proj, vitals=vitals)
+                    if engine.voice_enabled:
+                        engine.voice.speak(response)
+                    await engine.memory_manager.store_interaction(engine.session_id, user_input, response, project_name=engine.active_project_name)
+                    return True
+
+        except Exception as e:
+            console.print(f"[bold red]ERROR in user turn: {e}[/bold red]")
+            return True
+
+        return True
 
 
 def clear_console():
@@ -1532,20 +2161,30 @@ async def handle_slash(engine, cmd_line: str, skills_dir: str) -> bool:
                 console.print("[cyan]Voice mode is already active.[/cyan]")
             else:
                 engine.voice_enabled = True
-                engine.voice.start(lambda text: engine.loop.call_soon_threadsafe(engine.input_queue.put_nowait, text))
-                console.print("[green]Voice systems online. Listening for 'hey apex'...[/green]")
+                if not getattr(engine, "voice_task", None) or engine.voice_task.done():
+                    engine.voice_task = asyncio.create_task(engine.voice.run())
+                console.print("[green]Voice systems online. Listening for wake word...[/green]")
         elif sub == "off":
             if not engine.voice_enabled:
                 console.print("[cyan]Voice mode is already offline.[/cyan]")
             else:
                 engine.voice_enabled = False
                 engine.voice.stop()
+                if getattr(engine, "voice_task", None) and not engine.voice_task.done():
+                    engine.voice_task.cancel()
                 console.print("[yellow]Voice systems offline.[/yellow]")
+        elif sub == "mute":
+            engine.voice.mute(True)
+            console.print("[yellow]Voice output muted.[/yellow]")
+        elif sub == "unmute":
+            engine.voice.mute(False)
+            console.print("[green]Voice output unmuted.[/green]")
         elif sub == "status":
             status = "active" if engine.voice_enabled else "offline"
-            console.print(f"[cyan]Voice Mode: {status}[/cyan]")
+            muted = "muted" if getattr(engine.voice, "_muted", False) else "unmuted"
+            console.print(f"[cyan]Voice Mode: {status} ({muted})[/cyan]")
         else:
-            console.print("[red]Usage: /voice [on|off|status][/red]")
+            console.print("[red]Usage: /voice [on|off|mute|unmute|status][/red]")
         return True
     if cmd == "/ambient":
         sub = args[0].lower() if args else "status"
@@ -2305,6 +2944,10 @@ async def main():
             if not user_input.strip():
                 continue
 
+            should_continue = await engine.handle_user_turn(user_input)
+            if not should_continue:
+                break
+
             await engine.hooks.fire("UserPromptSubmit", {"input": user_input, "session_id": engine.session_id})
             engine.self_evolver.mark_input()
             engine.knowledge_forge.mark_input()
@@ -3025,8 +3668,10 @@ Plan Steps:
             console.print(f"[bold red]ERROR: {e}[/bold red]")
 
     await engine.hooks.fire("Stop", {"session_id": engine.session_id})
-    if hasattr(engine, "voice") and engine.voice.is_active:
+    if hasattr(engine, "voice"):
         engine.voice.stop()
+    if getattr(engine, "voice_task", None) and not engine.voice_task.done():
+        engine.voice_task.cancel()
     if hasattr(engine, "ambient") and engine.ambient.is_active:
         engine.ambient.stop()
     evolve_task.cancel()

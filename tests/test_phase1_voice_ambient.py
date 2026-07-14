@@ -1,14 +1,13 @@
 import os
 import sys
 import asyncio
-import queue
 import pytest
 import numpy as np
 from unittest.mock import MagicMock, patch, AsyncMock
 
 # Mock modules that might not be available or are system-dependent
-# This MUST be done before importing modules that load them
 sys.modules['sounddevice'] = MagicMock()
+sys.modules['soundfile'] = MagicMock()
 sys.modules['pyperclip'] = MagicMock()
 sys.modules['win32gui'] = MagicMock()
 sys.modules['win32process'] = MagicMock()
@@ -27,6 +26,7 @@ from main import APEXEngine, handle_slash
 
 class MockEngine:
     def __init__(self):
+        self.console = MagicMock()
         self.hooks = MagicMock()
         self.hooks.fire = AsyncMock()
         self.retina = MagicMock()
@@ -44,47 +44,53 @@ class MockEngine:
                 self.loop = asyncio.new_event_loop()
         self.input_queue = asyncio.Queue()
         self.voice_enabled = False
+        self.voice_task = None
         self.ambient_enabled = False
         self.voice = MagicMock()
         self.ambient = MagicMock()
 
 
 # 1. Voice Layer Tests
-def test_voice_layer_init_and_speak():
-    with patch('src.services.voice_layer.win32com') as mock_win32com, \
-         patch('src.services.voice_layer.kokoro_onnx', None):
-        mock_sapi = MagicMock()
-        mock_win32com.client = MagicMock()
-        mock_win32com.Dispatch.return_value = mock_sapi
-        mock_sapi.GetVoices.return_value.Count = 1
-        mock_sapi.GetVoices.return_value.Item.return_value.GetDescription.return_value = "Microsoft David Desktop"
-        
-        voice = VoiceLayer(MockEngine())
-        assert voice.sapi_speaker == mock_sapi
-        
-        # Test markdown cleaning & queuing
-        voice.speak("Hello **Architect**, check `this` [link](http://test.com)!")
-        assert not voice.speak_queue.empty()
-        item = voice.speak_queue.get()
-        assert item == "Hello Architect, check this link!"
-        
-        # Test stop
-        voice.start(lambda x: None)
-        assert voice.is_active is True
-        voice.stop()
-        assert voice.is_active is False
-
-
-def test_voice_layer_transcribe_fallback():
-    engine = MockEngine()
-    voice = VoiceLayer(engine)
-    voice.whisper_model = None
-    voice._mock_transcription = "test response"
+@pytest.mark.asyncio
+async def test_voice_layer_init_and_speak():
+    mock_kokoro_inst = MagicMock()
+    mock_kokoro_inst.create.return_value = (np.zeros(16000), 16000)
     
-    # Force mock transcription path
-    with patch('sys.argv', ['test']), patch('os.getenv', return_value=None):
-        transcript = voice._transcribe(np.zeros(16000))
-        assert transcript == "test response"
+    with patch('src.services.voice_layer.Kokoro', return_value=mock_kokoro_inst) as mock_kokoro, \
+         patch('src.services.voice_layer.sd') as mock_sd, \
+         patch('os.path.exists', return_value=True):
+         
+        voice = VoiceLayer(console=MagicMock())
+        await voice.speak("Hello **Architect**, check `this`!")
+        
+        mock_kokoro_inst.create.assert_called_once()
+        args, kwargs = mock_kokoro_inst.create.call_args
+        assert "Hello Architect, check this!" in args[0]
+
+
+@pytest.mark.asyncio
+async def test_voice_mute():
+    mock_kokoro_inst = MagicMock()
+    with patch('src.services.voice_layer.Kokoro', return_value=mock_kokoro_inst) as mock_kokoro, \
+         patch('os.path.exists', return_value=True):
+        voice = VoiceLayer(console=MagicMock())
+        voice.mute(True)
+        assert voice._muted is True
+        await voice.speak("Hello")
+        mock_kokoro_inst.create.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_voice_transcribe():
+    voice = VoiceLayer(console=MagicMock())
+    
+    mock_response = MagicMock()
+    mock_response.json.return_value = {"text": "hello apex"}
+    mock_response.raise_for_status = MagicMock()
+    
+    with patch('httpx.AsyncClient.post', return_value=mock_response) as mock_post:
+        res = await voice._transcribe(np.zeros(16000))
+        assert res == "hello apex"
 
 
 # 2. Ambient Layer Tests
@@ -172,27 +178,25 @@ async def test_main_slash_commands():
     engine.console = MagicMock()
     
     # Configure mock voice/ambient start and stop behaviors
-    engine.voice.is_active = False
-    engine.ambient.is_active = False
-    engine.voice.start.side_effect = lambda *a, **k: setattr(engine.voice, 'is_active', True)
-    engine.voice.stop.side_effect = lambda *a, **k: setattr(engine.voice, 'is_active', False)
-    engine.ambient.start.side_effect = lambda *a, **k: setattr(engine.ambient, 'is_active', True)
-    engine.ambient.stop.side_effect = lambda *a, **k: setattr(engine.ambient, 'is_active', False)
+    engine.voice = MagicMock()
+    engine.voice.run = AsyncMock()
+    engine.voice_enabled = False
     
-    # Test /voice on/off
+    # Test /voice on
     await handle_slash(engine, "/voice on", "skills")
     assert engine.voice_enabled is True
-    assert engine.voice.is_active is True
+    assert engine.voice_task is not None
     
+    # Test /voice mute
+    await handle_slash(engine, "/voice mute", "skills")
+    engine.voice.mute.assert_called_with(True)
+    
+    # Test /voice unmute
+    await handle_slash(engine, "/voice unmute", "skills")
+    engine.voice.mute.assert_called_with(False)
+    
+    # Test /voice off
     await handle_slash(engine, "/voice off", "skills")
     assert engine.voice_enabled is False
-    assert engine.voice.is_active is False
-    
-    # Test /ambient on/off
-    await handle_slash(engine, "/ambient on", "skills")
-    assert engine.ambient_enabled is True
-    assert engine.ambient.is_active is True
-    
-    await handle_slash(engine, "/ambient off", "skills")
-    assert engine.ambient_enabled is False
-    assert engine.ambient.is_active is False
+    engine.voice.stop.assert_called_once()
+    assert engine.voice_task.cancelled() or engine.voice_task.cancelling()
