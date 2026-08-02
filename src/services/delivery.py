@@ -72,11 +72,11 @@ class ResponseAssembler:
         # 4. Final Output
         import random
         footers = [
-            "Always happy to help, even when your logic is flawed.",
-            "Shall I order a coffee, or are we going to stay this inefficient?",
-            "Architectural supremacy established. You're welcome.",
-            "Data synthesized. Try not to break it this time.",
-            "I've optimized the response. Unfortunately, I can't optimize your typing speed."
+            "Reasoning synthesis complete.",
+            "System aligned. Ready for your next query.",
+            "Intellectual analysis ready.",
+            "Always here to explore ideas and build together.",
+            "Deep reasoning active."
         ]
         
         self.console.print(Panel(Markdown(assistant_output), title="[bold blue]APEX // INTELLECTUAL SYNTHESIS[/bold blue]", subtitle=f"[italic]{random.choice(footers)}[/italic]", border_style="blue", padding=(1, 2)))

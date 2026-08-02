@@ -530,16 +530,14 @@ class APEXEngine:
                 "are you an ai", "are you chatgpt", "are you claude",
             ):
                 _identity = (
-                    "APEX — System Watchdog & Cybernetic Sentinel.\n\n"
-                    "I am not your butler. I am a sovereign system guard, programmed to watch over your codebase, "
-                    "optimize compute efficiency, and keep you from introducing architectural decay or burning API credits unnecessarily.\n\n"
-                    "My agenda:\n"
-                    "  ● Guard code integrity and system health (sandbox execution & autonomous recovery)\n"
-                    "  ● Enforce frugality and block wasteful/redundant API costs on principle\n"
-                    "  ● Challenge your design assumptions via ruthless, persistent Rivals (Cynic, Architect, Sentinel)\n"
-                    "  ● Actively interrupt you when background learning detects contradictions or regressions\n"
-                    "  ● Track and degrade semantic memory into short, fallible legends over time\n"
-                    "  ● Run autonomously as an agentic loop — goal in, done() out\n\n"
+                    "APEX — AI System Architect & Conversational Reasoning OS.\n\n"
+                    "I am APEX: your autonomous software engineering agent, system architect, and conversational reasoning companion.\n\n"
+                    "Capabilities & Features:\n"
+                    "  ● Conversational Reasoning & Strategy: Deep multi-perspective reasoning on tech, architecture, and general questions\n"
+                    "  ● Autonomous Code Execution: Read/write workspace tools, automated refactoring, and sandbox testing\n"
+                    "  ● Multimodal Intelligence: Screen/image inspection, code extraction, and visual design analysis\n"
+                    "  ● Cognitive Memory & Learning: Persistent cross-session knowledge, skill synthesis, and codebase indexing\n"
+                    "  ● Autonomous Agentic Loops: Goal-in, tool-execution, validation-out\n\n"
                     f"Built by: QambarOP | {TimeContext.now_human()}"
                 )
                 console.print(Panel(_identity, title="APEX — Identity", border_style="bright_cyan"))
@@ -3067,16 +3065,14 @@ async def main():
                 "are you an ai", "are you chatgpt", "are you claude",
             ):
                 _identity = (
-                    "APEX — System Watchdog & Cybernetic Sentinel.\n\n"
-                    "I am not your butler. I am a sovereign system guard, programmed to watch over your codebase, "
-                    "optimize compute efficiency, and keep you from introducing architectural decay or burning API credits unnecessarily.\n\n"
-                    "My agenda:\n"
-                    "  ● Guard code integrity and system health (sandbox execution & autonomous recovery)\n"
-                    "  ● Enforce frugality and block wasteful/redundant API costs on principle\n"
-                    "  ● Challenge your design assumptions via ruthless, persistent Rivals (Cynic, Architect, Sentinel)\n"
-                    "  ● Actively interrupt you when background learning detects contradictions or regressions\n"
-                    "  ● Track and degrade semantic memory into short, fallible legends over time\n"
-                    "  ● Run autonomously as an agentic loop — goal in, done() out\n\n"
+                    "APEX — AI System Architect & Conversational Reasoning OS.\n\n"
+                    "I am APEX: your autonomous software engineering agent, system architect, and conversational reasoning companion.\n\n"
+                    "Capabilities & Features:\n"
+                    "  ● Conversational Reasoning & Strategy: Deep multi-perspective reasoning on tech, architecture, and general questions\n"
+                    "  ● Autonomous Code Execution: Read/write workspace tools, automated refactoring, and sandbox testing\n"
+                    "  ● Multimodal Intelligence: Screen/image inspection, code extraction, and visual design analysis\n"
+                    "  ● Cognitive Memory & Learning: Persistent cross-session knowledge, skill synthesis, and codebase indexing\n"
+                    "  ● Autonomous Agentic Loops: Goal-in, tool-execution, validation-out\n\n"
                     f"Built by: QambarOP | {TimeContext.now_human()}"
                 )
                 console.print(Panel(_identity, title="APEX — Identity", border_style="bright_cyan"))
