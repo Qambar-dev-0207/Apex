@@ -271,12 +271,25 @@ Be terse. No filler.
             for r in roster
         ]
 
-        for rnd in range(max(1, rounds)):
-            self._log(f"round {rnd + 1}/{rounds} — {len(agents)} agents thinking", level="info")
-            await asyncio.gather(*[a.think(goal, blackboard) for a in agents])
+        from src.core.animations import agent_3d_loader
 
-        self._log("synthesizing...", level="info")
-        artifact = await self._synthesize(goal, blackboard)
+        async with agent_3d_loader(
+            agent_name=f"Swarm Mesh ({','.join(roster[:3])})",
+            model_name=self.model_id,
+            shape="swarm",
+            style="bright_magenta",
+            console=self.console,
+        ) as loader:
+            for rnd in range(max(1, rounds)):
+                await loader.set_action(
+                    action=f"Round {rnd+1}/{rounds}: {len(agents)} agents ({', '.join(roster)}) thinking in parallel",
+                    step=rnd + 1,
+                    total_steps=rounds + 1,
+                )
+                await asyncio.gather(*[a.think(goal, blackboard) for a in agents])
+
+            await loader.set_action("Synthesizing multi-agent consensus...", step=rounds + 1, total_steps=rounds + 1)
+            artifact = await self._synthesize(goal, blackboard)
 
         return {
             "ok": True,

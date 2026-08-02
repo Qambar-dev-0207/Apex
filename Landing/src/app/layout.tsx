@@ -1,31 +1,38 @@
 import type { Metadata } from "next";
-import { Outfit, Syne, Space_Grotesk } from "next/font/google";
+import { Inter, Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
-const outfit = Outfit({
+const inter = Inter({
   subsets: ["latin"],
-  variable: "--font-outfit",
-  weight: ["300", "400", "500", "600", "700"],
+  variable: "--font-inter",
   display: "swap",
-});
-
-const syne = Syne({
-  subsets: ["latin"],
-  variable: "--font-syne",
-  weight: ["400", "500", "600", "700", "800"],
-  display: "swap",
+  weight: ["400", "500", "600", "700"],
 });
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
   variable: "--font-space",
-  weight: ["300", "400", "500", "600", "700"],
   display: "swap",
+  weight: ["400", "500", "600", "700"],
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-jetbrains",
+  display: "swap",
+  weight: ["400", "500", "600", "700"],
 });
 
 export const metadata: Metadata = {
   title: "APEX — Sovereign Agentic AI OS",
-  description: "A premium, minimalist personal operating system designed for cognitive supremacy and multi-agent coordination.",
+  description:
+    "A 24-Layer Sovereign Agentic AI Operating System for cognitive supremacy. Socratic reasoning gates, hybrid memory recall under 38ms, 18.4× token compression, and parallel multi-agent swarms.",
+  keywords: ["Agentic AI", "Sovereign OS", "Socratic Gate", "Multi-Agent", "LLM"],
+  openGraph: {
+    title: "APEX — Sovereign Agentic AI OS",
+    description: "Intelligence that doesn't hallucinate. A 24-Layer Agentic AI OS.",
+    type: "website",
+  },
 };
 
 export default function RootLayout({
@@ -34,8 +41,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${outfit.variable} ${syne.variable} ${spaceGrotesk.variable}`}>
-      <body>{children}</body>
+    <html lang="en" className={`${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable}`}>
+      <body className="bg-[#F5F4F0] text-[#0A0A0B] antialiased selection:bg-[#FF4500] selection:text-white">
+        {children}
+      </body>
     </html>
   );
 }

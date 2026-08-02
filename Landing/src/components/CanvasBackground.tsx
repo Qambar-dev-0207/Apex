@@ -26,11 +26,10 @@ export default function CanvasBackground() {
 
     let animationFrameId: number;
     let particles: Particle[] = [];
-    
-    // Configs
-    const maxParticles = 100;
-    const connectionDist = 120;
-    const mouseRadius = 160;
+
+    const maxParticles = 80;
+    const connectionDist = 140;
+    const mouseRadius = 180;
 
     const resizeCanvas = () => {
       if (!canvas) return;
@@ -42,21 +41,21 @@ export default function CanvasBackground() {
     const initParticles = () => {
       particles = [];
       const colors = [
-        "rgba(12, 12, 14, ",    // Slate/Charcoal
-        "rgba(255, 122, 57, ",  // Warm Orange
-        "rgba(138, 79, 255, ",  // Soft Violet
+        "rgba(255, 69, 0, ",   // International Vermilion
+        "rgba(37, 99, 235, ",  // Royal Blue
+        "rgba(12, 12, 14, ",   // Slate Charcoal
       ];
 
       for (let i = 0; i < maxParticles; i++) {
-        const radius = Math.random() * 1.5 + 0.6;
+        const radius = Math.random() * 1.5 + 0.8;
         const colorBase = colors[Math.floor(Math.random() * colors.length)];
-        const alpha = Math.random() * 0.15 + 0.05; // lower opacity for subtle light theme background
-        
+        const alpha = Math.random() * 0.25 + 0.1;
+
         particles.push({
           x: Math.random() * canvas.width,
           y: Math.random() * canvas.height,
-          vx: (Math.random() - 0.5) * 0.35,
-          vy: (Math.random() - 0.5) * 0.35,
+          vx: (Math.random() - 0.5) * 0.3,
+          vy: (Math.random() - 0.5) * 0.3,
           radius,
           color: colorBase,
           originalAlpha: alpha,
@@ -71,24 +70,25 @@ export default function CanvasBackground() {
 
       const mouse = mouseRef.current;
 
-      // Draw light background cream gradient
+      // Warm Light Quartz Background Gradient
       const bgGrad = ctx.createRadialGradient(
         canvas.width / 2,
-        canvas.height / 2,
-        10,
+        canvas.height * 0.3,
+        20,
         canvas.width / 2,
-        canvas.height / 2,
-        canvas.width
+        canvas.height * 0.3,
+        canvas.width * 0.8
       );
-      bgGrad.addColorStop(0, "#FCFCFD");
-      bgGrad.addColorStop(1, "#EAEAEC");
+      bgGrad.addColorStop(0, "#FBFBF9");
+      bgGrad.addColorStop(0.5, "#F8F7F4");
+      bgGrad.addColorStop(1, "#F3F1EC");
       ctx.fillStyle = bgGrad;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // Render grid grid-lines (extremely subtle light tech overlay)
-      ctx.strokeStyle = "rgba(12, 12, 14, 0.012)";
+      // Subtle Light Micro Grid Lines
+      ctx.strokeStyle = "rgba(12, 12, 14, 0.02)";
       ctx.lineWidth = 1;
-      const gridSize = 70;
+      const gridSize = 50;
       for (let x = 0; x < canvas.width; x += gridSize) {
         ctx.beginPath();
         ctx.moveTo(x, 0);
@@ -102,82 +102,45 @@ export default function CanvasBackground() {
         ctx.stroke();
       }
 
-      // Update and draw particles
-      particles.forEach((p) => {
-        // Handle mouse interactions (repulsion / attraction)
-        if (mouse.active) {
-          const dx = p.x - mouse.x;
-          const dy = p.y - mouse.y;
-          const dist = Math.hypot(dx, dy);
+      // Update & Draw Nodes
+      for (let i = 0; i < particles.length; i++) {
+        const p = particles[i];
 
-          if (dist < mouseRadius) {
-            const force = (mouseRadius - dist) / mouseRadius;
-            // Push away from mouse
-            p.vx += (dx / dist) * force * 0.04;
-            p.vy += (dy / dist) * force * 0.04;
-            p.alpha = Math.min(0.6, p.originalAlpha + force * 0.35);
-          } else {
-            p.alpha = p.originalAlpha;
-          }
+        p.x += p.vx;
+        p.y += p.vy;
+
+        if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
+        if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
+
+        const dx = mouse.x - p.x;
+        const dy = mouse.y - p.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist < mouseRadius) {
+          const force = (1 - dist / mouseRadius) * 0.8;
+          p.x += (dx / dist) * force;
+          p.y += (dy / dist) * force;
+          p.alpha = Math.min(0.8, p.originalAlpha + force * 0.4);
         } else {
           p.alpha = p.originalAlpha;
         }
 
-        // Apply drag/friction
-        p.vx *= 0.98;
-        p.vy *= 0.98;
-
-        // Baseline speed restoration
-        const baseSpeed = 0.22;
-        const currentSpeed = Math.hypot(p.vx, p.vy);
-        if (currentSpeed < baseSpeed) {
-          p.vx += (Math.random() - 0.5) * 0.02;
-          p.vy += (Math.random() - 0.5) * 0.02;
-        }
-
-        // Move
-        p.x += p.vx;
-        p.y += p.vy;
-
-        // Boundaries
-        if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
-        if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
-
-        // Draw particle
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
         ctx.fillStyle = `${p.color}${p.alpha})`;
         ctx.fill();
-      });
 
-      // Draw connections
-      ctx.lineWidth = 0.6;
-      for (let i = 0; i < particles.length; i++) {
         for (let j = i + 1; j < particles.length; j++) {
-          const p1 = particles[i];
           const p2 = particles[j];
-          const dx = p1.x - p2.x;
-          const dy = p1.y - p2.y;
-          const dist = Math.hypot(dx, dy);
+          const dist2 = Math.sqrt((p.x - p2.x) ** 2 + (p.y - p2.y) ** 2);
 
-          if (dist < connectionDist) {
-            const alpha = (1 - dist / connectionDist) * 0.055;
-            
-            let glowMultiplier = 1;
-            if (mouse.active) {
-              const mx1 = (p1.x + p2.x) / 2 - mouse.x;
-              const my1 = (p1.y + p2.y) / 2 - mouse.y;
-              const mDist = Math.hypot(mx1, my1);
-              if (mDist < mouseRadius) {
-                glowMultiplier = 2.2 * (1 - mDist / mouseRadius);
-              }
-            }
-
+          if (dist2 < connectionDist) {
+            const lineAlpha = (1 - dist2 / connectionDist) * 0.08;
             ctx.beginPath();
-            ctx.moveTo(p1.x, p1.y);
+            ctx.moveTo(p.x, p.y);
             ctx.lineTo(p2.x, p2.y);
-            // Connections are soft slate-gray in light mode
-            ctx.strokeStyle = `rgba(12, 12, 14, ${alpha * glowMultiplier})`;
+            ctx.strokeStyle = `rgba(12, 12, 14, ${lineAlpha})`;
+            ctx.lineWidth = 0.75;
             ctx.stroke();
           }
         }
@@ -186,61 +149,33 @@ export default function CanvasBackground() {
       animationFrameId = requestAnimationFrame(draw);
     };
 
-    // Event listeners
     const handleMouseMove = (e: MouseEvent) => {
-      mouseRef.current.x = e.clientX;
-      mouseRef.current.y = e.clientY;
-      mouseRef.current.active = true;
+      mouseRef.current = { x: e.clientX, y: e.clientY, active: true };
     };
 
     const handleMouseLeave = () => {
-      mouseRef.current.active = false;
-    };
-
-    const handleTouchMove = (e: TouchEvent) => {
-      if (e.touches.length > 0) {
-        mouseRef.current.x = e.touches[0].clientX;
-        mouseRef.current.y = e.touches[0].clientY;
-        mouseRef.current.active = true;
-      }
-    };
-
-    const handleTouchEnd = () => {
-      mouseRef.current.active = false;
+      mouseRef.current = { x: -1000, y: -1000, active: false };
     };
 
     window.addEventListener("resize", resizeCanvas);
     window.addEventListener("mousemove", handleMouseMove);
-    document.addEventListener("mouseleave", handleMouseLeave);
-    window.addEventListener("touchmove", handleTouchMove);
-    window.addEventListener("touchend", handleTouchEnd);
+    window.addEventListener("mouseleave", handleMouseLeave);
 
     resizeCanvas();
     draw();
 
     return () => {
-      cancelAnimationFrame(animationFrameId);
       window.removeEventListener("resize", resizeCanvas);
       window.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("mouseleave", handleMouseLeave);
-      window.removeEventListener("touchmove", handleTouchMove);
-      window.removeEventListener("touchend", handleTouchEnd);
+      window.removeEventListener("mouseleave", handleMouseLeave);
+      cancelAnimationFrame(animationFrameId);
     };
   }, []);
 
   return (
     <canvas
       ref={canvasRef}
-      style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        width: "100vw",
-        height: "100vh",
-        zIndex: -1,
-        pointerEvents: "none",
-        display: "block",
-      }}
+      className="fixed inset-0 pointer-events-none z-0 transition-opacity duration-1000"
     />
   );
 }

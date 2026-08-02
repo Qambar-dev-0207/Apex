@@ -24,29 +24,56 @@ from typing import Any, Callable, Optional
 import numpy as np
 from dotenv import load_dotenv
 
-try:
-    import sounddevice as sd
-except Exception:
-    sd = None
+_sd = None
+_openwakeword = None
+_WakeWordModel = None
+_torch = None
+_SILERO_CHECKED = False
+_Kokoro = None
 
-try:
-    import openwakeword
-    from openwakeword.model import Model as WakeWordModel
-except Exception:
-    openwakeword = None
-    WakeWordModel = None
+def _get_sd():
+    global _sd
+    if _sd is None:
+        try:
+            import sounddevice as sd
+            _sd = sd
+        except Exception:
+            _sd = False
+    return _sd if _sd is not False else None
 
-try:
-    import torch
-    _SILERO_AVAILABLE = True
-except Exception:
-    torch = None
-    _SILERO_AVAILABLE = False
+def _get_wakeword():
+    global _openwakeword, _WakeWordModel
+    if _openwakeword is None:
+        try:
+            import openwakeword
+            from openwakeword.model import Model as WakeWordModel
+            _openwakeword = openwakeword
+            _WakeWordModel = WakeWordModel
+        except Exception:
+            _openwakeword = False
+            _WakeWordModel = False
+    return (_openwakeword if _openwakeword is not False else None, _WakeWordModel if _WakeWordModel is not False else None)
 
-try:
-    from kokoro_onnx import Kokoro
-except Exception:
-    Kokoro = None
+def _get_torch():
+    global _torch, _SILERO_CHECKED
+    if not _SILERO_CHECKED:
+        try:
+            import torch
+            _torch = torch
+        except Exception:
+            _torch = False
+        _SILERO_CHECKED = True
+    return _torch if _torch is not False else None
+
+def _get_kokoro():
+    global _Kokoro
+    if _Kokoro is None:
+        try:
+            from kokoro_onnx import Kokoro
+            _Kokoro = Kokoro
+        except Exception:
+            _Kokoro = False
+    return _Kokoro if _Kokoro is not False else None
 
 import httpx
 
@@ -89,7 +116,8 @@ class VoiceLayer:
     # ── availability ─────────────────────────────────────────────────────
     @property
     def is_available(self) -> bool:
-        return sd is not None and openwakeword is not None and _SILERO_AVAILABLE
+        wakeword, _ = _get_wakeword()
+        return _get_sd() is not None and wakeword is not None and _get_torch() is not None
 
     def _log(self, msg: str, level: str = "info"):
         if not self.console:
@@ -99,6 +127,7 @@ class VoiceLayer:
 
     # ── lazy model loading ───────────────────────────────────────────────
     def _ensure_wake_model(self):
+        _, WakeWordModel = _get_wakeword()
         if self._wake_model is not None or WakeWordModel is None:
             return
         if not os.path.exists(self.cfg.wake_word_model_path):
@@ -112,6 +141,7 @@ class VoiceLayer:
         self._wake_model = WakeWordModel(wakeword_models=[self.cfg.wake_word_model_path])
 
     def _ensure_kokoro(self):
+        Kokoro = _get_kokoro()
         if self._kokoro is not None or Kokoro is None:
             return
         if not (os.path.exists(self.cfg.kokoro_model_path) and os.path.exists(self.cfg.kokoro_voices_path)):
@@ -124,7 +154,8 @@ class VoiceLayer:
             self._kokoro = None
 
     def _ensure_vad(self):
-        if not _SILERO_AVAILABLE:
+        torch = _get_torch()
+        if torch is None:
             return None, None
         try:
             model, utils = torch.hub.load(

@@ -36,7 +36,8 @@ class SelfEvolver:
         self.forge = forge
         api_key = os.getenv("GEMINI_API_KEY")
         self.client = genai.Client(api_key=api_key) if (genai and api_key) else None
-        self.model_id = "gemini-2.5-flash-lite"
+        self.model_id = "gemini-3.5-flash"
+        self.fallback_models = ["gemini-3.5-flash", "gemini-2.5-flash", "gemini-1.5-flash"]
 
         self.last_input_time = time.time()
         self.last_cycle_time = 0.0
@@ -150,17 +151,21 @@ class SelfEvolver:
           }}
         ]
         """
-        try:
-            res = self.client.models.generate_content(
-                model=self.model_id,
-                contents=prompt,
-                config={"response_mime_type": "application/json"},
-            )
-            return json.loads(res.text)
-        except Exception as e:
-            if self.console:
-                self.console.print(f"[dim red][SelfEvolver] Proposal LLM failed: {e}[/dim red]")
-            return self._heuristic_proposals(report)
+        for model_name in self.fallback_models:
+            try:
+                res = await asyncio.to_thread(
+                    self.client.models.generate_content,
+                    model=model_name,
+                    contents=prompt,
+                    config={"response_mime_type": "application/json"},
+                )
+                if res and res.text:
+                    return json.loads(res.text)
+            except Exception as e:
+                if self.console:
+                    self.console.print(f"[dim red][SelfEvolver] Model {model_name} failed: {e}[/dim red]")
+
+        return self._heuristic_proposals(report)
 
     def _heuristic_proposals(self, report: Dict[str, Any]) -> List[Dict[str, Any]]:
         out: List[Dict[str, Any]] = []

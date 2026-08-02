@@ -725,3 +725,248 @@ def status_ticker(
 ) -> StatusTicker:
     """Factory — returns a StatusTicker async context manager."""
     return StatusTicker(console=console, style=style, fps=fps)
+
+
+# ── 3D Agent Projection Engine ────────────────────────────────────────────────
+
+class Agent3DLoader:
+    """
+    Renders custom 3D animated projections for APEX agents while loading and executing.
+
+    Supported 3D Projection Styles:
+      - 'cube': 3D Wireframe Tesseract Cube (Coding / Harness Agent)
+      - 'sphere': 3D Neural Geodesic Sphere (Think Partner / Cognitive Core)
+      - 'torus': 3D Orbital Scanner Rings (Retina / Vision Agent)
+      - 'octahedron': 3D Lattice Diamond (Git / Refactor Agent)
+      - 'swarm': 3D Multi-Node Mesh (Swarm Agents)
+      - 'prism': 3D Crystal Hologram (Knowledge Forge / Briefing Agent)
+    """
+
+    # 3D Math Vertices
+    CUBE_VERTICES = [
+        (-1, -1, -1), (1, -1, -1), (1, 1, -1), (-1, 1, -1),
+        (-1, -1, 1), (1, -1, 1), (1, 1, 1), (-1, 1, 1)
+    ]
+    CUBE_EDGES = [
+        (0, 1), (1, 2), (2, 3), (3, 0),
+        (4, 5), (5, 6), (6, 7), (7, 4),
+        (0, 4), (1, 5), (2, 6), (3, 7)
+    ]
+
+    OCTAHEDRON_VERTICES = [
+        (0, 1.4, 0), (0, -1.4, 0), (1.2, 0, 0), (-1.2, 0, 0), (0, 0, 1.2), (0, 0, -1.2)
+    ]
+    OCTAHEDRON_EDGES = [
+        (0, 2), (0, 3), (0, 4), (0, 5),
+        (1, 2), (1, 3), (1, 4), (1, 5),
+        (2, 4), (4, 3), (3, 5), (5, 2)
+    ]
+
+    def __init__(
+        self,
+        agent_name: str,
+        model_name: str = "MiMo v2.5-pro",
+        shape: str = "cube",
+        style: str = "bright_cyan",
+        console: Optional[Console] = None,
+        fps: int = 15,
+    ):
+        self.agent_name = agent_name
+        self.model_name = model_name
+        self.shape = shape
+        self.style = style
+        self.console = console or Console()
+        self.fps = fps
+        self.current_action = "Initializing agent core..."
+        self.current_step = 1
+        self.total_steps = 1
+        self._t_start = time.time()
+        self._live: Optional[Live] = None
+        self._task: Optional[asyncio.Task] = None
+        self._stop = asyncio.Event()
+        self._angle_x = 0.0
+        self._angle_y = 0.0
+        self._animatable = _is_animatable(self.console)
+
+    async def __aenter__(self):
+        self._t_start = time.time()
+        self._stop.clear()
+        if self._animatable:
+            self._live = Live(
+                self._render(),
+                console=self.console,
+                refresh_per_second=self.fps,
+                transient=True,
+            )
+            self._live.__enter__()
+            self._task = asyncio.create_task(self._animate_loop())
+        else:
+            self.console.print(f"  [bold {self.style}]▶ Spawning {self.agent_name} ({self.model_name})[/bold {self.style}]")
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+        self._stop.set()
+        if self._task is not None:
+            try:
+                await self._task
+            except Exception:
+                pass
+        if self._live is not None:
+            try:
+                self._live.__exit__(exc_type, exc, tb)
+            except Exception:
+                pass
+
+    async def set_action(self, action: str, step: int = 1, total_steps: int = 1):
+        """Update active status action description."""
+        self.current_action = action
+        self.current_step = step
+        self.total_steps = max(total_steps, 1)
+        if self._animatable and self._live:
+            self._live.update(self._render())
+        else:
+            elapsed = time.time() - self._t_start
+            self.console.print(f"  [{self.style}]◆ [{self.agent_name}] Step {step}/{total_steps}: {action} ({elapsed:.1f}s)[/{self.style}]")
+
+    def _project_point(self, x: float, y: float, z: float, width: int = 24, height: int = 9) -> tuple[int, int]:
+        # Rotation X
+        rad_x = self._angle_x
+        y1 = y * math.cos(rad_x) - z * math.sin(rad_x)
+        z1 = y * math.sin(rad_x) + z * math.cos(rad_x)
+        x1 = x
+
+        # Rotation Y
+        rad_y = self._angle_y
+        x2 = x1 * math.cos(rad_y) + z1 * math.sin(rad_y)
+        z2 = -x1 * math.sin(rad_y) + z1 * math.cos(rad_y)
+        y2 = y1
+
+        # Perspective Projection
+        distance = 3.5
+        fov = distance / (distance + z2 + 0.001)
+        px = int(width / 2 + x2 * fov * (width / 3.2))
+        py = int(height / 2 + y2 * fov * (height / 2.4))
+        return max(0, min(width - 1, px)), max(0, min(height - 1, py))
+
+    def _render_3d_canvas(self, width: int = 26, height: int = 9) -> str:
+        grid = [[" " for _ in range(width)] for _ in range(height)]
+
+        if self.shape == "cube":
+            # Project wireframe cube
+            projected = [self._project_point(vx, vy, vz, width, height) for vx, vy, vz in self.CUBE_VERTICES]
+            for p1_idx, p2_idx in self.CUBE_EDGES:
+                x1, y1 = projected[p1_idx]
+                x2, y2 = projected[p2_idx]
+                # Bresenham-style line sampling
+                steps = max(abs(x2 - x1), abs(y2 - y1), 1)
+                for s in range(steps + 1):
+                    lx = int(x1 + (x2 - x1) * s / steps)
+                    ly = int(y1 + (y2 - y1) * s / steps)
+                    if 0 <= lx < width and 0 <= ly < height:
+                        grid[ly][lx] = "✦" if (p1_idx + p2_idx) % 2 == 0 else "•"
+            for px, py in projected:
+                if 0 <= px < width and 0 <= py < height:
+                    grid[py][px] = "█"
+
+        elif self.shape == "octahedron":
+            projected = [self._project_point(vx, vy, vz, width, height) for vx, vy, vz in self.OCTAHEDRON_VERTICES]
+            for p1_idx, p2_idx in self.OCTAHEDRON_EDGES:
+                x1, y1 = projected[p1_idx]
+                x2, y2 = projected[p2_idx]
+                steps = max(abs(x2 - x1), abs(y2 - y1), 1)
+                for s in range(steps + 1):
+                    lx = int(x1 + (x2 - x1) * s / steps)
+                    ly = int(y1 + (y2 - y1) * s / steps)
+                    if 0 <= lx < width and 0 <= ly < height:
+                        grid[ly][lx] = "◇" if s % 2 == 0 else "▪"
+            for px, py in projected:
+                if 0 <= px < width and 0 <= py < height:
+                    grid[py][px] = "◆"
+
+        elif self.shape == "torus" or self.shape == "sphere":
+            # Rotating Orbital Rings / Sphere Latitude
+            num_points = 24
+            for i in range(num_points):
+                theta = (2 * math.pi * i) / num_points
+                # Ring 1
+                rx1, ry1, rz1 = math.cos(theta) * 1.2, math.sin(theta) * 1.2, 0
+                px1, py1 = self._project_point(rx1, ry1, rz1, width, height)
+                if 0 <= px1 < width and 0 <= py1 < height:
+                    grid[py1][px1] = "◯" if i % 2 == 0 else "•"
+
+                # Ring 2 (Perpendicular)
+                rx2, ry2, rz2 = math.cos(theta) * 1.2, 0, math.sin(theta) * 1.2
+                px2, py2 = self._project_point(rx2, ry2, rz2, width, height)
+                if 0 <= px2 < width and 0 <= py2 < height:
+                    grid[py2][px2] = "◉" if i % 3 == 0 else "·"
+
+        else: # swarm / prism
+            num_nodes = 14
+            for i in range(num_nodes):
+                phi = math.acos(1 - 2 * (i + 0.5) / num_nodes)
+                theta = math.pi * (1 + 5**0.5) * i
+                nx, ny, nz = math.sin(phi) * math.cos(theta), math.sin(phi) * math.sin(theta), math.cos(phi)
+                px, py = self._project_point(nx * 1.3, ny * 1.3, nz * 1.3, width, height)
+                if 0 <= px < width and 0 <= py < height:
+                    grid[py][px] = "🐝" if self.shape == "swarm" else "✦"
+
+        return "\n".join("".join(row) for row in grid)
+
+    def _render(self) -> Panel:
+        elapsed = time.time() - self._t_start
+        canvas_str = self._render_3d_canvas()
+
+        # Build 3D Agent HUD Panel
+        hud = Text()
+        hud.append(f"🤖 {self.agent_name.upper()}", style=f"bold {self.style}")
+        hud.append(f"  //  {self.model_name}\n", style="dim white")
+
+        # 3D canvas side-by-side with step progress
+        lines = canvas_str.splitlines()
+        prog_bar = "█" * int((self.current_step / max(self.total_steps, 1)) * 12)
+        prog_bar = prog_bar.ljust(12, "░")
+
+        body = Text()
+        body.append(canvas_str + "\n", style=f"bold {self.style}")
+        body.append(f"\n⚡ Step [{self.current_step}/{self.total_steps}] ", style="bold bright_white")
+        body.append(f"[{prog_bar}] ", style=f"bold {self.style}")
+        body.append(f"({elapsed:.1f}s)\n", style="dim white")
+        body.append(f"▶ {self.current_action}", style="bold white")
+
+        return Panel(
+            body,
+            title=f"3D AGENT PROJECTION // {self.agent_name}",
+            border_style=self.style,
+            expand=False,
+        )
+
+    async def _animate_loop(self):
+        try:
+            while not self._stop.is_set():
+                self._angle_x += 0.08
+                self._angle_y += 0.12
+                if self._live:
+                    self._live.update(self._render())
+                await asyncio.sleep(1.0 / self.fps)
+        except asyncio.CancelledError:
+            pass
+
+
+def agent_3d_loader(
+    agent_name: str,
+    model_name: str = "MiMo v2.5-pro",
+    shape: str = "cube",
+    style: str = "bright_cyan",
+    console: Optional[Console] = None,
+    fps: int = 15,
+) -> Agent3DLoader:
+    """Factory — returns an Agent3DLoader async context manager for rendering 3D agent visual projections."""
+    return Agent3DLoader(
+        agent_name=agent_name,
+        model_name=model_name,
+        shape=shape,
+        style=style,
+        console=console,
+        fps=fps,
+    )
+

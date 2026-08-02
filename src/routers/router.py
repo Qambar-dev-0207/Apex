@@ -145,6 +145,9 @@ class InputClassifier:
         except Exception:
             return self._heuristic_classify(text, skill)
 
+    def heuristic_classify(self, text: str, matched_skill: Optional[Skill] = None):
+        return self._heuristic_classify(text, matched_skill)
+
     def _heuristic_classify(self, text: str, matched_skill: Optional[Skill] = None):
         t = text.lower()
         intent = "chat"
@@ -160,16 +163,7 @@ class InputClassifier:
 
 class SmartRouter:
     def route(self, classification: Dict[str, Any], user_input: str = "") -> str:
-        # Frugality gate check
-        if user_input:
-            low_input = user_input.lower().strip()
-            # If the user is asking a greeting or a single word query, block paid calls
-            words = set(re.findall(r"\b\w+\b", low_input))
-            if any(g in words for g in ["hello", "hi", "hey", "test", "status"]):
-                return "frugal_refusal"
-            # Extremely short queries that shouldn't invoke paid thinking path
-            if len(low_input.split()) < 3 and classification.get("intent") not in ("git", "exploration"):
-                return "frugal_refusal"
+
 
         # Reflex path takes precedence ONLY when it's high-confidence (needs_llm is False).
         reflex = classification.get("_reflex") or {}

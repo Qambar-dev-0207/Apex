@@ -284,16 +284,17 @@ class APEXEngine:
         self.input_queue = asyncio.Queue()
         self.interrupt_queue = asyncio.Queue()
 
-        await _stage("Loading voice layer")
-        from src.services.voice_layer import VoiceLayer
-        self.voice = VoiceLayer(console=self.console)
         self.voice_enabled = os.getenv("APEX_VOICE", "0") == "1"
         self.voice_task = None
-
-        async def _on_voice_transcript(text: str):
-            await self.input_queue.put(text)
-
-        self.voice.on_transcript = _on_voice_transcript
+        if self.voice_enabled:
+            await _stage("Loading voice layer")
+            from src.services.voice_layer import VoiceLayer
+            self.voice = VoiceLayer(console=self.console)
+            async def _on_voice_transcript(text: str):
+                await self.input_queue.put(text)
+            self.voice.on_transcript = _on_voice_transcript
+        else:
+            self.voice = None
 
         await _stage("Loading ambient service")
         from src.services.ambient import AmbientService
@@ -744,15 +745,7 @@ class APEXEngine:
                 await ticker.set("Selecting execution path")
                 path = engine.router.route(classification, user_input=user_input)
 
-                if path == "frugal_refusal":
-                    console.print(Panel(
-                        "[bold red]✖ FRUGALITY GATE DEFENSE[/bold red]\n\n"
-                        "APEX Sentinel: Waste detected. Refusing to burn Gemini API quota / thinking path "
-                        "on this trivial query. I'm choosing to save the planet and my credits on principle.\n"
-                        "Try a cheaper path or rephrase your request to be more substantive.",
-                        title="APEX SYSTEM GUARD", border_style="red"
-                    ))
-                    return True
+
 
                 if prefetch_bundle is not None:
                     reflex_path = (classification.get("_reflex") or {}).get("path", "")
@@ -1126,8 +1119,17 @@ async def dispatch_harness(engine, console, goal: str,
         return {"success": False, "error": "empty goal"}
     if max_steps is not None:
         engine.harness.max_steps = max_steps
-    console.print(f"[dim bright_magenta][auto-harness ({trigger}) -> '{goal[:60]}'][/dim bright_magenta]")
-    result = await engine.harness.run(goal)
+    from src.core.animations import agent_3d_loader
+    brain_model = getattr(engine.harness.mimo, "model", "MiMo v2.5-pro / GLM 5.2") if getattr(engine.harness, "mimo", None) else "MiMo v2.5-pro"
+    async with agent_3d_loader(
+        agent_name=f"Coding Harness ({trigger})",
+        model_name=brain_model,
+        shape="cube",
+        style="gold1",
+        console=console,
+    ) as loader:
+        await loader.set_action(f"Executing goal: {goal[:50]}...", step=1, total_steps=getattr(engine.harness, "max_steps", 30))
+        result = await engine.harness.run(goal)
     if result.get("success"):
         summary = result.get("summary", "(no summary)")
         touched = result.get("touched_files", []) or []
@@ -2399,8 +2401,6 @@ async def handle_slash(engine, cmd_line: str, skills_dir: str) -> bool:
                             title="BLIND SPOTS", border_style="yellow"))
         return True
     if cmd == "/audit":
-        import json
-        from rich.table import Table
         continuity_path = os.path.join(".apex", "rival_continuity.json")
         if not os.path.exists(continuity_path):
             console.print("[yellow]No rival scorecard database found. Run /genius or /critique first.[/yellow]")
@@ -3311,15 +3311,7 @@ async def main():
                 await ticker.set("Selecting execution path")
                 path = engine.router.route(classification, user_input=user_input)
 
-                if path == "frugal_refusal":
-                    console.print(Panel(
-                        "[bold red]✖ FRUGALITY GATE DEFENSE[/bold red]\n\n"
-                        "APEX Sentinel: Waste detected. Refusing to burn Gemini API quota / thinking path "
-                        "on this trivial query. I'm choosing to save the planet and my credits on principle.\n"
-                        "Try a cheaper path or rephrase your request to be more substantive.",
-                        title="APEX SYSTEM GUARD", border_style="red"
-                    ))
-                    continue
+
 
                 # Decide whether the bundle ends up consumed downstream:
                 #   fast_path + memory-bearing intent → memory reused (used)

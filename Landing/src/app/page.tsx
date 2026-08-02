@@ -1,814 +1,726 @@
 "use client";
 
-import Link from "next/link";
-import styles from "./page.module.css";
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useState, useRef } from "react";
+import { motion, useMotionValue, useSpring, AnimatePresence } from "motion/react";
+import SensiqHeader from "../components/SensiqHeader";
+import LogoMarquee from "../components/LogoMarquee";
+import NumberGrid from "../components/NumberGrid";
+import ScrollPinnedShowcase from "../components/ScrollPinnedShowcase";
+import DarkShowcase from "../components/DarkShowcase";
+import CodePlayground from "../components/CodePlayground";
+import ScrollPinnedQuotes from "../components/ScrollPinnedQuotes";
+import FaqAccordion from "../components/FaqAccordion";
+import Footer from "../components/Footer";
 import CanvasBackground from "../components/CanvasBackground";
-import OrchestratorVisualizer from "../components/OrchestratorVisualizer";
-import WireframeShapes from "../components/WireframeShapes";
 import TelemetryCard from "../components/TelemetryCard";
+import BentoGrid from "../components/BentoGrid";
+import TerminalSection from "../components/TerminalSection";
+import ComparisonSection from "../components/ComparisonSection";
+import OrchestratorVisualizer from "../components/OrchestratorVisualizer";
 
-interface DagNode {
+/* ─── Magnetic Button ──────────────────────────────────── */
+function MagneticCTA({
+  children,
+  href,
+  variant = "primary",
+}: {
+  children: React.ReactNode;
+  href: string;
+  variant?: "primary" | "outline";
+}) {
+  const ref = useRef<HTMLAnchorElement>(null);
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+  const springX = useSpring(x, { stiffness: 280, damping: 22 });
+  const springY = useSpring(y, { stiffness: 280, damping: 22 });
+
+  const handleMouse = (e: React.MouseEvent) => {
+    const el = ref.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    x.set((e.clientX - rect.left - rect.width / 2) * 0.3);
+    y.set((e.clientY - rect.top - rect.height / 2) * 0.3);
+  };
+
+  const handleLeave = () => { x.set(0); y.set(0); };
+
+  const base = "px-8 py-4 rounded-2xl font-semibold text-sm tracking-wide inline-flex items-center gap-3 transition-all duration-200 cursor-pointer";
+  const styles = variant === "primary"
+    ? `${base} bg-[#FF4500] text-white shadow-[0_6px_24px_rgba(255,69,0,0.35)] hover:bg-[#E03E00] hover:shadow-[0_8px_30px_rgba(255,69,0,0.45)]`
+    : `${base} bg-white border border-black/12 text-[#0A0A0B] shadow-sm hover:border-black/20 hover:shadow-md`;
+
+  return (
+    <motion.a
+      ref={ref}
+      href={href}
+      style={{ x: springX, y: springY }}
+      onMouseMove={handleMouse}
+      onMouseLeave={handleLeave}
+      className={styles}
+    >
+      {children}
+    </motion.a>
+  );
+}
+
+/* ─── Preset data for orchestrator section ─────────────── */
+interface PresetSpec {
   id: string;
-  label: string;
+  name: string;
   description: string;
-  color: "cyan" | "violet" | "emerald" | "amber" | "orange";
   logs: string[];
   sourceCode: string;
 }
 
-const DAG_STEPS: DagNode[] = [
+const PRESETS: PresetSpec[] = [
   {
-    id: "router",
-    label: "INTENT ROUTER",
-    description: "Normalizes input query and matches active sovereign skills.",
-    color: "cyan",
+    id: "resume",
+    name: "Resume Tailoring",
+    description: "Normalizes intent, computes vector similarity in ChromaDB, executes Socratic steelman rewrite.",
     logs: [
       "$ apex run router --input='tailor resume for Google SWE'",
-      "⏳ [Strategy] Parsing intent signature using Gemini-3.5-Flash...",
-      "🔍 [Router] Query intent resolved: 'RESUME_TAILORING'.",
-      "🔋 [Vitals] Available RAM: 32.4GB, CPU temperature stable.",
-      "🟢 [Router] Active skill compiled: 'resume_tailor_skill.json'. Stage 1 Complete."
+      "⏳ [Strategy] Parsing intent using Gemini 2.0 Flash...",
+      "🔍 [Router] Intent resolved: 'RESUME_TAILORING'.",
+      "🔋 [Vitals] RAM: 32.4GB stable.",
+      "🟢 [Router] Skill compiled: 'resume_tailor_skill.json'.",
     ],
     sourceCode: `# core/router.py
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List
 
 class IntentRouter(BaseModel):
-    """
-    Classifies raw queries and resolves Sovereign Skills.
-    """
     intent_threshold: float = 0.85
     active_skills: List[str] = []
 
     async def route_intent(self, query: str) -> str:
-        # Resolve target cognitive skill
         normalized = query.strip().lower()
         if "resume" in normalized:
             return "RESUME_TAILORING"
-        return "UNKNOWN_INTENT"`
+        return "UNKNOWN_INTENT"`,
   },
   {
-    id: "cache",
-    label: "SEMANTIC CACHE",
-    description: "Performs vector lookup in Chroma DB to bypass model latency.",
-    color: "violet",
+    id: "compass",
+    name: "Code Compass",
+    description: "Parses Python & TypeScript AST symbols, providing 18.4x token savings.",
     logs: [
-      "$ apex query --semantic='tailor resume for Google SWE'",
-      "🔍 [Cache] Running cosine similarity lookup in Chroma DB vectors...",
-      "⚠️ [Cache] Proximity score: 0.82 (threshold is 0.95).",
-      "⚡ [Fastpath] Cache miss. Diverting task execution to strategic planning.",
-      "🟢 [Cache] Bypassed. Direct model inference requested. Stage 2 Complete."
+      "$ apex code-compass --index='./src'",
+      "🔍 [AST] Building symbol dependency graph...",
+      "⚡ [Compass] Extracted 412 class & function signatures.",
+      "📉 [Token Saver] 450,000 → 24,100 tokens (18.6×).",
+      "🟢 Context ready for strategic inference.",
     ],
-    sourceCode: `# memory/semantic_cache.py
-import redis
-from chromadb import Client
+    sourceCode: `# services/code_compass.py
+import ast
 
-class SemanticCache:
-    """
-    Vector search caching to bypass inference models.
-    """
-    def __init__(self, host: str, port: int):
-        self.r = redis.Redis(host=host, port=port)
-        self.chroma = Client()
-
-    def lookup(self, vector: list) -> Optional[dict]:
-        # Perform cosine vector lookup in Chroma DB
-        return self.chroma.query(vector, threshold=0.95)`
-  },
-  {
-    id: "socratic",
-    label: "SOCRATIC GATE",
-    description: "Probes planning assumptions and forces Steelman critiques.",
-    color: "orange",
-    logs: [
-      "$ apex run socratic-gate --verify-thesis='direct-rewrite'",
-      "⏳ [Strategy] Activating Socratic Reasoning Gate...",
-      "🧠 [Probing] Critique: Google values impact metrics (XYZ format) over list of skills.",
-      "⚠️ [Steelman] Steelman Thesis: Emphasize direct latency reduction in past jobs.",
-      "🟢 [Strategy] Plan updated with steelman reasoning rules. Stage 3 Complete."
-    ],
-    sourceCode: `# core/socratic_gate.py
-from pydantic import BaseModel
-
-class SocraticGate(BaseModel):
-    """
-    Probes assumptions and forces steelman critiques.
-    """
-    gate_active: bool = True
-    deep_probing: bool = True
-
-    def critique(self, plan: list) -> list:
-        # Generate strongest counter-arguments
-        return ["Google values metrics (XYZ format)"]`
+class CodeCompass:
+    def extract_symbols(self, file_path: str) -> dict:
+        with open(file_path, "r") as f:
+            tree = ast.parse(f.read())
+        return {
+            "classes": [n.name for n in ast.walk(tree)
+                        if isinstance(n, ast.ClassDef)],
+            "functions": [n.name for n in ast.walk(tree)
+                          if isinstance(n, ast.FunctionDef)]
+        }`,
   },
   {
     id: "swarm",
-    label: "SWARM DISPATCH",
-    description: "Allocates task groups to parallel specialist subagents.",
-    color: "emerald",
+    name: "Agent Swarm",
+    description: "Spawns concurrent Web, File, Code agents in parallel TaskGroups.",
     logs: [
-      "$ apex swarm dispatch --roster=['writer-agent', 'verifier-agent']",
-      "⚙️ [Dispatcher] Resolving dependencies: writer waits for verifier AST validation.",
-      "📦 [Swarm] Worker 1 (Writer-Agent) spawned in sandbox environment.",
-      "📦 [Swarm] Worker 2 (Verifier-Agent) listening on port 8002.",
-      "🟢 [Swarm] Swarm fully operational. Tasks running in parallel. Stage 4 Complete."
+      "$ apex swarm --dispatch='Deep dive on AI OS architectures'",
+      "🐝 [Swarm] Spawning WebSearchAgent & CodeAnalyzerAgent...",
+      "⚡ [Parallel] Fetching 12 artifacts across arXiv & GitHub...",
+      "📊 [Synthesis] Merging Knowledge Items into ChromaDB...",
+      "🟢 Multi-agent synthesis complete.",
     ],
-    sourceCode: `# core/swarm.py
-from typing import List, Dict
+    sourceCode: `# core/harness.py
+import asyncio
 
-class SwarmDispatcher:
-    """
-    Dispatches task groups to specialist agents.
-    """
-    def __init__(self, roster: List[str]):
-        self.agents = roster
-        self.blackboard = {}
-
-    def dispatch(self, tasks: list) -> Dict[str, Any]:
-        # Execute parallel TaskGroups asynchronously
-        return {"status": "dispatched", "count": len(tasks)}`
+async def dispatch_swarm(task_list: list):
+    async with asyncio.TaskGroup() as tg:
+        for task in task_list:
+            tg.create_task(task.execute())`,
   },
   {
-    id: "sandbox",
-    label: "SANDBOX COMPILER",
-    description: "Runs and compiles verified code blocks in isolated sandboxes.",
-    color: "amber",
+    id: "socratic",
+    name: "Socratic Gate",
+    description: "Forces assumption probing before dispatching autonomous state changes.",
     logs: [
-      "$ apex sandbox compile --language=typescript",
-      "🛠️ [Harness] Connecting to local runner harness...",
-      "⚙️ [Compiler] Parsing AST structure. 1 file generated.",
-      "🧪 [Sandbox] Running unit tests: 'npm run test'...",
-      "🟢 [Compiler] Tests: 12/12 PASS. Execution validated. Stage 5 Complete."
+      "$ apex socratic-gate --probe-assumptions",
+      "🧠 [Probing] Thesis: Direct state overwrite without backup.",
+      "⚠️ [Critique] High probability of Redis disconnect lock.",
+      "🛡️ [Guardrail] Applied rollback strategy.",
+      "🟢 Action verified.",
     ],
-    sourceCode: `# core/sandbox.py
-import subprocess
-
-class SandboxEngine:
-    """
-    Compiles and executes code block files securely.
-    """
-    def __init__(self, timeout: int = 30):
-        self.timeout = timeout
-
-    def run_tests(self, file_path: str) -> bool:
-        # Sandbox execution limits networking
-        res = subprocess.run(["npm", "run", "test"])
-        return res.returncode == 0`
+    sourceCode: `# core/socratic_gate.py
+class SocraticGate:
+    def verify_assumptions(self, plan: dict) -> bool:
+        if "rollback" not in plan:
+            plan["rollback"] = True
+        return True`,
   },
-  {
-    id: "verifier",
-    label: "SYNC VERIFIER",
-    description: "Performs self-healing checks and synchronizes memory loops.",
-    color: "cyan",
-    logs: [
-      "$ apex sync verify --save-cache",
-      "🔍 [Verifier] Performing self-healing assertion test...",
-      "🧬 [Memory] Adding successful execution to Chroma DB vectors (+1 entry).",
-      "💾 [Sync] Synchronized Redis session cache.",
-      "🟢 [System] Verification complete. Runtime: 48ms. Cycle Ends."
-    ],
-    sourceCode: `# core/verifier.py
-from .models import ExecutionPlan
-
-class SyncVerifier:
-    """
-    Validates execution results and syncs vector logs.
-    """
-    def verify_plan(self, plan: ExecutionPlan) -> bool:
-        # Check plan compliance and update cache
-        if plan.requires_clarification:
-            return False
-        return True`
-  }
 ];
 
-// Interactive Sequential Typewriter Text component (Declarative State-Slice based)
-function TypewriterText({ text, delay = 0, speed = 80 }: { text: string; delay?: number; speed?: number }) {
-  const [charCount, setCharCount] = useState(0);
-  const [started, setStarted] = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setStarted(true), delay);
-    return () => clearTimeout(timer);
-  }, [delay]);
-
-  useEffect(() => {
-    if (!started) return;
-    if (charCount >= text.length) return;
-
-    const timer = setTimeout(() => {
-      setCharCount((prev) => prev + 1);
-    }, speed);
-
-    return () => clearTimeout(timer);
-  }, [started, charCount, text, speed]);
-
-  const displayedText = text.slice(0, charCount);
-  const isDone = charCount >= text.length;
-
-  return (
-    <span className={styles.typewriterWrapper}>
-      {displayedText}
-      {started && !isDone && (
-        <span className={styles.typewriterCursor}></span>
-      )}
-    </span>
-  );
-}
-
-// Reusable L-Shaped HUD corner notches helper component
-function HUDNotches() {
-  return (
-    <div className={styles.hudNotches}>
-      <span className={styles.notchTL}></span>
-      <span className={styles.notchTR}></span>
-      <span className={styles.notchBL}></span>
-      <span className={styles.notchBR}></span>
-    </div>
-  );
-}
-
+/* ═══════════════════════════════════════════════════════
+   MAIN PAGE
+═══════════════════════════════════════════════════════ */
 export default function Home() {
-  const cockpitRef = useRef<HTMLDivElement>(null);
-  const visualizerContainerRef = useRef<HTMLDivElement>(null);
-  const [activeStep, setActiveStep] = useState<string>("router");
-  const [terminalLines, setTerminalLines] = useState<string[]>(DAG_STEPS[0].logs);
-  const [isSimulating, setIsSimulating] = useState(false);
-  const [coords, setCoords] = useState({ x: 0, y: 0 });
-  const [consoleMode, setConsoleMode] = useState<"monitor" | "source">("monitor");
-  const [guideCoords, setGuideCoords] = useState({ x: 0, y: 0, active: false });
-  
-  // CLI Command Sandbox input states
-  const [userPrompt, setUserPrompt] = useState("apex run resume --tailor='Google SWE'");
+  const [activePresetIndex, setActivePresetIndex] = useState<number>(0);
+  const [isSimulating, setIsSimulating] = useState<boolean>(true);
+  const [activeTab, setActiveTab] = useState<"logs" | "code">("logs");
 
-  // Select active node based on step
-  const activeNode = DAG_STEPS.find(s => s.id === activeStep) || DAG_STEPS[0];
-
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (cockpitRef.current) {
-        const rect = cockpitRef.current.getBoundingClientRect();
-        const x = Math.round(e.clientX - rect.left);
-        const y = Math.round(e.clientY - rect.top);
-        setCoords({ x, y });
-      }
-    };
-
-    window.addEventListener("mousemove", handleMouseMove);
-    return () => window.removeEventListener("mousemove", handleMouseMove);
-  }, []);
-
-  // Chain pipeline simulation
-  const runEndToEndPipeline = useCallback(() => {
-    if (isSimulating) return;
-    setIsSimulating(true);
-    setConsoleMode("monitor");
-    setTerminalLines(["$ apex pipeline --run-all"]);
-
-    let currentStepIdx = 0;
-    let currentLineIdx = 0;
-
-    const interval = setInterval(() => {
-      const stepData = DAG_STEPS[currentStepIdx];
-      if (!stepData) {
-        clearInterval(interval);
-        setIsSimulating(false);
-        return;
-      }
-
-      setActiveStep(stepData.id);
-
-      if (currentLineIdx < stepData.logs.length) {
-        const nextLine = stepData.logs[currentLineIdx];
-        if (nextLine) {
-          setTerminalLines((prev) => [...prev, nextLine]);
-        }
-        currentLineIdx++;
-      } else {
-        currentStepIdx++;
-        currentLineIdx = 0;
-      }
-    }, 280);
-  }, [isSimulating]);
-
-  // Execute Sandbox prompt input from Hero
-  const executeSandboxPrompt = () => {
-    if (isSimulating) return;
-    
-    const cmdLower = userPrompt.toLowerCase();
-    if (cmdLower.includes("cache") || cmdLower.includes("query")) {
-      setActiveStep("cache");
-      setTerminalLines(DAG_STEPS[1].logs);
-    } else if (cmdLower.includes("sandbox") || cmdLower.includes("compile")) {
-      setActiveStep("sandbox");
-      setTerminalLines(DAG_STEPS[4].logs);
-    } else if (cmdLower.includes("socratic") || cmdLower.includes("gate")) {
-      setActiveStep("socratic");
-      setTerminalLines(DAG_STEPS[2].logs);
-    } else {
-      runEndToEndPipeline();
-    }
-
-    setConsoleMode("monitor");
-    
-    setTimeout(() => {
-      document.getElementById("cockpit")?.scrollIntoView({ behavior: "smooth" });
-    }, 100);
-  };
-
-  // Handle guidelines movements relative to visualizer container
-  const handleVisualizerMouseMove = (e: React.MouseEvent) => {
-    if (visualizerContainerRef.current) {
-      const rect = visualizerContainerRef.current.getBoundingClientRect();
-      const x = Math.round(e.clientX - rect.left);
-      const y = Math.round(e.clientY - rect.top);
-      setGuideCoords({ x, y, active: true });
-    }
-  };
-
-  const handleVisualizerMouseLeave = () => {
-    setGuideCoords((prev) => ({ ...prev, active: false }));
-  };
-
-  // Custom Python Syntax Highlighter
-  const renderSyntaxHighlighting = (code: string) => {
-    const lines = code.split("\n");
-    return lines.map((line, idx) => {
-      const trimmed = line.trim();
-      
-      if (trimmed.startsWith("#") || trimmed.startsWith('"""') || trimmed.endsWith('"""')) {
-        return (
-          <div key={idx} className={styles.codeComment}>
-            {line}
-          </div>
-        );
-      }
-
-      const words = line.split(/(\s+|\(|\)|\:)/);
-      const elements = words.map((word, wIdx) => {
-        const tWord = word.trim();
-        
-        if (["from", "import", "class", "def", "return", "async", "await", "if", "else", "elif", "in"].includes(tWord)) {
-          return <span key={wIdx} className={styles.codeKeyword}>{word}</span>;
-        }
-        if (["str", "int", "float", "bool", "list", "dict", "List", "Optional", "Dict", "Any", "BaseModel", "None", "ExecutionPlan"].includes(tWord)) {
-          return <span key={wIdx} className={styles.codeClass}>{word}</span>;
-        }
-        if (tWord === "self") {
-          return <span key={wIdx} className={styles.codeSelf}>{word}</span>;
-        }
-        if ((tWord.startsWith('"') && tWord.endsWith('"')) || (tWord.startsWith("'") && tWord.endsWith("'"))) {
-          return <span key={wIdx} className={styles.codeString}>{word}</span>;
-        }
-        return word;
-      });
-
-      return (
-        <div key={idx} className={styles.codeLine}>
-          {elements}
-        </div>
-      );
-    });
-  };
+  const currentPreset = PRESETS[activePresetIndex];
 
   return (
-    <div ref={cockpitRef} className={`${styles.pageWrapper} tech-dots`}>
-      {/* Background Interactive Particles */}
+    <div className="min-h-screen bg-[#F5F4F0] text-[#0A0A0B] font-sans selection:bg-[#FF4500] selection:text-white relative overflow-x-hidden">
+      {/* Subtle canvas dots */}
       <CanvasBackground />
 
-      {/* Floating System Param Ticker */}
-      <div className={styles.systemTicker}>
-        <div className={styles.tickerTrack}>
-          <span>APEX // COGNITIVE LABS v1.0.0</span>
-          <span className={styles.tickerDivider}></span>
-          <span>LATENCY: 1.2MS (FAST-PATH)</span>
-          <span className={styles.tickerDivider}></span>
-          <span>CHROMA DB MEMORY VECTORS: 1,240</span>
-          <span className={styles.tickerDivider}></span>
-          <span>SOCRATIC AGENT PORT: 8002</span>
-          <span className={styles.tickerDivider}></span>
-          <span>ACTIVE COORDS: X: {coords.x} | Y: {coords.y}</span>
-        </div>
-      </div>
+      {/* Header */}
+      <SensiqHeader />
 
-      {/* Organic claymorphic gradient background waves matching screenshot */}
-      <div className={styles.waveBackgroundContainer}>
-        <svg viewBox="0 0 1440 900" fill="none" className={styles.waveSvg}>
-          <g filter="url(#blur-mesh)">
-            <path d="M-100 200 C300 400, 600 100, 1000 350 C1300 500, 1500 250, 1600 400 L1600 900 L-100 900 Z" fill="rgba(224, 222, 218, 0.65)" />
-            <path d="M-50 450 C400 300, 800 600, 1100 400 C1350 250, 1500 500, 1550 550 L1550 900 L-50 900 Z" fill="rgba(232, 230, 226, 0.75)" />
-            <path d="M-200 600 C200 500, 500 700, 900 550 C1200 450, 1400 650, 1600 700 L1600 900 L-200 900 Z" fill="rgba(240, 238, 234, 0.9)" />
-          </g>
-          <defs>
-            <filter id="blur-mesh" x="-20%" y="-20%" width="140%" height="140%" filterUnits="userSpaceOnUse" colorInterpolationFilters="sRGB">
-              <feGaussianBlur stdDeviation="80" />
-            </filter>
-          </defs>
-        </svg>
-      </div>
+      {/* ══════════════════════════════════════
+          HERO — Centered, commanding, minimal
+          ══════════════════════════════════════ */}
+      <section id="overview" className="pt-28 pb-12 relative z-10 hero-glow">
+        <div className="max-w-[1100px] mx-auto px-4 sm:px-6 text-center">
 
-      {/* Redesigned Minimal Navbar */}
-      <header className={styles.header}>
-        <HUDNotches />
-        <div className={styles.headerLeft}>
-          <svg width="40" height="24" viewBox="0 0 100 50" fill="none" className={styles.signatureLogo}>
-            <path d="M10 28 C22 15, 32 38, 42 16 C52 0, 58 45, 85 24" stroke="var(--text-primary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M40 32 L46 38" stroke="var(--text-primary)" strokeWidth="2.5" strokeLinecap="round" />
-          </svg>
-          <div className={styles.headerDivider}></div>
-          <div className={styles.systemStatus}>
-            <span className={styles.systemStatusText}>APEX COGNITIVE OS</span>
-            <span className={styles.pulsingDot}></span>
-          </div>
-        </div>
-        
-        <nav className={styles.navRow}>
-          <Link href="#cockpit" className={styles.navLinkItem}>About</Link>
-          <span className={styles.navSlash}>/</span>
-          <Link href="#telemetry" className={styles.navLinkItem}>Domain</Link>
-          <span className={styles.navSlash}>/</span>
-          <a 
-            href="https://github.com/Qambar-dev-0207/PathOS.git" 
-            target="_blank" 
-            rel="noreferrer" 
-            className={styles.navLinkItem}
+          {/* Eyebrow */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+            className="flex items-center justify-center gap-3 mb-5"
           >
-            Works
-          </a>
-          <span className={styles.navSlash}>/</span>
-          <a 
-            href="https://github.com/Qambar-dev-0207/PathOS.git" 
-            target="_blank" 
-            rel="noreferrer" 
-            className={styles.navLinkItem}
-          >
-            Contact
-          </a>
-        </nav>
-      </header>
-
-      {/* Hero Section styled exactly like the screenshot but tailored to APEX */}
-      <section className={styles.heroSection}>
-        <div className={styles.heroGrid}>
-          {/* Left technical description text block */}
-          <div className={styles.heroLeftCol}>
-            <div className={styles.jaLabel}>自律型エージェント。</div>
-            <div className={styles.jaLabel}>意思決定の自動化。</div>
-            <div className={styles.enLabelSub}>APEX SOVEREIGN OS // COGNITIVE ORCHESTRATION</div>
-
-            {/* Pulsing server status LED stack */}
-            <div className={styles.heroStatusStack}>
-              <div className={styles.heroStatusRow}>
-                <span className={`${styles.statusDot} ${styles.statusDotCyan}`}></span>
-                <span className={styles.heroStatusText}>KERNEL : SYS_ACTIVE</span>
-              </div>
-              <div className={styles.heroStatusRow}>
-                <span className={`${styles.statusDot} ${styles.statusDotEmerald}`}></span>
-                <span className={styles.heroStatusText}>VECTOR_MEM : SYNCED</span>
-              </div>
-              <div className={styles.heroStatusRow}>
-                <span className={`${styles.statusDot} ${styles.statusDotOrange}`}></span>
-                <span className={styles.heroStatusText}>SANDBOX : SECURE_RUN</span>
-              </div>
+            <div className="flex items-center gap-2 bg-white/80 border border-black/8 px-4 py-2 rounded-full shadow-sm backdrop-blur-sm">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#65CC00] animate-pulse shadow-[0_0_6px_#65CC00]" />
+              <span className="font-mono text-[11px] font-semibold text-[#6B7280] uppercase tracking-widest">
+                Sovereign Agentic AI · 24 Layers · Est. 2026
+              </span>
             </div>
-          </div>
+          </motion.div>
 
-          {/* Right technical description text block */}
-          <div className={styles.heroRightCol}>
-            <p className={styles.heroDescPara}>
-              意図を解析し、計画を構造化し、自律実行する。
-              コグニティブレイヤーとローカル実行エンジンの交差点でつくる知的OS。
-            </p>
-            <p className={styles.heroDescParaEn}>
-              Parsing intent, structuring execution DAGs, compiling parallel sandboxes.
-              At the intersection of cognitive intelligence and hardware runtimes, a sovereign orchestrator.
-            </p>
-          </div>
-        </div>
+          {/* Headline — 96px, screen-commanding */}
+          <motion.h1
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.65, delay: 0.08, ease: [0.16, 1, 0.3, 1] }}
+            className="font-display font-extrabold text-[#0A0A0B] leading-[1.0] tracking-[-0.04em] mb-5"
+            style={{ fontSize: "clamp(3rem, 7vw, 6rem)" }}
+          >
+            Intelligence that{" "}
+            <span className="relative inline-block">
+              <span className="relative z-10">doesn&apos;t</span>
+              <span
+                className="absolute -bottom-1 left-0 right-0 h-3 opacity-30 rounded-sm -z-10"
+                style={{ background: "linear-gradient(90deg, #FF4500, #FF8C00)" }}
+              />
+            </span>
+            <br />
+            hallucinate.
+          </motion.h1>
 
-        {/* Massive Serif Headings exactly matching screenshot but tailored to APEX with typewriter animation */}
-        <div className={styles.heroTitleContainer}>
-          <h1 className={styles.serifTitleLine1}>
-            <TypewriterText text="SOVEREIGN" delay={200} speed={100} />
-          </h1>
-          <h1 className={styles.serifTitleLine2}>
-            <TypewriterText text="ORCHESTRATOR" delay={1200} speed={90} />
-          </h1>
-        </div>
+          {/* Subtext */}
+          <motion.p
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.55, delay: 0.18, ease: [0.16, 1, 0.3, 1] }}
+            className="text-[#6B7280] text-lg sm:text-xl leading-relaxed max-w-[560px] mx-auto mb-8"
+          >
+            A 24-Layer Agentic AI OS that enforces Socratic guardrails,
+            compresses token context 18×, and executes parallel agent swarms.
+          </motion.p>
 
-        {/* Interactive CLI Prompt Executor Sandbox - Floating elegantly */}
-        <div className={styles.promptSandbox}>
-          <div className={styles.promptInputWrapper}>
-            <span className={styles.promptPrefix}>&gt;</span>
-            <input 
-              type="text" 
-              value={userPrompt}
-              onChange={(e) => setUserPrompt(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") executeSandboxPrompt();
-              }}
-              className={styles.promptInputField}
-              placeholder="Type sandbox command..."
-            />
-            <button className={styles.promptExecuteBtn} onClick={executeSandboxPrompt}>
-              <span>EXECUTE</span>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-                <polyline points="12 5 19 12 12 19"></polyline>
+          {/* CTAs */}
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.28, ease: [0.16, 1, 0.3, 1] }}
+            className="flex flex-wrap items-center justify-center gap-4 mb-8"
+          >
+            <MagneticCTA href="#stack" variant="primary">
+              Explore the OS
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
               </svg>
-            </button>
-          </div>
+            </MagneticCTA>
 
-          {/* Quick Preset tags */}
-          <div className={styles.promptPresets}>
-            <span className={styles.presetLabel}>Presets //</span>
-            <button 
-              className={styles.presetPill}
-              onClick={() => setUserPrompt("apex run resume --tailor='Google SWE'")}
-            >
-              Resume Tailor
-            </button>
-            <button 
-              className={styles.presetPill}
-              onClick={() => setUserPrompt("apex query --semantic='model lookup'")}
-            >
-              Vector Cache Check
-            </button>
-            <button 
-              className={styles.presetPill}
-              onClick={() => setUserPrompt("apex sandbox compile --lang=ts")}
-            >
-              Sandbox Verify
-            </button>
-          </div>
-        </div>
-      </section>
+            <MagneticCTA href="#playground" variant="outline">
+              <span className="font-mono text-xs tracking-wider">SDK PLAYGROUND [ $ ]</span>
+            </MagneticCTA>
+          </motion.div>
 
-      {/* Cognitive Pipeline Timeline execution bar */}
-      <section className={styles.timelineSection}>
-        <div className={`${styles.timelineContainer} cockpit-panel`}>
-          <HUDNotches />
-          <span className={styles.timelineLabel}>{"ACTIVE EXECUTION TIMELINE //"}</span>
-          <div className={styles.timelineSteps}>
-            {DAG_STEPS.map((step, idx) => {
-              const isActive = step.id === activeStep;
-              return (
-                <div key={step.id} className={styles.timelineStepWrapper}>
-                  <div className={`${styles.timelineStep} ${isActive ? styles.timelineStepActive : ""}`}>
-                    <span className={styles.timelineIndex}>0{idx + 1}</span>
-                    <span className={styles.timelineName}>{step.id.toUpperCase()}</span>
-                  </div>
-                  {idx < DAG_STEPS.length - 1 && (
-                    <div className={styles.timelineDivider}>──</div>
-                  )}
+          {/* Social proof strip */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.6, delay: 0.45 }}
+            className="flex items-center justify-center gap-2 text-xs text-[#9CA3AF] font-mono mb-8"
+          >
+            <div className="flex -space-x-2">
+              {["#6366F1", "#EC4899", "#F59E0B", "#10B981"].map((c, i) => (
+                <div
+                  key={i}
+                  className="w-7 h-7 rounded-full border-2 border-[#F5F4F0]"
+                  style={{ background: c }}
+                />
+              ))}
+            </div>
+            <span>Trusted by AI architects worldwide</span>
+            <span className="text-[#FF4500] font-semibold">★★★★★</span>
+          </motion.div>
+
+          {/* Hero preview — DAG floats below */}
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.35, ease: [0.16, 1, 0.3, 1] }}
+            className="relative"
+          >
+            {/* Glow underneath */}
+            <div
+              className="absolute -inset-x-20 top-16 h-40 opacity-30 pointer-events-none blur-3xl"
+              style={{ background: "linear-gradient(90deg, #FF4500, #2563EB, #FF4500)" }}
+            />
+
+            <div className="relative apex-card overflow-hidden shadow-[0_40px_100px_-20px_rgba(0,0,0,0.14)]">
+              {/* Browser chrome */}
+              <div className="flex items-center gap-2 px-6 py-4 border-b border-black/6 bg-[#F9F9F8]">
+                <span className="w-3 h-3 rounded-full bg-[#FF5F57]" />
+                <span className="w-3 h-3 rounded-full bg-[#FEBC2E]" />
+                <span className="w-3 h-3 rounded-full bg-[#28C840]" />
+                <div className="flex-1 mx-4 bg-white border border-black/8 rounded-lg px-4 py-1.5 text-xs font-mono text-[#9CA3AF] text-left">
+                  apex:// live-dag · resume-tailoring-swarm
                 </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#65CC00] animate-pulse" />
+                  <span className="font-mono text-[10px] text-[#65CC00] font-semibold">LIVE</span>
+                </div>
+              </div>
 
-      {/* Advanced Cockpit Panel */}
-      <section id="cockpit" className={styles.cockpitSection}>
-        <div className={`${styles.cockpitGrid} cockpit-panel`}>
-          <HUDNotches />
-          
-          {/* Panel 1: Execution Planner (DAG Steps) */}
-          <div className={styles.dagPanel}>
-            <div className={styles.panelHeader}>
-              <span>PLANNER : DECOMPOSED_DAG</span>
-            </div>
-            
-            <div className={styles.dagFlow}>
-              {DAG_STEPS.map((step, idx) => {
-                const isActive = step.id === activeStep;
-                return (
-                  <div key={step.id} className={styles.dagStepContainer}>
-                    <button 
-                      className={`${styles.dagNode} ${isActive ? styles.dagNodeActive : ""}`}
-                      onClick={() => {
-                        if (!isSimulating) {
-                          setActiveStep(step.id);
-                          setTerminalLines(step.logs);
-                        }
-                      }}
+              {/* Metrics bar */}
+              <div className="flex items-center gap-6 px-6 py-3 bg-[#FAFAF9] border-b border-black/4 font-mono text-xs">
+                {[
+                  { label: "AVG LATENCY", value: "38ms", color: "#65CC00" },
+                  { label: "NODES", value: "11 ACTIVE", color: "#2563EB" },
+                  { label: "SOCRATIC GATE", value: "PASSED", color: "#FF4500" },
+                ].map((m) => (
+                  <div key={m.label} className="flex items-center gap-2">
+                    <span className="text-[#9CA3AF]">{m.label}</span>
+                    <span className="font-bold" style={{ color: m.color }}>{m.value}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Content area */}
+              <div className="grid grid-cols-1 lg:grid-cols-5 min-h-[340px]">
+                {/* DAG Placeholder with branded look */}
+                <div className="lg:col-span-3 bg-[#FAFAF9] flex items-center justify-center p-8 border-r border-black/4">
+                  <div className="w-full h-[280px] relative">
+                    {/* Stylized node graph placeholder */}
+                    <svg viewBox="0 0 480 280" className="w-full h-full opacity-90">
+                      {/* Connections */}
+                      <line x1="240" y1="140" x2="140" y2="80" stroke="#E5E7EB" strokeWidth="1.5" />
+                      <line x1="240" y1="140" x2="340" y2="80" stroke="#E5E7EB" strokeWidth="1.5" />
+                      <line x1="240" y1="140" x2="120" y2="200" stroke="#E5E7EB" strokeWidth="1.5" />
+                      <line x1="240" y1="140" x2="360" y2="200" stroke="#E5E7EB" strokeWidth="1.5" />
+                      <line x1="140" y1="80" x2="80" y2="140" stroke="#E5E7EB" strokeWidth="1" />
+                      <line x1="340" y1="80" x2="400" y2="140" stroke="#E5E7EB" strokeWidth="1" />
+                      {/* Core node */}
+                      <circle cx="240" cy="140" r="28" fill="#FF4500" opacity="0.9" />
+                      <text x="240" y="145" textAnchor="middle" fill="white" fontSize="9" fontFamily="monospace" fontWeight="bold">APEX CORE</text>
+                      {/* Surrounding nodes */}
+                      {[
+                        { cx: 140, cy: 80, r: 16, fill: "#7C3AED", label: "Intent Router" },
+                        { cx: 340, cy: 80, r: 14, fill: "#2563EB", label: "Socratic Gate" },
+                        { cx: 80, cy: 140, r: 12, fill: "#059669", label: "ChromaDB" },
+                        { cx: 400, cy: 140, r: 12, fill: "#F59E0B", label: "Redis" },
+                        { cx: 120, cy: 200, r: 14, fill: "#EC4899", label: "Agent Swarm" },
+                        { cx: 360, cy: 200, r: 12, fill: "#0EA5E9", label: "Sandbox" },
+                        { cx: 240, cy: 60, r: 10, fill: "#65CC00", label: "Code Compass" },
+                      ].map((node, i) => (
+                        <g key={i}>
+                          <circle cx={node.cx} cy={node.cy} r={node.r} fill={node.fill} opacity="0.85" />
+                          <text x={node.cx} y={node.cy + node.r + 12} textAnchor="middle" fill="#6B7280" fontSize="8" fontFamily="monospace">{node.label}</text>
+                        </g>
+                      ))}
+                    </svg>
+                  </div>
+                </div>
+
+                {/* Right: Reasoning trace */}
+                <div className="lg:col-span-2 bg-[#0A0A0B] p-6 font-mono text-xs space-y-2.5 overflow-hidden">
+                  <div className="text-white/30 text-[10px] uppercase tracking-widest mb-4">REASONING TRACE</div>
+                  {[
+                    { text: "$ apex run router --resume", color: "#FF4500" },
+                    { text: "⏳ Parsing intent signature...", color: "#6B7280" },
+                    { text: "🔍 Intent: RESUME_TAILORING", color: "#9CA3AF" },
+                    { text: "🔋 RAM: 32.4GB · CPU stable", color: "#6B7280" },
+                    { text: "⚡ Skill: resume_tailor_skill", color: "#9CA3AF" },
+                    { text: "🟢 Socratic gate: PASSED", color: "#65CC00" },
+                    { text: "▶ Dispatching agent swarm...", color: "#2563EB" },
+                  ].map((line, i) => (
+                    <motion.div
+                      key={i}
+                      initial={{ opacity: 0, x: -8 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.6 + i * 0.12, duration: 0.3 }}
+                      style={{ color: line.color }}
                     >
-                      <span className={styles.stepIndex}>0{idx + 1}</span>
-                      <span className={styles.stepLabel}>{step.label}</span>
-                      {isActive && <span className={styles.stepPulse}></span>}
-                    </button>
-                    {idx < DAG_STEPS.length - 1 && (
-                      <div className={styles.dagConnector}></div>
-                    )}
+                      {line.text}
+                    </motion.div>
+                  ))}
+                  <div className="flex items-center gap-1.5 mt-4 pt-4 border-t border-white/8">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#65CC00] animate-pulse" />
+                    <span className="text-[#65CC00] font-semibold text-[10px]">STAGE: ACTIVE REASONING</span>
                   </div>
-                );
-              })}
+                </div>
+              </div>
             </div>
-          </div>
 
-          {/* Panel 2: 3D Programmatic Visualizer Core with cursor guidelines */}
-          <div className={styles.visualizerPanel}>
-            <div className={styles.panelHeader}>
-              <span>CORE_ORB : ROTATION_STAGE</span>
+            {/* Floating metric badges */}
+            <div className="absolute -top-4 -right-4 hidden lg:block bg-white border border-black/8 px-4 py-2.5 rounded-xl shadow-lg font-mono text-xs space-y-1">
+              <div className="flex items-center gap-2 text-[#9CA3AF]">AVG LATENCY <span className="text-[#65CC00] font-bold">38ms</span></div>
+              <div className="w-24 h-1 bg-gray-100 rounded-full"><div className="w-4/5 h-full bg-[#65CC00] rounded-full" /></div>
             </div>
-            
-            <div 
-              ref={visualizerContainerRef}
-              className={styles.canvasArea}
-              onMouseMove={handleVisualizerMouseMove}
-              onMouseLeave={handleVisualizerMouseLeave}
-            >
-              <OrchestratorVisualizer activePreset={activeStep} isSimulating={isSimulating} />
-              
-              {/* Dynamic Coordinate Guidelines */}
-              {guideCoords.active && (
-                <>
-                  <div 
-                    className={styles.dynamicLineX} 
-                    style={{ top: `${guideCoords.y}px` }}
-                  />
-                  <div 
-                    className={styles.dynamicLineY} 
-                    style={{ left: `${guideCoords.x}px` }}
-                  />
-                  <div 
-                    className={styles.coordsTooltip}
-                    style={{ left: `${guideCoords.x + 12}px`, top: `${guideCoords.y + 12}px` }}
+
+            <div className="absolute -bottom-4 -left-4 hidden lg:block bg-white border border-black/8 px-4 py-2.5 rounded-xl shadow-lg font-mono text-xs space-y-1">
+              <div className="flex items-center gap-2 text-[#9CA3AF]">CODE COMPASS <span className="text-[#FF4500] font-bold">18.4×</span></div>
+              <div className="w-24 h-1 bg-gray-100 rounded-full"><div className="w-11/12 h-full bg-[#FF4500] rounded-full" /></div>
+            </div>
+          </motion.div>
+
+        </div>
+      </section>
+
+      {/* ══════════════════════════════════════
+          LOGO MARQUEE — Dark band
+          ══════════════════════════════════════ */}
+      <LogoMarquee />
+
+      {/* ══════════════════════════════════════
+          NUMBER GRID — Editorial stats
+          ══════════════════════════════════════ */}
+      <NumberGrid />
+
+      {/* ══════════════════════════════════════
+          FEATURE ROWS — Alternating
+          ══════════════════════════════════════ */}
+      <ScrollPinnedShowcase />
+
+      {/* ══════════════════════════════════════
+          STACK BENTO GRID
+          ══════════════════════════════════════ */}
+      <section id="stack" className="py-16 bg-[#F5F4F0]">
+        <div className="max-w-[1340px] mx-auto px-4 sm:px-6 md:px-8">
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+            className="mb-14 max-w-xl"
+          >
+            <div className="font-mono text-[11px] font-bold text-[#FF4500] uppercase tracking-widest mb-4">
+              SOVEREIGN ARCHITECTURE
+            </div>
+            <h2 className="font-display text-4xl sm:text-5xl font-extrabold text-[#0A0A0B] tracking-tight leading-tight">
+              The 24-Layer<br />Sovereign Stack
+            </h2>
+          </motion.div>
+          <BentoGrid />
+        </div>
+      </section>
+
+      {/* ══════════════════════════════════════
+          DARK SHOWCASE — DAG on dark
+          ══════════════════════════════════════ */}
+      <DarkShowcase />
+
+      {/* ══════════════════════════════════════
+          SDK PLAYGROUND
+          ══════════════════════════════════════ */}
+      <section id="playground" className="py-16 bg-white">
+        <div className="max-w-[1340px] mx-auto px-4 sm:px-6 md:px-8 space-y-14">
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+            className="max-w-xl"
+          >
+            <div className="font-mono text-[11px] font-bold text-[#FF4500] uppercase tracking-widest mb-4">
+              DEVELOPER SDK
+            </div>
+            <h2 className="font-display text-4xl sm:text-5xl font-extrabold text-[#0A0A0B] tracking-tight">
+              One unified API.<br />Infinite capability.
+            </h2>
+          </motion.div>
+          <CodePlayground />
+        </div>
+      </section>
+
+      {/* ══════════════════════════════════════
+          ORCHESTRATOR — Interactive
+          ══════════════════════════════════════ */}
+      <section id="orchestrator" className="py-16 bg-[#F5F4F0] border-y border-black/6">
+        <div className="max-w-[1340px] mx-auto px-4 sm:px-6 md:px-8">
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+            className="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-8"
+          >
+            <div>
+              <div className="font-mono text-[11px] font-bold text-[#FF4500] uppercase tracking-widest mb-4">
+                SOCRATIC GATE &amp; DAG
+              </div>
+              <h2 className="font-display text-4xl sm:text-5xl font-extrabold text-[#0A0A0B] tracking-tight">
+                Task Orchestrator<br />&amp; Reasoning Trace
+              </h2>
+            </div>
+
+            {/* Preset tabs */}
+            <div className="flex flex-wrap gap-2 p-1.5 bg-white border border-black/8 rounded-2xl font-mono text-xs shadow-sm">
+              {PRESETS.map((p, idx) => (
+                <button
+                  key={p.id}
+                  onClick={() => setActivePresetIndex(idx)}
+                  className={`px-4 py-2 rounded-xl transition-all ${
+                    activePresetIndex === idx
+                      ? "bg-[#0A0A0B] text-white font-bold shadow-sm"
+                      : "text-[#6B7280] hover:text-[#0A0A0B]"
+                  }`}
+                >
+                  {p.name}
+                </button>
+              ))}
+            </div>
+          </motion.div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+            <div className="lg:col-span-7 flex flex-col gap-4">
+              <div className="apex-card overflow-hidden flex-1">
+                <div className="flex items-center justify-between px-5 py-3 border-b border-black/6 font-mono text-xs bg-[#FAFAF9]">
+                  <span className="text-[#9CA3AF] uppercase tracking-wider">LIVE DAG · {currentPreset.name.toUpperCase()}</span>
+                  <button
+                    onClick={() => setIsSimulating(!isSimulating)}
+                    className="px-3 py-1 rounded-lg bg-[#0A0A0B] text-white font-semibold text-[11px] hover:bg-black/80 transition-all"
                   >
-                    <span>TX: {guideCoords.x - 170}px</span>
-                    <span>TY: {180 - guideCoords.y}px</span>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Panel 3: Dual-Mode Terminal Console */}
-          <div className={styles.terminalPanel}>
-            <div className={styles.consoleTabSelector}>
-              <button 
-                className={`${styles.tabBtn} ${consoleMode === "monitor" ? styles.tabBtnActive : ""}`}
-                onClick={() => setConsoleMode("monitor")}
-              >
-                [ MONITOR ]
-              </button>
-              <button 
-                className={`${styles.tabBtn} ${consoleMode === "source" ? styles.tabBtnActive : ""}`}
-                onClick={() => setConsoleMode("source")}
-              >
-                [ SOURCE_CODE ]
-              </button>
-            </div>
-
-            {consoleMode === "monitor" ? (
-              <div className={styles.terminalBody}>
-                {terminalLines.map((line, idx) => {
-                  if (!line) return null;
-                  const isCmd = line.startsWith("$");
-                  const isErr = line.includes("⚠️") || line.includes("bypassed");
-                  const isSuccess = line.includes("🟢") || line.includes("PASS") || line.includes("successfully");
-                  
-                  let textClass = "";
-                  if (isCmd) textClass = styles.termCmd;
-                  else if (isErr) textClass = styles.termErr;
-                  else if (isSuccess) textClass = styles.termSuccess;
-
-                  return (
-                    <div key={idx} className={`${styles.terminalLine} ${textClass}`}>
-                      {line}
-                    </div>
-                  );
-                })}
-                {isSimulating && (
-                  <div className={styles.terminalCursorLine}>
-                    <span className={styles.termCursor}>▋</span>
-                  </div>
-                )}
+                    {isSimulating ? "⏸ PAUSE" : "▶ RESUME"}
+                  </button>
+                </div>
+                <div className="h-[360px] bg-[#FAFAF9]">
+                  <OrchestratorVisualizer activePreset={currentPreset.name} isSimulating={isSimulating} />
+                </div>
               </div>
-            ) : (
-              <div className={styles.codeBody}>
-                {renderSyntaxHighlighting(activeNode.sourceCode)}
+            </div>
+
+            {/* Reasoning / Code panel */}
+            <div className="lg:col-span-5 bg-[#0A0A0B] rounded-2xl overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.2)] flex flex-col h-[440px]">
+              <div className="bg-[#111115] px-5 py-3.5 border-b border-white/8 flex items-center gap-3 font-mono text-xs">
+                <button
+                  onClick={() => setActiveTab("logs")}
+                  className={`px-3 py-1.5 rounded-lg transition-all ${
+                    activeTab === "logs"
+                      ? "bg-[#FF4500]/20 text-[#FF4500] font-bold"
+                      : "text-white/30 hover:text-white/60"
+                  }`}
+                >
+                  REASONING TRACE
+                </button>
+                <button
+                  onClick={() => setActiveTab("code")}
+                  className={`px-3 py-1.5 rounded-lg transition-all ${
+                    activeTab === "code"
+                      ? "bg-[#2563EB]/20 text-[#2563EB] font-bold"
+                      : "text-white/30 hover:text-white/60"
+                  }`}
+                >
+                  PYTHON SOURCE
+                </button>
+                <span className="ml-auto text-white/20 text-[10px]">APEX ENGINE</span>
               </div>
-            )}
 
-            <div className={styles.terminalFooter}>
-              <span>ACTIVE: {activeNode.id.toUpperCase()}</span>
-              <span>PORT: 8002</span>
-            </div>
-          </div>
+              <div className="p-5 font-mono text-xs overflow-y-auto flex-1 space-y-2.5">
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={currentPreset.id + activeTab}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ duration: 0.25 }}
+                  >
+                    {activeTab === "logs"
+                      ? currentPreset.logs.map((log, idx) => (
+                          <div
+                            key={idx}
+                            className={`leading-relaxed ${
+                              log.includes("🟢") ? "text-[#65CC00] font-semibold"
+                              : log.includes("⚠️") ? "text-amber-400"
+                              : log.includes("⚡") ? "text-[#2563EB]"
+                              : "text-white/50"
+                            }`}
+                          >
+                            {log}
+                          </div>
+                        ))
+                      : (
+                          <pre className="text-white/50 whitespace-pre-wrap leading-relaxed">
+                            {currentPreset.sourceCode}
+                          </pre>
+                        )
+                    }
+                  </motion.div>
+                </AnimatePresence>
+              </div>
 
-        </div>
-
-        {/* Node description card */}
-        <div className={styles.stepDetailsCard}>
-          <HUDNotches />
-          <span className={styles.detailsLabel}>{"// ACTIVE MODULE DETAILS"}</span>
-          <h4 className={styles.detailsTitle}>{activeNode.label}</h4>
-          <p className={styles.detailsText}>{activeNode.description}</p>
-        </div>
-      </section>
-
-      {/* Telemetry Bento Grid */}
-      <section id="telemetry" className={styles.telemetrySection}>
-        <div className={styles.sectionHeader}>
-          <span className={styles.sectionTag}>{"// VITAL STATISTICS"}</span>
-          <h2 className={styles.sectionTitle}>System Telemetry</h2>
-        </div>
-
-        <div className={styles.bentoGrid}>
-          {/* Sparkline Cache Rate */}
-          <TelemetryCard 
-            title="Semantic Cache Hit Rate" 
-            value={98.6} 
-            unit="%" 
-            subtext="Redis fastpath vector hit ratio"
-            type="random"
-            color="cyan"
-          />
-
-          {/* Sparkline Latency */}
-          <TelemetryCard 
-            title="Average System Latency" 
-            value={1.2} 
-            unit="ms" 
-            subtext="Cache bypass processing index"
-            type="sine"
-            color="amber"
-          />
-
-          {/* Sparkline CPU thread dispatch */}
-          <TelemetryCard 
-            title="CPU Thread Allocated" 
-            value={34.2} 
-            unit="%" 
-            subtext="Hardware bridge dispatch cycles"
-            type="bars"
-            color="emerald"
-          />
-
-          {/* Interactive wireframe shapes bento block */}
-          <div className={`${styles.wireframeBentoCard} cockpit-panel`}>
-            <HUDNotches />
-            <div className={styles.wireframeHeader}>
-              <span className={styles.wireframeLabel}>TIER 4 // GEOMETRICAL WIREFRAME</span>
-              <h3 className={styles.wireframeTitle}>Interactive Clay Gyroscope</h3>
-            </div>
-            
-            <div className={styles.shapesArea}>
-              <WireframeShapes />
-            </div>
-            
-            <div className={styles.wireframeFooter}>
-              <span>TILT COORDINATES MAP IN REALTIME</span>
+              <div className="px-5 py-3 border-t border-white/6 font-mono text-[10px] flex justify-between">
+                <span className="text-white/25">STAGE: ACTIVE REASONING</span>
+                <span className="text-[#65CC00] font-semibold">PASSED SOCRATIC GATE</span>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Footer structured exactly like the multi-column header */}
-      <footer className={styles.footer}>
-        <div className={styles.footerGrid}>
-          <HUDNotches />
-          <div className={styles.footerBrand}>
-            <svg width="40" height="24" viewBox="0 0 100 50" fill="none" className={styles.signatureLogo}>
-              <path d="M10 28 C22 15, 32 38, 42 16 C52 0, 58 45, 85 24" stroke="var(--text-primary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M40 32 L46 38" stroke="var(--text-primary)" strokeWidth="2.5" strokeLinecap="round" />
-            </svg>
-            <span className={styles.footerCopyright}>© 2026 APEX AI. MIT LICENSE.</span>
-          </div>
-          
-          <div className={styles.footerCol}>
-            <Link href="#cockpit" className={styles.footerLink}>About</Link>
-            <Link href="#telemetry" className={styles.footerLink}>Domain</Link>
-            <a 
-              href="https://github.com/Qambar-dev-0207/PathOS.git" 
-              target="_blank" 
-              rel="noreferrer" 
-              className={styles.footerLink}
-            >
-              Works
-            </a>
-          </div>
+      {/* ══════════════════════════════════════
+          TELEMETRY CARDS
+          ══════════════════════════════════════ */}
+      <section id="telemetry" className="py-16 bg-white">
+        <div className="max-w-[1340px] mx-auto px-4 sm:px-6 md:px-8 space-y-14">
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+            className="max-w-xl"
+          >
+            <div className="font-mono text-[11px] font-bold text-[#FF4500] uppercase tracking-widest mb-4">
+              REAL-TIME MONITORING
+            </div>
+            <h2 className="font-display text-4xl sm:text-5xl font-extrabold text-[#0A0A0B] tracking-tight">
+              Hardware oscilloscope<br />vitals
+            </h2>
+          </motion.div>
 
-          <div className={styles.footerCol}>
-            <span className={styles.footerLinkDisabled}>Package</span>
-            <span className={styles.footerLinkDisabled}>Member</span>
-          </div>
-
-          <div className={styles.footerColRight}>
-            <a 
-              href="https://github.com/Qambar-dev-0207/PathOS.git" 
-              target="_blank" 
-              rel="noreferrer" 
-              className={styles.footerLink}
-            >
-              Contact
-            </a>
-            <span className={styles.footerPortStatus}>PORT DEFAULT: 8002</span>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            <TelemetryCard title="AVAILABLE SYSTEM RAM" value={32.4} unit="GB" subtext="HARDWARE BRIDGE MONITOR" type="sine" color="emerald" />
+            <TelemetryCard title="VECTOR CACHE LATENCY" value={38} unit="ms" subtext="CHROMADB SEMANTIC SEARCH" type="bars" color="cyan" />
+            <TelemetryCard title="CODE COMPASS SAVINGS" value={18.4} unit="x" subtext="AST SYMBOL EFFICIENCY" type="sine" color="amber" />
+            <TelemetryCard title="TOKEN SPEND CONTROL" value={0.042} unit="USD" subtext="REAL-TIME COST TRACKER" type="random" color="violet" />
           </div>
         </div>
-      </footer>
+      </section>
+
+      {/* ══════════════════════════════════════
+          COMPARISON — Before / After
+          ══════════════════════════════════════ */}
+      <ComparisonSection />
+
+      {/* ══════════════════════════════════════
+          CLI TERMINAL
+          ══════════════════════════════════════ */}
+      <section id="terminal" className="py-16 bg-white border-t border-black/6">
+        <div className="max-w-[1340px] mx-auto px-4 sm:px-6 md:px-8">
+          <TerminalSection />
+        </div>
+      </section>
+
+      {/* ══════════════════════════════════════
+          TESTIMONIALS
+          ══════════════════════════════════════ */}
+      <ScrollPinnedQuotes />
+
+      {/* ══════════════════════════════════════
+          FAQ
+          ══════════════════════════════════════ */}
+      <section className="py-16 bg-[#F5F4F0] border-y border-black/6">
+        <div className="max-w-[1340px] mx-auto px-4 sm:px-6 md:px-8 space-y-14">
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+            className="max-w-xl"
+          >
+            <div className="font-mono text-[11px] font-bold text-[#FF4500] uppercase tracking-widest mb-4">
+              FAQ
+            </div>
+            <h2 className="font-display text-4xl sm:text-5xl font-extrabold text-[#0A0A0B] tracking-tight">
+              Sovereign OS<br />specifications
+            </h2>
+          </motion.div>
+          <FaqAccordion />
+        </div>
+      </section>
+
+      {/* ══════════════════════════════════════
+          FINAL CTA — Mesh gradient, magnetic
+          ══════════════════════════════════════ */}
+      <section className="py-20 bg-[#F5F4F0] relative overflow-hidden">
+        {/* Mesh gradient orbs */}
+        <div className="absolute inset-0 pointer-events-none">
+          <div
+            className="absolute top-0 left-1/4 w-[600px] h-[400px] opacity-40"
+            style={{
+              background: "radial-gradient(ellipse, rgba(255,69,0,0.15) 0%, transparent 70%)",
+              filter: "blur(80px)",
+            }}
+          />
+          <div
+            className="absolute bottom-0 right-1/4 w-[500px] h-[300px] opacity-30"
+            style={{
+              background: "radial-gradient(ellipse, rgba(37,99,235,0.12) 0%, transparent 70%)",
+              filter: "blur(80px)",
+            }}
+          />
+        </div>
+
+        <div className="max-w-[900px] mx-auto px-4 sm:px-6 text-center relative z-10">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+            className="space-y-8"
+          >
+            <div className="font-mono text-[11px] font-bold text-[#FF4500] uppercase tracking-widest">
+              GET STARTED
+            </div>
+
+            <h2 className="font-display font-extrabold text-[#0A0A0B] tracking-[-0.03em] leading-[1.0]"
+              style={{ fontSize: "clamp(2.5rem, 6vw, 5rem)" }}>
+              Ready to build<br />
+              <span className="text-[#FF4500]">sovereign</span> intelligence?
+            </h2>
+
+            <p className="text-[#6B7280] text-lg max-w-lg mx-auto leading-relaxed">
+              Deploy autonomous Socratic agent swarms with full hardware-native memory and spend controls.
+            </p>
+
+            <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
+              <MagneticCTA href="#orchestrator" variant="primary">
+                Launch HUD now
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                </svg>
+              </MagneticCTA>
+
+              <MagneticCTA href="https://github.com/Qambar-dev-0207/realjarvis" variant="outline">
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
+                </svg>
+                View on GitHub
+              </MagneticCTA>
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <Footer />
     </div>
   );
 }
