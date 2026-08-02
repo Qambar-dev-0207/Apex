@@ -702,7 +702,8 @@ class StatusTicker:
         frame_idx = int(elapsed * self.fps) % len(_STAR_FRAMES)
         star = _STAR_FRAMES[frame_idx]
         out = Text()
-        out.append(f"  {star} ", style=f"bold {self.style}")
+        out.append("🤖 ( 🟨   🟨 ) ", style="bold gold1")
+        out.append(f"{star} ", style=f"bold {self.style}")
         out.append(self._message, style=self.style)
         out.append("…  ", style=self.style)
         out.append(f"({elapsed:.1f}s)", style="dim white")
@@ -912,30 +913,612 @@ class Agent3DLoader:
 
         return "\n".join("".join(row) for row in grid)
 
+class ApexMascot:
+    r"""
+    Official APEX Pixel Mascot renderer.
+    Hand-crafted from apex-mascot.jpg  (Clean ASCII — readable at any zoom)
+
+    Body anatomy:
+      (O)          <- gold antenna ball on top
+     /-----\       <- dome head arc
+    | ##### |      <- black face screen
+    | #OO O#|      <- yellow eyes inside screen (O = eye)
+    | # --  |      <- smile inside screen
+     \_____/       <- head/body base
+     | APEX |      <- chest label
+     |......|      <- status light row
+      =====        <- base bar
+      o   o        <- round feet
+    """
+
+    STATES = {
+
+        # ─── FOCUS / IDLE ────────────────────────────────────────────────────
+        # Large hero: right arm raised, scratching head
+        "focus": (
+            "         _\n"
+            "        (O)       <- APEX\n"
+            "      .------.\n"
+            "     /  ####  \\~\n"
+            "    | # O  O # |\n"
+            "    | #  '--' # |\n"
+            "    |  ######  |\n"
+            "    |   APEX   |\n"
+            "    |  ......  |\n"
+            "    |__________|\n"
+            "    /|        |\\\n"
+            "  (o)          (o)"
+        ),
+
+        # ─── CODING ─────────────────────────────────────────────────────────
+        # Robot holds open laptop with </> on screen
+        "coding": (
+            "       (O)\n"
+            "     .------.      .------.\n"
+            "    / ###### \\    /  </>  \\\n"
+            "   | # O  O # |--| ~~~~~~ |\n"
+            "   | #  '--' # |   '----'\n"
+            "   |  ######  |\n"
+            "   |   APEX   |\n"
+            "   |  ......  |\n"
+            "    \\_______/\n"
+            "     o       o"
+        ),
+
+        # ─── THINKING ───────────────────────────────────────────────────────
+        # Thought bubble floating top-right, robot hand on chin
+        "thinking": (
+            "       (O)    ( . . . )\n"
+            "     .------. (       )\n"
+            "    / ###### \\ '-----'\n"
+            "   | # O  O # |  o\n"
+            "   | #  '--' # |\n"
+            "   |  ######  |\n"
+            "   |   APEX   |\n"
+            "   |  ......  |\n"
+            "    \\_______/\n"
+            "     o       o"
+        ),
+
+        # ─── LEARNING ───────────────────────────────────────────────────────
+        # Robot holds open book (dark cover with 'A' in green)
+        "learning": (
+            "       (O)\n"
+            "     .------.    .----.\n"
+            "    / ###### \\  | [A] |\n"
+            "   | # O  O # |-| --- |\n"
+            "   | #  '--' # | |   |\n"
+            "   |  ######  | '----'\n"
+            "   |   APEX   |\n"
+            "   |  ......  |\n"
+            "    \\_______/\n"
+            "     o       o"
+        ),
+
+        # ─── BUILDING ───────────────────────────────────────────────────────
+        # Wrench in left hand, coloured blocks stacked on right
+        "building": (
+            "    /-(O)\n"
+            "   /  .------.  [=]\n"
+            "  /  / ###### \\ [#][#]\n"
+            "      | # O  O # |  [#]\n"
+            "      | #  '--' # |\n"
+            "      |  ######  |\n"
+            "      |   APEX   |\n"
+            "      |  ......  |\n"
+            "       \\_______/\n"
+            "        o       o"
+        ),
+
+        # ─── ANALYZING ──────────────────────────────────────────────────────
+        # Holds a dark chart board with bar graph + pie chart
+        "analyzing": (
+            "       (O)\n"
+            "     .------.   .--------.\n"
+            "    / ###### \\ | |||  (o) |\n"
+            "   | # O  O # || ||||     |\n"
+            "   | #  '--' # | '--------'\n"
+            "   |  ######  |\n"
+            "   |   APEX   |\n"
+            "   |  ......  |\n"
+            "    \\_______/\n"
+            "     o       o"
+        ),
+
+        # ─── DEPLOYING ──────────────────────────────────────────────────────
+        # Rocket ship blasting off to the right of the robot
+        "deploying": (
+            "       (O)        /\\\n"
+            "     .------. ---/ /\\  \\\n"
+            "    / ###### \\  | /  \\ |\n"
+            "   | # O  O # | |    | |\n"
+            "   | #  '--' # |  \\__/\n"
+            "   |  ######  |   )(\n"
+            "   |   APEX   |  /()\\  flame\n"
+            "   |  ......  |\n"
+            "    \\_______/\n"
+            "     o       o"
+        ),
+
+        # ─── CONNECTED ──────────────────────────────────────────────────────
+        # WiFi arcs radiating above the antenna
+        "connected": (
+            "     )))|(((   <- wifi\n"
+            "       (O)\n"
+            "     .------.\n"
+            "    / ###### \\\n"
+            "   | # O  O # |\n"
+            "   | #  '--' # |\n"
+            "   |  ######  |\n"
+            "   |   APEX   |\n"
+            "   |  ......  |\n"
+            "    \\_______/\n"
+            "     o       o"
+        ),
+
+        # ─── HAPPY ──────────────────────────────────────────────────────────
+        # Star eyes, big grin, sparkles floating beside head
+        "happy": (
+            "  +    (O)    +\n"
+            "     .------.\n"
+            "    / ###### \\\n"
+            "   | # *  * # |  <- star eyes\n"
+            "   | # \\__/ # |  <- big grin\n"
+            "   |  ######  |\n"
+            "   |   APEX   |\n"
+            "   |  ......  |\n"
+            "    \\_______/\n"
+            "     o       o"
+        ),
+
+        # ─── EXCITED ────────────────────────────────────────────────────────
+        # Very wide open eyes, open :D mouth, sparkles flying
+        "excited": (
+            "  *    (O)    *\n"
+            "     .------.\n"
+            "    / ###### \\\n"
+            "   | # O  O # |  <- wide eyes\n"
+            "   | # :D    # |  <- open mouth\n"
+            "   |  ######  |\n"
+            "   |   APEX   |\n"
+            "   |  ......  |\n"
+            "    \\_______/\n"
+            "     o       o"
+        ),
+
+        # ─── FOCUSED ────────────────────────────────────────────────────────
+        # Narrow squinted brows, tight expression
+        "focused": (
+            "       (O)\n"
+            "     .------.\n"
+            "    / ###### \\\n"
+            "   | # -- -- # |  <- squint\n"
+            "   | #   --   # |  <- tense\n"
+            "   |  ######  |\n"
+            "   |   APEX   |\n"
+            "   |  ......  |\n"
+            "    \\_______/\n"
+            "     o       o"
+        ),
+
+        # ─── DETERMINED ─────────────────────────────────────────────────────
+        # Angled angry brows /\ shape over eyes, stern expression
+        "determined": (
+            "       (O)\n"
+            "     .------.\n"
+            "    / ###### \\\n"
+            "   | #\\ O O /# |  <- angry brows\n"
+            "   | #   --   # |  <- firm line\n"
+            "   |  ######  |\n"
+            "   |   APEX   |\n"
+            "   |  ......  |\n"
+            "    \\_______/\n"
+            "     o       o"
+        ),
+
+        # ─── CURIOUS ────────────────────────────────────────────────────────
+        # One small eye, one wide eye, question mark floating right
+        "curious": (
+            "       (O)    ?\n"
+            "     .------.\n"
+            "    / ###### \\\n"
+            "   | # o  O # |  <- one wide, one small\n"
+            "   | #  '--' # |\n"
+            "   |  ######  |\n"
+            "   |   APEX   |\n"
+            "   |  ......  |\n"
+            "    \\_______/\n"
+            "     o       o"
+        ),
+
+        # ─── PROUD ──────────────────────────────────────────────────────────
+        # Trophy above head, squinty happy closed eyes ^u^
+        "proud": (
+            "         [T]\n"
+            "       (O)\n"
+            "     .------.\n"
+            "    / ###### \\\n"
+            "   | # ^  ^ # |  <- squinty happy\n"
+            "   | # \\__/ # |  <- big smile\n"
+            "   |  ######  |\n"
+            "   |   APEX   |\n"
+            "   |  ......  |\n"
+            "    \\_______/\n"
+            "     o       o"
+        ),
+    }
+
+    @classmethod
+    def get_ascii(cls, state: str = "focus") -> str:
+        return cls.STATES.get(state.lower(), cls.STATES["focus"])
+
+    # ── Pixel-Perfect Palette (Exact match to mascot sprite sheet) ──
+    _PALETTE = {
+        'O': (255, 215, 0),     # Bright Gold / Yellow (Eyes & Antenna)
+        '#': (20, 20, 25),       # Pitch Black (Face screen & outlines)
+        '.': (215, 198, 178),    # Beige / Tan (Body fill)
+        '=': (160, 140, 120),    # Shadow Tan (Body seams & accents)
+        'W': (250, 250, 250),    # White (Highlights & screen text)
+        'R': (235, 65, 65),      # Red (Status lights)
+        'G': (55, 205, 95),      # Green (Status lights & book/blocks)
+        'C': (45, 195, 235),     # Cyan (WiFi arcs)
+        'B': (40, 80, 180),      # Blue (Laptop & chart background)
+        'U': (255, 140, 0),      # Orange (Flame)
+        ' ': None,               # Transparent
+    }
+
+    # ── Pixel-Perfect 16x16 Sprite Matrix Definitions ──
+    _PIXEL_GRIDS = {
+        "focus": [
+            "      OO        ",
+            "      ||        ",
+            "    ......      ",
+            "   ........     ",
+            "  .########.    ",
+            "  .#OO##OO#.    ",
+            "  .#OO##OO#.    ",
+            "  .########.    ",
+            " ..========..   ",
+            " .==========.   ",
+            " .==#APEX#==.   ",
+            " .==R=G=G=R=.   ",
+            " .==========.   ",
+            "  .========.    ",
+            "  .########.    ",
+            "  .#..##..#.    "
+        ],
+        "coding": [
+            "      OO        ",
+            "      ||        ",
+            "    ......      ",
+            "   ........     ",
+            "  .########.   B",
+            "  .#OO##OO#.  BW",
+            "  .########. BBB",
+            " ..========. BBB",
+            " .==========.BBB",
+            " .==#APEX#==.BBB",
+            " .==========.BBB",
+            "  .========. BBB",
+            "  .########.    ",
+            "  .#..##..#.    ",
+            "                ",
+            "                "
+        ],
+        "thinking": [
+            "      OO    WWW ",
+            "      ||   W...W",
+            "    ......  WWW ",
+            "   ........  W  ",
+            "  .########.    ",
+            "  .#OO##OO#.    ",
+            "  .########.    ",
+            " ..========..   ",
+            " .==========.   ",
+            " .==#APEX#==.   ",
+            " .==========.   ",
+            "  .========.    ",
+            "  .########.    ",
+            "  .#..##..#.    ",
+            "                ",
+            "                "
+        ],
+        "learning": [
+            "      OO        ",
+            "      ||        ",
+            "    ......      ",
+            "   ........     ",
+            "  .########.   B",
+            "  .#OO##OO#.  BG",
+            "  .########. BBB",
+            " ..========. BBB",
+            " .==========.BBB",
+            " .==#APEX#==.   ",
+            " .==========.   ",
+            "  .========.    ",
+            "  .########.    ",
+            "  .#..##..#.    ",
+            "                ",
+            "                "
+        ],
+        "building": [
+            "      OO        ",
+            "      ||        ",
+            "    ......      ",
+            "   ........     ",
+            "  .########.    ",
+            "  .#OO##OO#.   G",
+            "  .########.  GB",
+            " ..========..GBB",
+            " .==========.   ",
+            " .==#APEX#==.   ",
+            " .==========.   ",
+            "  .========.    ",
+            "  .########.    ",
+            "  .#..##..#.    ",
+            "                ",
+            "                "
+        ],
+        "analyzing": [
+            "      OO        ",
+            "      ||        ",
+            "    ......   BBB",
+            "   ........  BGR",
+            "  .########. BGR",
+            "  .#OO##OO#. BBB",
+            "  .########. BBB",
+            " ..========..   ",
+            " .==========.   ",
+            " .==#APEX#==.   ",
+            " .==========.   ",
+            "  .========.    ",
+            "  .########.    ",
+            "  .#..##..#.    ",
+            "                ",
+            "                "
+        ],
+        "deploying": [
+            "      OO     W  ",
+            "      ||    W.W ",
+            "    ......  W.W ",
+            "   ........  W  ",
+            "  .########. UUU",
+            "  .#OO##OO#. UUU",
+            "  .########.  U ",
+            " ..========..   ",
+            " .==========.   ",
+            " .==#APEX#==.   ",
+            " .==========.   ",
+            "  .========.    ",
+            "  .########.    ",
+            "  .#..##..#.    ",
+            "                ",
+            "                "
+        ],
+        "connected": [
+            "    C C C       ",
+            "     C C        ",
+            "      OO        ",
+            "      ||        ",
+            "    ......      ",
+            "   ........     ",
+            "  .########.    ",
+            "  .#OO##OO#.    ",
+            "  .########.    ",
+            " ..========..   ",
+            " .==========.   ",
+            " .==#APEX#==.   ",
+            " .==========.   ",
+            "  .========.    ",
+            "  .########.    ",
+            "  .#..##..#.    "
+        ],
+        "happy": [
+            "  O   OO   O    ",
+            "      ||        ",
+            "    ......      ",
+            "   ........     ",
+            "  .########.    ",
+            "  .#WW##WW#.    ",
+            "  .#..##..#.    ",
+            "  .########.    ",
+            " ..========..   ",
+            " .==========.   ",
+            " .==#APEX#==.   ",
+            " .==========.   ",
+            "  .========.    ",
+            "  .########.    ",
+            "  .#..##..#.    ",
+            "                "
+        ],
+        "excited": [
+            "  O   OO   O    ",
+            "      ||        ",
+            "    ......      ",
+            "   ........     ",
+            "  .########.    ",
+            "  .#OO##OO#.    ",
+            "  .#WW##WW#.    ",
+            "  .########.    ",
+            " ..========..   ",
+            " .==========.   ",
+            " .==#APEX#==.   ",
+            " .==========.   ",
+            "  .========.    ",
+            "  .########.    ",
+            "  .#..##..#.    ",
+            "                "
+        ],
+        "focused": [
+            "      OO        ",
+            "      ||        ",
+            "    ......      ",
+            "   ........     ",
+            "  .########.    ",
+            "  .######.#.    ",
+            "  .##----##.    ",
+            "  .########.    ",
+            " ..========..   ",
+            " .==========.   ",
+            " .==#APEX#==.   ",
+            " .==========.   ",
+            "  .========.    ",
+            "  .########.    ",
+            "  .#..##..#.    ",
+            "                "
+        ],
+        "determined": [
+            "      OO        ",
+            "      ||        ",
+            "    ......      ",
+            "   ........     ",
+            "  .########.    ",
+            "  .#\\####/#.    ",
+            "  .#OO##OO#.    ",
+            "  .########.    ",
+            " ..========..   ",
+            " .==========.   ",
+            " .==#APEX#==.   ",
+            " .==========.   ",
+            "  .========.    ",
+            "  .########.    ",
+            "  .#..##..#.    ",
+            "                "
+        ],
+        "curious": [
+            "      OO    O   ",
+            "      ||    O   ",
+            "    ......      ",
+            "   ........     ",
+            "  .########.    ",
+            "  .#.###OO#.    ",
+            "  .########.    ",
+            " ..========..   ",
+            " .==========.   ",
+            " .==#APEX#==.   ",
+            " .==========.   ",
+            "  .========.    ",
+            "  .########.    ",
+            "  .#..##..#.    ",
+            "                ",
+            "                "
+        ],
+        "proud": [
+            "     OOOO       ",
+            "      OO        ",
+            "      ||        ",
+            "    ......      ",
+            "   ........     ",
+            "  .########.    ",
+            "  .#WW##WW#.    ",
+            "  .########.    ",
+            " ..========..   ",
+            " .==========.   ",
+            " .==#APEX#==.   ",
+            " .==========.   ",
+            "  .========.    ",
+            "  .########.    ",
+            "  .#..##..#.    ",
+            "                "
+        ],
+    }
+
+    _IMG_CACHE = {}
+
+    @classmethod
+    def render_blockart(cls, state: str = "focus",
+                        cols: int = 0, rows: int = 0) -> "Text":
+        """
+        Render the mascot as crisp, pixel-perfect ▀ block art (Claude Code style).
+        Guarantees 100% sharp eyes, black screen, beige body, and vibrant accents.
+        """
+        from rich.text import Text as RText
+        from rich.style import Style
+        from rich.color import Color as RColor
+
+        state = state.lower()
+        if state in cls._IMG_CACHE:
+            return cls._IMG_CACHE[state]
+
+        grid = cls._PIXEL_GRIDS.get(state, cls._PIXEL_GRIDS["focus"])
+        num_rows = len(grid) // 2
+        num_cols = max(len(r) for r in grid)
+
+        text = RText()
+        for r in range(num_rows):
+            line1 = grid[r * 2]
+            line2 = grid[r * 2 + 1] if (r * 2 + 1) < len(grid) else " " * num_cols
+
+            for c in range(num_cols):
+                ch1 = line1[c] if c < len(line1) else ' '
+                ch2 = line2[c] if c < len(line2) else ' '
+
+                c1 = cls._PALETTE.get(ch1)
+                c2 = cls._PALETTE.get(ch2)
+
+                if c1 is None and c2 is None:
+                    text.append(" ")
+                elif c1 is None:
+                    text.append("\u2584", style=Style(color=RColor.from_rgb(*c2)))
+                elif c2 is None:
+                    text.append("\u2580", style=Style(color=RColor.from_rgb(*c1)))
+                else:
+                    text.append("\u2580", style=Style(
+                        color=RColor.from_rgb(*c1),
+                        bgcolor=RColor.from_rgb(*c2),
+                    ))
+            text.append("\n")
+
+        cls._IMG_CACHE[state] = text
+        return text
+
     def _render(self) -> Panel:
         elapsed = time.time() - self._t_start
         canvas_str = self._render_3d_canvas()
 
-        # Build 3D Agent HUD Panel
-        hud = Text()
-        hud.append(f"🤖 {self.agent_name.upper()}", style=f"bold {self.style}")
-        hud.append(f"  //  {self.model_name}\n", style="dim white")
+        # Map shape to Mascot Action State
+        mascot_state_map = {
+            "cube": "coding",
+            "swarm": "building",
+            "sphere": "thinking",
+            "torus": "analyzing",
+            "octahedron": "deploying",
+            "prism": "learning",
+        }
+        mascot_state = mascot_state_map.get(self.shape, "focus")
 
-        # 3D canvas side-by-side with step progress
-        lines = canvas_str.splitlines()
-        prog_bar = "█" * int((self.current_step / max(self.total_steps, 1)) * 12)
-        prog_bar = prog_bar.ljust(12, "░")
+        # Full-color block-art mascot (Claude Code technique) — or ASCII fallback
+        mascot_art = ApexMascot.render_blockart(mascot_state, cols=22, rows=13)
 
-        body = Text()
-        body.append(canvas_str + "\n", style=f"bold {self.style}")
-        body.append(f"\n⚡ Step [{self.current_step}/{self.total_steps}] ", style="bold bright_white")
-        body.append(f"[{prog_bar}] ", style=f"bold {self.style}")
-        body.append(f"({elapsed:.1f}s)\n", style="dim white")
-        body.append(f"▶ {self.current_action}", style="bold white")
+        # Keep the old plain-text side-by-side for the 3D canvas label
+        canvas_lines = canvas_str.splitlines()
+        max_h = len(canvas_lines)
+        merged_render = "\n".join(canvas_lines)
+
+        prog_bar = "█" * int((self.current_step / max(self.total_steps, 1)) * 14)
+        prog_bar = prog_bar.ljust(14, "░")
+
+        from rich.columns import Columns
+        from rich.panel  import Panel as RPanel
+
+        # Left: 3D canvas + stats
+        left = Text()
+        left.append(merged_render + "\n\n", style=f"bold {self.style}")
+        left.append(f"  Step [{self.current_step}/{self.total_steps}] ", style="bold bright_white")
+        left.append(f"[{prog_bar}] ", style=f"bold {self.style}")
+        left.append(f"({elapsed:.1f}s)\n", style="dim white")
+        left.append(f"▶ {self.current_action}", style="bold white")
+
+        # Right: full-color mascot + state label
+        right = Text()
+        right.append_text(mascot_art)
+        right.append(f"\n[{mascot_state.upper()}]", style="bold gold1")
+
+        layout = Columns([left, right], equal=False, expand=True)
 
         return Panel(
-            body,
-            title=f"3D AGENT PROJECTION // {self.agent_name}",
+            layout,
+            title=f"APEX 3D // {self.agent_name}",
             border_style=self.style,
             expand=False,
         )

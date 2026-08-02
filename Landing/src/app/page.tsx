@@ -17,6 +17,7 @@ import BentoGrid from "../components/BentoGrid";
 import TerminalSection from "../components/TerminalSection";
 import ComparisonSection from "../components/ComparisonSection";
 import OrchestratorVisualizer from "../components/OrchestratorVisualizer";
+import ApexMascotVisualizer from "../components/ApexMascotVisualizer";
 
 /* ─── Magnetic Button ──────────────────────────────────── */
 function MagneticCTA({
@@ -403,6 +404,13 @@ export default function Home() {
           NUMBER GRID — Editorial stats
           ══════════════════════════════════════ */}
       <NumberGrid />
+
+      {/* ══════════════════════════════════════
+          APEX MASCOT STATE MATRIX
+          ══════════════════════════════════════ */}
+      <section className="py-16 px-4 relative z-10">
+        <ApexMascotVisualizer />
+      </section>
 
       {/* ══════════════════════════════════════
           FEATURE ROWS — Alternating

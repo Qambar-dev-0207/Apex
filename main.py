@@ -1253,6 +1253,14 @@ async def boot_sequence(console: Console):
     except Exception:
         title = pyfiglet.figlet_format("APEX", font="slant")
         console.print(Align.center(_gradient(title)))
+
+    # Render Official APEX Pixel Mascot — full-color block art (Claude Code technique)
+    from src.core.animations import ApexMascot
+    mascot_art = ApexMascot.render_blockart("focus")   # returns Rich Text
+    console.print(Align.center(mascot_art))
+    console.print(Align.center(Text("< APEX >  Think. Build. Evolve.", style="bold gold1")))
+    console.print()
+
     tagline = Text(
         "SOVEREIGN OMEGA // 24-LAYER MULTI-PROVIDER OS",
         style="bold white on grey15",
