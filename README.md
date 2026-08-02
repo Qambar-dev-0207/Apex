@@ -9,11 +9,12 @@ APEX is a next-generation personal operating system designed for cognitive supre
 APEX operates on a multi-tiered architecture designed for reliability, speed, and intelligence.
 
 ### Tier 1: Intelligence & Strategy (The Brain)
+*   **Conversational Reasoning OS**: Provides deep multi-perspective reasoning on open-ended, philosophical, strategic, and technology trend questions. Single-panel Q&A execution routing bypasses unnecessary tool approvals or multi-choice prompts.
 *   **Intent Normalization & Autonomous Routing**: Classifies queries using Gemini 2.0 Flash and activates **Sovereign Skills** automatically.
 *   **Master Orchestrator**: Decomposes complex goals into dependency-ordered Task DAGs (Directed Acyclic Graphs).
 *   **Socratic Reasoning Gate**: Forces assumption probing and mental friction for robust decision-making.
 *   **Steelman Reasoning**: Generates the strongest possible counter-arguments to prevent cognitive bias.
-*   **Emotional Intelligence Core**: Adapts tone and complexity based on detected user sentiment and cognitive load.
+*   **Emotional Intelligence Core**: Adapts tone and complexity dynamically based on detected user sentiment and cognitive load.
 
 ### Tier 2: Memory & Context (The Soul)
 *   **Hybrid Memory System**: Combines **Short-term Working Memory (Redis)** with **Long-term Semantic Memory (ChromaDB)**.
@@ -27,7 +28,8 @@ APEX operates on a multi-tiered architecture designed for reliability, speed, an
 *   **Isolated Sandbox Execution**: Secure, timeout-limited environment for all auto-generated code.
 *   **Multi-Agent Research Swarm**: Specialized agents (Web, File, Code) building high-density Knowledge Artifacts.
 
-### Tier 4: Hardware & Environment (The Senses)
+### Tier 4: Hardware, UI & Senses (The Interface)
+*   **APEX Pixel Mascot Renderer**: Full-color 16x16 block art pixel mascot (`ApexMascot.render_blockart`) with 14 crisp state poses (`focus`, `coding`, `thinking`, `learning`, `building`, `analyzing`, `deploying`, `connected`, `happy`, etc.).
 *   **Hardware-Native Bridge**: Proactive monitoring of CPU/RAM/Thermal metrics with automatic task throttling.
 *   **Visual Context (The Retina)**: Multi-modal screen awareness for debugging and visual assistance.
 *   **Telemetry & Spend Analytics**: Real-time USD cost logging and token usage tracking via SQLite.

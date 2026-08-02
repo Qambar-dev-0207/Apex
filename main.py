@@ -886,15 +886,28 @@ class APEXEngine:
                     return True
 
                 if plan:
+                    has_tasks = bool(plan.task_plan)
+                    title = "Task DAG" if has_tasks else "APEX // INTELLECTUAL SYNTHESIS"
+                    final_border = "yellow" if has_tasks else "bright_cyan"
+
                     response_reveal(
                         engine.assembler.render_plan(plan),
-                        title="Task DAG",
+                        title=title,
                         console=console,
-                        final_border="yellow",
+                        final_border=final_border,
                         cycles=5,
                     )
                     if plan.socratic_insight:
                         console.print(Panel(f"[italic]{plan.socratic_insight}[/italic]", title="CRITIQUE", border_style="magenta"))
+
+                    # Conversational / Q&A response — no tool steps to execute
+                    if not has_tasks:
+                        await engine.memory_manager.store_interaction(
+                            engine.session_id, user_input, plan.summary, project_name=engine.active_project_name
+                        )
+                        if engine.voice_enabled:
+                            engine.voice.speak(plan.summary)
+                        return True
 
                     is_coding_task = (classification or {}).get("intent") == "coding" or any(k in user_input.lower() for k in ["code", "implement", "refactor", "write tool", "fix bug"])
 
@@ -2969,6 +2982,7 @@ async def main():
             should_continue = await engine.handle_user_turn(user_input)
             if not should_continue:
                 break
+            continue
 
             await engine.hooks.fire("UserPromptSubmit", {"input": user_input, "session_id": engine.session_id})
             engine.self_evolver.mark_input()

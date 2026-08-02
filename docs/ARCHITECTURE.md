@@ -26,21 +26,19 @@ Every layer ships with a fallback so degradation is graceful, not fatal.
 5.  / prefix         → handle_slash (60+ commands)
 6.  greeting?        → TimeContext.craft_greeting_response  [INSTANT]
 7.  autotool on?     → regex_match (git status, ls, URLs, todos, ...)
-                     → execute_step directly  [SKIP DAG]
 8.  autothink on?    → ThinkPartner.detect_think_mode (regex)
-                     → ThinkPartner.extract_intent (flash-lite LLM)
-                     → ambiguity_score >= 0.6 → cross_question loop
-                     → known mode → architect / debate / brainstorm / teach
-9.  pending_clarification? → merge answer → re-run
-10. fall-through     → cognitive_core.analyze_user
+9.  fall-through     → cognitive_core.analyze_user (Conversational AI Architect & Reasoning Companion)
                      → InputClassifier.classify
                      → SmartRouter.route → fast_path or thinking_path
                      → ExecutionPlan (DAG)
-                     → ParallelExecutor.run
-11. response         → memory_manager.store_interaction (Redis + Chroma)
+                     → if plan.task_plan is empty (Conversational Q&A / Out-of-the-Box reasoning):
+                         → Render single-panel APEX // INTELLECTUAL SYNTHESIS
+                         → Store interaction in memory & return [SKIP TOOL EXECUTION]
+                     → else (Multi-step code/system task):
+                         → ParallelExecutor.run
+10. response        → memory_manager.store_interaction (Redis + Chroma)
                      → knowledge_visualizer.extract_knowledge
                      → learning_manager.learn (background)
-                     → assembler.render_final_response
 ```
 
 ---

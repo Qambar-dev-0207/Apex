@@ -123,16 +123,55 @@ Non-tty: `return await coro` directly — no spinner, no overhead.
 
 ---
 
+## ApexMascot & Block-Art Renderer
+
+`ApexMascot` handles visual rendering for the official APEX pixel robot mascot.
+
+### 14 Mascot States
+- `focus`: Hero mascot pose (scratches head / idle standing)
+- `coding`: Holds laptop with `</>` code on screen
+- `thinking`: Thought bubble `...` floating right
+- `learning`: Reads open book with `A` badge
+- `building`: Wrench + stacked green/blue blocks
+- `analyzing`: Holds bar graph + pie chart screen
+- `deploying`: Rocket ship blasting off next to body
+- `connected`: WiFi signal arcs radiating above antenna
+- `happy`: Star eyes + wide smile + sparkles
+- `excited`: Wide open eyes + `:D` mouth
+- `focused`: Squinted horizontal eyes `-- --`
+- `determined`: Angry angled brows `\\ //`
+- `curious`: One small eye, one wide eye, floating `?`
+- `proud`: Floating gold trophy `[T]` above head
+
+### `ApexMascot.render_blockart(state="focus") -> Text`
+
+Renders the mascot as crisp full-color terminal block art (Claude Code style):
+- Uses upper/lower half-block characters (`▀`/`▄`)
+- Each cell encodes 2 vertical pixel rows (2x vertical resolution in terminal)
+- Exact RGB Palette: `(255, 215, 0)` gold eyes, `#141419` black screen, `#D7C6B2` beige body, status dots, and vibrant tool accents
+- Hand-crafted 16x16 pixel sprite matrices eliminate all JPEG downsampling blur
+
+```python
+from src.core.animations import ApexMascot
+
+# Returns a Rich Text object ready for console.print()
+block_art = ApexMascot.render_blockart("coding")
+console.print(block_art)
+```
+
+---
+
 ## Boot sequence
 
 ```python
 # main.py boot_sequence()
 matrix_rain(duration=1.2)          # 1. Green character rain
 pulse_banner("APEX")               # 2. Animated APEX wordmark
-type_text(tagline, style="...")    # 3. Tagline types out
-console.print(model_badges_row)    # 4. Brain badges (Gemini / MiMo / Groq)
+ApexMascot.render_blockart("focus")# 3. Full-color hero APEX mascot
+type_text(tagline, style="...")    # 4. Tagline types out
+console.print(model_badges_row)    # 5. Brain badges (Gemini / MiMo / Groq)
 # ... after loader:
-progress_trail(module_checklist)   # 5. Module checklist animates in
+progress_trail(module_checklist)   # 6. Module checklist animates in
 ```
 
 ---

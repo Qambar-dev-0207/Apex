@@ -33,18 +33,27 @@ Runtime flags via env:
 APEX is a layered router that tries to answer in **the cheapest tier that works**, falling through to heavier tiers only when needed. The input pipeline lives in `main.py` (around line 1470+, the `while True:` REPL).
 
 ```
-user_input
   → ! prefix         → shell passthrough
-  → / prefix         → handle_slash (60+ commands, main.py:608)
+  → / prefix         → handle_slash (60+ commands, main.py:1693)
   → greeting regex   → TimeContext canned reply           [no LLM]
   → identity regex   → canned identity panel              [no LLM]
   → auto_selector regex_match → execute_step              [no LLM, single tool]
   → auto-think       → ThinkPartner.auto_route → architect/debate/etc.
   → core analysis    ← THIS IS THE HOT PATH (see below)
   → fast_path (Groq) OR thinking_path (Gemini DAG) OR skill plan template
-  → ParallelExecutor.run (DAG with asyncio.TaskGroup)
-  → assembler.render_final_response + memory store + bg learn
+  → if plan.task_plan is empty (Conversational / Q&A out-of-the-box question):
+      → render single-panel APEX // INTELLECTUAL SYNTHESIS & store memory  [SKIP EXECUTION]
+  → else (Multi-step code/system task):
+      → ParallelExecutor.run (DAG with asyncio.TaskGroup)
+      → assembler.render_final_response + memory store + bg learn
 ```
+
+### Visual Identity & Mascot System
+
+`src/core/animations.py` (`ApexMascot`):
+- **14 Mascot States**: `focus`, `coding`, `thinking`, `learning`, `building`, `analyzing`, `deploying`, `connected`, `happy`, `excited`, `focused`, `determined`, `curious`, `proud`.
+- **`ApexMascot.render_blockart(state)`**: Renders crisp full-color terminal block art (Claude Code style) using `▀`/`▄` half-block cells and exact RGB palette colors (`(255, 215, 0)` gold eyes, `#141419` black screen, `#D7C6B2` beige body, status dots). Hand-crafted 16x16 pixel sprite matrices eliminate all JPEG downsampling blur.
+
 
 ### Hot path: Reflex scout + speculative prefetch
 

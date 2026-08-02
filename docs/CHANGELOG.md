@@ -2,6 +2,23 @@
 
 > Cumulative changes by session. Most-recent first.
 
+## 2026-08-02 — APEX Pixel Mascot System & Conversational Reasoning OS
+
+Full upgrade to APEX's visual identity, terminal mascot rendering, persona alignment, and conversational reasoning capabilities.
+
+### Added — APEX Pixel Mascot System (`src/core/animations.py`)
+- **14 Official Mascot States**: `focus`, `coding`, `thinking`, `learning`, `building`, `analyzing`, `deploying`, `connected`, `happy`, `excited`, `focused`, `determined`, `curious`, and `proud`.
+- **Claude Code-Style Colored Block Art Renderer**: `ApexMascot.render_blockart(state)` uses upper/lower half-block characters (`▀`/`▄`) with RGB colors derived from crisp 16x16 pixel sprite matrices (`(255, 215, 0)` gold eyes, `#141419` black screen, `#D7C6B2` beige body, status dots, and vibrant tool accents).
+- **Zero-Blur Crisp Terminal Art**: Hand-crafted 100% crisp pixel sprite definitions that eliminate JPEG downsampling blur and edge artifacts.
+- **Boot Sequence & 3D Agent Loader Integration**: Updated `main.py` boot banner and `Agent3DLoader` side-panels to render the full-color pixel mascot with automatic static ASCII fallback.
+
+### Added & Modified — Conversational Reasoning OS (`src/models/thinking_path.py`, `src/services/cognitive.py`, `src/services/delivery.py`)
+- **System Persona Realignment**: Upgraded APEX from a restrictive guard dog to an **AI System Architect & Conversational Reasoning Companion**.
+- **Out-of-The-Box Reasoning**: APEX now provides multi-perspective, deep reasoning responses to open-ended, philosophical, strategic, or technology trend questions without scolding or forcing project re-pivots.
+- **Single-Panel Q&A Routing (`main.py`)**: Queries with 0 tool execution steps now render a single clean answer panel (`APEX // INTELLECTUAL SYNTHESIS`), store memory, and return immediately—bypassing 0-step tool approvals, Groq synthesis, and 5-option multiple-choice menus.
+- **Legacy Stale Memory Filter (`src/services/memory.py`)**: Filtered out stale legacy scolding/impasse entries during Chroma retrieval so historical bad runs cannot poison new conversations.
+- **REPL Execution De-Duplication (`main.py`)**: Added `continue` directive following `handle_user_turn` to ensure user turns render exactly once per prompt.
+
 ---
 
 ## 2026-06-16 — Workspace Memory Isolation & Prompt Formatting Fixes

@@ -458,14 +458,20 @@ class MemoryManager:
             parts.append(history_str)
 
         for m in memories:
-            parts.append(f"Memory ({m['id'][:8]}): {m['content']}")
+            content = m['content']
+            if any(k in content.lower() for k in ["impasse", "tsunami. focus on", "incoherence is staggering"]):
+                continue
+            parts.append(f"Memory ({m['id'][:8]}): {content}")
             meta = m.get("metadata") or {}
             related_raw = meta.get("related_ids", "") if isinstance(meta, dict) else ""
             related_ids = [r for r in related_raw.split(",") if r] if isinstance(related_raw, str) else []
             if related_ids:
                 rels = await self.chroma.get_by_ids(related_ids[:3])
                 for r in rels:
-                    parts.append(f"Related Fact ({r['id'][:8]}): {r['content'][:400]}")
+                    r_content = r['content']
+                    if any(k in r_content.lower() for k in ["impasse", "tsunami. focus on", "incoherence is staggering"]):
+                        continue
+                    parts.append(f"Related Fact ({r['id'][:8]}): {r_content[:400]}")
 
         full = "\n\n".join(parts)
         char_budget = max_tokens * 4
