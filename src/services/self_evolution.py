@@ -39,6 +39,7 @@ class SelfEvolver:
         self.model_id = "gemini-3.5-flash"
         self.fallback_models = ["gemini-3.5-flash", "gemini-2.5-flash", "gemini-1.5-flash"]
 
+        self.apex_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         self.last_input_time = time.time()
         self.last_cycle_time = 0.0
         self.cycle_log: List[Dict[str, Any]] = []
@@ -94,7 +95,9 @@ class SelfEvolver:
         return {"path": path, "issues": issues}
 
     def analyze_self(self, src_root: str = "src") -> Dict[str, Any]:
-        """Walk src/ and produce a compact issue report."""
+        """Walk APEX's own src/ directory and produce a compact issue report."""
+        if not os.path.isabs(src_root):
+            src_root = os.path.join(self.apex_root, src_root)
         report = {"timestamp": datetime.now().isoformat(), "files": [], "totals": {}}
         if not os.path.isdir(src_root):
             return report
@@ -275,4 +278,33 @@ class SelfEvolver:
             except asyncio.CancelledError:
                 return
             except Exception:
-                pass  # background errors are silent
+                pass
+
+    async def apply_proposal(self, proposal: Dict[str, Any], engine=None) -> Dict[str, Any]:
+        """Execute a self-evolution proposal against APEX's own system codebase root."""
+        target_file = proposal.get("target_file", "")
+        action = proposal.get("action", "refactor")
+        rationale = proposal.get("rationale", "")
+        title = proposal.get("title", proposal.get("action", "evolution"))
+
+        eng = engine or getattr(self, "engine", None)
+        if not eng or not hasattr(eng, "harness"):
+            return {"success": False, "error": "harness engine not wired to SelfEvolver"}
+
+        harness_goal = f"""APEX SYSTEM SELF-EVOLUTION:
+Target APEX System File: {target_file}
+Action: {action}
+Goal: {title}
+Rationale: {rationale}
+
+Execute the necessary refactoring/code update on APEX's internal codebase maintaining full functionality and clean structure."""
+
+        # Ensure harness executes in APEX's own codebase root, not user project root
+        orig_root = eng.harness.project_root
+        eng.harness.project_root = self.apex_root
+        try:
+            from main import dispatch_harness
+            res = await dispatch_harness(eng, self.console, harness_goal, trigger="self_evolution")
+            return res
+        finally:
+            eng.harness.project_root = orig_root  # background errors are silent

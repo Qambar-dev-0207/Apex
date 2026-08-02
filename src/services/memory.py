@@ -24,6 +24,7 @@ import asyncio
 import logging
 from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime
+from pathlib import Path
 
 import redis.asyncio as redis
 import chromadb
@@ -54,8 +55,9 @@ def _get_shared_ef():
 
 class RedisManager:
     """
-    Short-term session store. Self-healing — reactivates after RETRY_AFTER
-    seconds following a failure rather than dying permanently.
+    Short-term session store. Self-healing + Local Disk Fallback.
+    If Redis connection fails or is unavailable, seamlessly falls back to
+    local JSON persistence so memory context NEVER drops.
     """
 
     RETRY_AFTER = 30  # seconds before retry after failure
@@ -67,11 +69,31 @@ class RedisManager:
         self.client = redis.Redis(host=host, port=port, decode_responses=True)
         self.is_active = True
         self._failed_at = 0.0
+        self._local_sessions: Dict[str, SessionContext] = {}
+        self._fallback_path = Path("data/session_history.json")
+        self._load_local_fallback()
+
+    def _load_local_fallback(self):
+        try:
+            if self._fallback_path.exists():
+                raw = json.loads(self._fallback_path.read_text(encoding="utf-8"))
+                for sid, sdata in raw.items():
+                    self._local_sessions[sid] = SessionContext.model_validate(sdata)
+        except Exception as e:
+            logger.debug(f"Local session fallback load failed: {e}")
+
+    def _save_local_fallback(self):
+        try:
+            self._fallback_path.parent.mkdir(parents=True, exist_ok=True)
+            dump = {sid: ctx.model_dump() for sid, ctx in self._local_sessions.items()}
+            self._fallback_path.write_text(json.dumps(dump, indent=2), encoding="utf-8")
+        except Exception as e:
+            logger.debug(f"Local session fallback save failed: {e}")
 
     def _on_fail(self, op: str, e: Exception):
         self.is_active = False
         self._failed_at = time.time()
-        logger.debug(f"Redis {op} failed: {e}; will retry in {self.RETRY_AFTER}s")
+        logger.debug(f"Redis {op} failed: {e}; using local fallback (cooldown {self.RETRY_AFTER}s)")
 
     def _maybe_reactivate(self):
         if not self.is_active and (time.time() - self._failed_at) > self.RETRY_AFTER:
@@ -79,6 +101,8 @@ class RedisManager:
             logger.info("Redis reactivated after cooldown")
 
     async def save_session(self, context: SessionContext) -> bool:
+        self._local_sessions[context.session_id] = context
+        self._save_local_fallback()
         self._maybe_reactivate()
         if not self.is_active:
             return False
@@ -92,18 +116,23 @@ class RedisManager:
 
     async def load_session(self, session_id: str) -> Optional[SessionContext]:
         self._maybe_reactivate()
-        if not self.is_active:
-            return None
-        try:
-            key = f"apex:session:{session_id}"
-            data = await self.client.get(key)
-            if data:
-                return SessionContext.model_validate_json(data)
-        except Exception as e:
-            self._on_fail("load_session", e)
-        return None
+        if self.is_active:
+            try:
+                key = f"apex:session:{session_id}"
+                data = await self.client.get(key)
+                if data:
+                    ctx = SessionContext.model_validate_json(data)
+                    self._local_sessions[session_id] = ctx
+                    return ctx
+            except Exception as e:
+                self._on_fail("load_session", e)
+
+        return self._local_sessions.get(session_id)
 
     async def delete_session(self, session_id: str) -> bool:
+        if session_id in self._local_sessions:
+            del self._local_sessions[session_id]
+            self._save_local_fallback()
         self._maybe_reactivate()
         if not self.is_active:
             return False
@@ -116,14 +145,14 @@ class RedisManager:
 
     async def list_session_ids(self) -> List[str]:
         self._maybe_reactivate()
-        if not self.is_active:
-            return []
-        try:
-            keys = await self.client.keys("apex:session:*")
-            return [k.split(":", 2)[2] for k in keys]
-        except Exception as e:
-            self._on_fail("list_session_ids", e)
-            return []
+        if self.is_active:
+            try:
+                keys = await self.client.keys("apex:session:*")
+                r_keys = [k.split(":", 2)[2] for k in keys]
+                return list(set(r_keys) | set(self._local_sessions.keys()))
+            except Exception as e:
+                self._on_fail("list_session_ids", e)
+        return list(self._local_sessions.keys())
 
 
 # ── Chroma ───────────────────────────────────────────────────────────────────
@@ -173,6 +202,9 @@ class ChromaManager:
             if where:
                 kwargs["where"] = where
             results = await asyncio.to_thread(self.collection.query, **kwargs)
+            if where and (not results.get("documents") or not results["documents"][0]):
+                kwargs_fallback = {"query_texts": [query], "n_results": n_results}
+                results = await asyncio.to_thread(self.collection.query, **kwargs_fallback)
         except Exception as e:
             self._on_fail("search_memories", e)
             return []

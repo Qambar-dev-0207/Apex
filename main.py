@@ -649,6 +649,22 @@ class APEXEngine:
                 engine.pending_clarification = None
                 console.print("[dim bright_magenta][resuming with clarifications][/dim bright_magenta]")
 
+            # Direct intercept for executing self-evolution proposals
+            low_in = user_input.lower().strip()
+            if any(k in low_in for k in ["execute self-evolution", "execute the self-evolution", "apply self-evolution", "apply proposal", "execute proposal", "evolve apply"]):
+                path = engine.self_evolver.proposals_path
+                if path.exists():
+                    try:
+                        data = json.loads(path.read_text(encoding="utf-8"))
+                        if data and data[-1].get("proposals"):
+                            top = data[-1]["proposals"][0]
+                            console.print(f"[bold magenta]🚀 Executing Self-Evolution Proposal against APEX System Root ({engine.self_evolver.apex_root})...[/bold magenta]")
+                            await engine.self_evolver.apply_proposal(top, engine=engine)
+                            return True
+                    except Exception as e:
+                        console.print(f"[red]Failed to execute proposal: {e}[/red]")
+                        return True
+
             try:
                 if engine.spend_tracker.daily_call_count() >= engine.daily_call_limit and not engine.economy_mode:
                     engine.economy_mode = True
