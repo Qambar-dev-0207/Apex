@@ -31,12 +31,23 @@ class ToolSpec:
 REGISTRY: Dict[str, ToolSpec] = {
     "filesystem": ToolSpec(
         name="filesystem",
-        aliases=["fs", "files", "file"],
-        actions=["read", "write", "delete", "list", "search", "glob"],
-        input_schema='write: JSON {"path": str, "content": str}; others: path string or pattern',
-        when_to_use="Read source, write code edits, search/glob across project, list dirs.",
+        aliases=[
+            "fs", "files", "file", "file_reader", "file_writer", "file_editor",
+            "file_creator", "file_deleter", "file_manager", "fs_read", "fs_write",
+            "fs_edit", "fs_delete", "fs_create",
+        ],
+        actions=[
+            "create", "read", "write", "update", "edit", "delete",
+            "list", "search", "glob", "view", "patch", "append", "create_dir",
+        ],
+        input_schema='create/write: JSON {"path": str, "content": str}; update/edit: JSON {"path": str, "old_string": str, "new_string": str} or {"path": str, "content": str, "mode": "replace"|"append"}; delete/read/list/search: path string or pattern',
+        when_to_use="Create, read, write, update/edit, and delete files/directories across the workspace; view line slices; search and glob files.",
         examples=[
-            'filesystem:write input_data={"path":"src/foo.py","content":"def x(): return 1"}',
+            'filesystem:create input_data={"path":"src/utils.py","content":"def helper(): pass"}',
+            'filesystem:read input_data="src/main.py"',
+            'filesystem:write input_data={"path":"src/main.py","content":"print(\'hello\')"}',
+            'filesystem:update input_data={"path":"src/main.py","old_string":"print(\'hello\')","new_string":"print(\'world\')"}',
+            'filesystem:delete input_data="temp.txt"',
             "filesystem:search input_data='def main' (uses ripgrep)",
             "filesystem:glob input_data='**/*.py'",
         ],

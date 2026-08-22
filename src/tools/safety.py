@@ -58,10 +58,10 @@ class SafetyGuard:
     Scans code and commands for potentially destructive operations.
     Modes: 'default' (ask), 'auto-approve' (bypass prompts), 'plan' (deny all writes).
     """
-    def __init__(self, console: Optional[Console] = None):
+    def __init__(self, console: Optional[Console] = None, mode: str = "default"):
         self.console = console or Console()
         self.policy = PolicyManager()
-        self.mode = "default"  # default | auto-approve | plan
+        self.mode = mode  # default | auto-approve | plan
         self.destructive_patterns = [
             (r"os\.remove\b", "File deletion"),
             (r"os\.rmdir\b", "Directory deletion"),
@@ -118,7 +118,7 @@ class SafetyGuard:
         """
         Consults policy and asks user for permission for file operations.
         """
-        if self.mode == "plan" and action in ("write", "delete"):
+        if self.mode == "plan" and action in ("write", "delete", "create", "create_dir", "update", "edit"):
             self.console.print(f"[bold magenta]PLAN MODE: would {action} {path}[/bold magenta]")
             return False
         if self.mode == "auto-approve":

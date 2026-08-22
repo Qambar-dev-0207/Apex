@@ -103,7 +103,16 @@ SLASH_HELP = """\
   /todo done <n>           Mark todo #n complete
   /todos                   List todos for active project
 
+[yellow]Filesystem (CRUD)[/yellow]
+  /read <path> [s] [e]     Read file with optional line range slice [s, e]
+  /create <path> [content] Create a new file with optional content
+  /write <path> <content>  Write/overwrite file with content
+  /edit <p> | <old> | <new> Surgically replace unique string in file
+  /delete <path> [-r]      Delete file or directory
+
 [yellow]Modes[/yellow]
+  /sovereign on|off        Toggle local sovereignty mode (force all inference to local Ollama)
+  /local                   Show local Ollama status, models, and connection
   /socratic                Toggle Socratic critique
   /steelman                Toggle Steelman counter-arch mode
   /genius                  Toggle Genius multi-pass reasoning (deepest mode)
@@ -270,6 +279,8 @@ class APEXEngine:
             mcp_client=self.mcp_client,
             codebase_indexer=self.codebase_indexer
         )
+        self.fs = self.parallel_executor.fs
+        self.shell = self.parallel_executor.shell
         self.assembler = ResponseAssembler(self.console)
         self.spend_tracker = SpendTracker()
         self.retina = RetinaTool()
@@ -2656,6 +2667,34 @@ async def handle_slash(engine, cmd_line: str, skills_dir: str) -> bool:
         goal = " ".join(goal_tokens).strip()
         await dispatch_harness(engine, console, goal, max_steps=max_steps, trigger="slash")
         return True
+    if cmd in ("/sovereign", "/local"):
+        if args and args[0].lower() in ("on", "1", "enable"):
+            os.environ["APEX_SOVEREIGN"] = "1"
+            os.environ["APEX_LOCAL"] = "1"
+            console.print("[bold gold1]✓ LOCAL SOVEREIGNTY MODE: ENABLED[/bold gold1] (All inference routed to local Ollama)")
+            return True
+        elif args and args[0].lower() in ("off", "0", "disable"):
+            os.environ["APEX_SOVEREIGN"] = "0"
+            os.environ["APEX_LOCAL"] = "0"
+            console.print("[bold cyan]✓ LOCAL SOVEREIGNTY MODE: DISABLED[/bold cyan] (Standard hybrid cloud/local routing)")
+            return True
+        
+        # Status display
+        is_sov = os.getenv("APEX_SOVEREIGN", "0") == "1" or os.getenv("APEX_LOCAL", "0") == "1"
+        is_online = engine.ollama_client.is_online
+        client = engine.ollama_client
+        tbl = Table(title="LOCAL SOVEREIGNTY STATUS", border_style="gold1")
+        tbl.add_column("Property", style="bold")
+        tbl.add_column("Value")
+        tbl.add_row("Sovereign Mode", "[bold green]ACTIVE (Forced Local)[/bold green]" if is_sov else "[dim]INACTIVE (Hybrid Cloud)[/dim]")
+        tbl.add_row("Ollama Host", client.host)
+        tbl.add_row("Ollama Connection", "[green]Online[/green]" if is_online else "[red]Offline / Unreachable[/red]")
+        tbl.add_row("Local LLM Model", client.llm_model)
+        tbl.add_row("Local Embed Model", client.embed_model)
+        tbl.add_row("Local Vision Model", client.vision_model)
+        console.print(tbl)
+        console.print("[dim]Toggle with: /sovereign on  |  /sovereign off[/dim]")
+        return True
     if cmd == "/fetch":
         if not args:
             console.print("[red]Usage: /fetch <url>[/red]")
@@ -2682,6 +2721,63 @@ async def handle_slash(engine, cmd_line: str, skills_dir: str) -> bool:
         title = f"DIFF — +{res.get('added',0)}/-{res.get('removed',0)}"
         console.print(Panel(res.get("output", "(no changes)"),
                             title=title, border_style="magenta"))
+        return True
+    if cmd in ("/read", "/cat"):
+        if not args:
+            console.print("[red]Usage: /read <path> [start_line] [end_line][/red]")
+            return True
+        path = args[0]
+        start_line = int(args[1]) if len(args) > 1 and args[1].isdigit() else None
+        end_line = int(args[2]) if len(args) > 2 and args[2].isdigit() else None
+        res = await engine.fs.read_file(path, start_line=start_line, end_line=end_line)
+        if not res.get("success"):
+            console.print(f"[red]{res.get('error', 'read failed')}[/red]")
+        else:
+            console.print(Panel(res.get("output", ""), title=f"FILE — {path}", border_style="cyan"))
+        return True
+    if cmd in ("/create", "/touch"):
+        if not args:
+            console.print("[red]Usage: /create <path> [content][/red]")
+            return True
+        path = args[0]
+        content = " ".join(args[1:]) if len(args) > 1 else ""
+        res = await engine.fs.create_file(path, content=content)
+        style = "bold green" if res.get("success") else "bold red"
+        console.print(f"[{style}]{res.get('output') or res.get('error')}[/{style}]")
+        return True
+    if cmd == "/write":
+        if len(args) < 2:
+            console.print("[red]Usage: /write <path> <content...>[/red]")
+            return True
+        path = args[0]
+        content = " ".join(args[1:])
+        res = await engine.fs.write_file(path, content=content)
+        style = "bold green" if res.get("success") else "bold red"
+        console.print(f"[{style}]{res.get('output') or res.get('error')}[/{style}]")
+        return True
+    if cmd in ("/delete", "/rm"):
+        if not args:
+            console.print("[red]Usage: /delete <path> [--recursive][/red]")
+            return True
+        path = args[0]
+        rec = "--recursive" in args or "-r" in args
+        res = await engine.fs.delete_file(path, recursive=rec)
+        style = "bold green" if res.get("success") else "bold red"
+        console.print(f"[{style}]{res.get('output') or res.get('error')}[/{style}]")
+        return True
+    if cmd == "/edit":
+        if len(args) < 1:
+            console.print("[red]Usage: /edit <path> | <old_string> | <new_string>[/red]")
+            return True
+        raw = " ".join(args)
+        if "|" in raw:
+            parts = [p.strip() for p in raw.split("|")]
+            if len(parts) >= 3:
+                res = await engine.fs.edit_file(parts[0], parts[1], parts[2])
+                style = "bold green" if res.get("success") else "bold red"
+                console.print(f"[{style}]{res.get('output') or res.get('error')}[/{style}]")
+                return True
+        console.print("[red]Usage: /edit <path> | <old_string> | <new_string>[/red]")
         return True
     if cmd == "/clear-session":
         await engine.memory_manager.clear_session_history(engine.session_id)

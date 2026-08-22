@@ -163,7 +163,13 @@ class InputClassifier:
 
 class SmartRouter:
     def route(self, classification: Dict[str, Any], user_input: str = "") -> str:
-
+        # Check sovereignty and offline mode flags or missing cloud keys
+        is_sovereign = (
+            os.getenv("APEX_SOVEREIGN", "0") == "1"
+            or os.getenv("APEX_LOCAL", "0") == "1"
+            or os.getenv("APEX_OFFLINE", "0") == "1"
+            or not (os.getenv("GEMINI_API_KEY") or os.getenv("GROQ_API_KEY"))
+        )
 
         # Reflex path takes precedence ONLY when it's high-confidence (needs_llm is False).
         reflex = classification.get("_reflex") or {}
@@ -173,16 +179,29 @@ class SmartRouter:
         if not needs_llm:
             if rpath == "thinking_path":
                 return "thinking_path"
+            if rpath == "local_path":
+                return "local_path"
             if rpath in ("trivial", "tool", "fast_path", "swarm", "harness"):
                 # swarm / harness paths are handled by main.py's auto-spawn gate
                 # BEFORE route() is called; if we end up here, fall through safely.
-                return "fast_path"
+                return "local_path" if is_sovereign else "fast_path"
             if isinstance(rpath, str) and rpath.startswith("think_partner:"):
                 return "thinking_path"
         
+        # Explicit path requested in classification
+        if classification.get("path") == "local_path":
+            return "local_path"
+
         # If Reflex was low-confidence, the LLM classification determines the path.
-        if classification.get("intent") == "skill_activation": return "thinking_path"
-        if classification.get("requires_tools"): return "thinking_path"
+        if classification.get("intent") == "skill_activation":
+            return "thinking_path"
+        if classification.get("requires_tools"):
+            return "thinking_path"
+        
+        # In sovereign mode, low/moderate complexity routes to local_path
+        if is_sovereign:
+            return "local_path" if classification.get("complexity", "high") == "low" else "thinking_path"
+        
         # Use .get() to prevent KeyError if model omits 'complexity'
         return "fast_path" if classification.get("complexity", "high") == "low" else "thinking_path"
 
@@ -296,48 +315,71 @@ class ParallelExecutor:
                     active = self.workspace.get_active()
                     root = active.root_dir if active else "."
 
-                    def _coerce_path(raw) -> str:
-                        """
-                        Accept either bare path string or JSON {"path": "..."}.
-                        Gemini occasionally emits the latter for read/list/delete/glob.
-                        """
-                        if raw is None:
-                            return ""
+                    def _parse_payload(raw) -> Dict[str, Any]:
+                        if isinstance(raw, dict):
+                            return raw
                         if isinstance(raw, str):
                             s = raw.strip()
                             if s.startswith("{") and s.endswith("}"):
                                 try:
                                     obj = json.loads(s)
                                     if isinstance(obj, dict):
-                                        return str(obj.get("path") or obj.get("pattern") or obj.get("file") or "")
+                                        return obj
                                 except Exception:
                                     pass
-                            return s
-                        if isinstance(raw, dict):
-                            return str(raw.get("path") or raw.get("pattern") or raw.get("file") or "")
-                        return str(raw)
+                            return {"path": s}
+                        return {}
 
-                    if "write" in step['action']:
-                        try:
-                            data = json.loads(step['input_data'])
-                        except (json.JSONDecodeError, TypeError):
-                            res.update({"success": False, "error": "filesystem:write requires JSON input_data with {path, content}"})
-                            return await self._fallback_recovery(step, res["error"])
-                        target_path = os.path.join(root, data['path'])
-                        res.update(await self.fs.write_file(target_path, data['content']))
-                    elif "read" in step['action']:
+                    def _coerce_path(raw) -> str:
+                        payload = _parse_payload(raw)
+                        return str(payload.get("path") or payload.get("pattern") or payload.get("file") or raw or "")
+
+                    action_lower = step.get('action', '').lower()
+                    payload = _parse_payload(step.get('input_data'))
+
+                    if any(k in action_lower for k in ["create_dir", "mkdir"]):
                         target_path = os.path.join(root, _coerce_path(step['input_data']))
-                        res.update(await self.fs.read_file(target_path))
-                    elif "search" in step['action'] or "grep" in step['action']:
+                        res.update(await self.fs.create_dir(target_path))
+                    elif any(k in action_lower for k in ["create", "touch", "new_file"]):
+                        target_path = os.path.join(root, _coerce_path(payload.get("path", "")))
+                        content = payload.get("content", "")
+                        res.update(await self.fs.create_file(target_path, content=content))
+                    elif any(k in action_lower for k in ["write", "save", "dump"]):
+                        if isinstance(step.get('input_data'), str) and not (step['input_data'].strip().startswith("{") and step['input_data'].strip().endswith("}")):
+                            target_path = os.path.join(root, step['input_data'].strip())
+                            res.update(await self.fs.write_file(target_path, ""))
+                        else:
+                            target_path = os.path.join(root, payload.get('path', ''))
+                            res.update(await self.fs.write_file(target_path, payload.get('content', '')))
+                    elif any(k in action_lower for k in ["update", "edit", "patch", "modify", "append", "replace"]):
+                        target_path = os.path.join(root, payload.get('path', ''))
+                        res.update(await self.fs.update_file(
+                            target_path,
+                            content=payload.get("content"),
+                            old_string=payload.get("old_string"),
+                            new_string=payload.get("new_string"),
+                            mode=payload.get("mode", "replace" if "replace" in action_lower else "patch" if (payload.get("old_string") and payload.get("new_string")) else "append" if "append" in action_lower else "replace"),
+                            edits=payload.get("edits")
+                        ))
+                    elif any(k in action_lower for k in ["read", "view", "cat", "show", "open"]):
+                        target_path = os.path.join(root, _coerce_path(step['input_data']))
+                        start_line = payload.get("start_line")
+                        end_line = payload.get("end_line")
+                        res.update(await self.fs.read_file(target_path, start_line=start_line, end_line=end_line))
+                    elif any(k in action_lower for k in ["search", "grep"]):
                         res.update(await self.fs.search_grep(_coerce_path(step['input_data']), dir_path=root))
-                    elif "glob" in step['action'] or "find" in step['action']:
+                    elif any(k in action_lower for k in ["glob", "find"]):
                         res.update(await self.fs.find_glob(_coerce_path(step['input_data']) or "**/*", dir_path=root))
-                    elif "delete" in step['action']:
+                    elif any(k in action_lower for k in ["delete", "remove", "unlink", "rm", "destroy"]):
                         target_path = os.path.join(root, _coerce_path(step['input_data']))
-                        res.update(await self.fs.delete_file(target_path))
-                    elif "list" in step['action']:
+                        recursive = bool(payload.get("recursive", False) or "recursive" in action_lower or "dir" in action_lower)
+                        res.update(await self.fs.delete_file(target_path, recursive=recursive))
+                    elif any(k in action_lower for k in ["list", "ls", "dir"]):
                         target_path = os.path.join(root, _coerce_path(step['input_data']) or ".")
                         res.update(await self.fs.list_dir(target_path))
+                    else:
+                        target_path = os.path.join(root, _coerce_path(step['input_data']))
+                        res.update(await self.fs.read_file(target_path))
                 elif step['tool'] == "shell":
                     res.update(await self.shell.execute(step['input_data']))
                 elif step['tool'] == "workspace":

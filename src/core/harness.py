@@ -41,11 +41,13 @@ from rich.table import Table
 
 from src.models.mimo_path import MimoClient
 from src.models.fast_path import GroqClient
+from src.models.local_path import OllamaClient
 from src.tools.filesystem import FilesystemAgent
 from src.tools.shell import ShellAgent
 from src.tools.git_agent import GitAgent
 from src.tools.diff_tool import DiffTool
 from src.tools.todo import TodoTool
+from src.tools.safety import SafetyGuard
 
 
 # ── tool schemas (OpenAI function-calling format) ────────────────────────────
@@ -582,7 +584,7 @@ class AgentHarness:
     BLOCKED_EXTENSIONS = frozenset({
         ".pem", ".key", ".p12", ".pfx", ".crt", ".cer", ".der",
     })
-    MUTATING_TOOLS = {"write", "edit", "multi_edit"}
+    MUTATING_TOOLS = {"write", "edit", "multi_edit", "delete"}
 
     def __init__(
         self,
@@ -592,6 +594,7 @@ class AgentHarness:
         git: Optional[GitAgent] = None,
         mimo: Optional[MimoClient] = None,
         groq: Optional[GroqClient] = None,
+        ollama: Optional[OllamaClient] = None,
         executor: Optional[Any] = None,
         gemini_client: Optional[Any] = None,
         mcp_client: Optional[Any] = None,
@@ -606,17 +609,19 @@ class AgentHarness:
         verify_command: Optional[str] = None,
         verify_every_steps: int = 4,
         max_steps: int = 25,
-        brain: str = "auto",  # "auto" | "mimo" | "groq"
+        brain: str = "auto",  # "auto" | "mimo" | "groq" | "ollama" | "local"
     ):
         self.console = console or Console()
-        self.fs = fs or FilesystemAgent(console=self.console)
-        self.shell = shell or ShellAgent(console=self.console)
+        self.safety = SafetyGuard(console=self.console, mode="auto-approve")
+        self.fs = fs or FilesystemAgent(console=self.console, safety=self.safety)
+        self.shell = shell or ShellAgent(console=self.console, safety=self.safety)
         self.git = git or GitAgent(console=self.console)
         self.diff = DiffTool()
         self.todo = TodoTool()
         # Brains — tool-calling capable, OpenAI-compatible.
         self.mimo = mimo or MimoClient()
         self.groq = groq or GroqClient(model="llama-3.3-70b-versatile")
+        self.ollama = ollama or OllamaClient()
         self.brain_pref = brain
         # APEX-wide collaborators (used only if wired in by APEXEngine).
         self.executor = executor
@@ -642,10 +647,14 @@ class AgentHarness:
     def _select_brain(self) -> Tuple[Any, str]:
         """Return (openai_compatible_client, model_id)."""
         pref = self.brain_pref
-        if pref in ("auto", "mimo") and self.mimo.is_online:
+        if pref in ("auto", "mimo") and self.mimo and self.mimo.is_online:
             return self.mimo.client, self.mimo.model
-        if pref in ("auto", "groq") and self.groq.client:
+        if pref in ("auto", "groq") and self.groq and self.groq.client:
             return self.groq.client, self.groq.model
+        if pref in ("auto", "ollama", "local") and self.ollama:
+            client = self.ollama.openai_client
+            if client:
+                return client, self.ollama.llm_model
         return None, ""
 
     def _detect_verify_command(self) -> Optional[str]:
@@ -658,32 +667,72 @@ class AgentHarness:
 
     async def _verify(self) -> Dict[str, Any]:
         """
-        Runs after any mutating tool call. Falls back to AST syntax-check on
-        touched .py files if no test command exists — cheap but catches the
-        most common self-inflicted breakage (broken edit, bad indent, etc).
+        Runs after any mutating tool call and on done() guard.
+        Checks syntax of touched files (AST parsing for .py, json.loads for .json)
+        and runs project test suite if one exists.
         """
-        cmd = self.verify_command or self._detect_verify_command()
-        if not cmd:
-            py_files = [f for f in self.touched_files if f.endswith(".py") and os.path.exists(f)]
-            if not py_files:
-                self._last_verify_failed = False
-                return {"ran": False}
+        errors = []
+        # 1. AST syntax-check on all touched .py files
+        py_files = [f for f in self.touched_files if f.endswith(".py") and os.path.exists(f)]
+        if py_files:
             import ast
-            errors = []
             for f in py_files:
                 try:
-                    ast.parse(open(f, encoding="utf-8", errors="ignore").read(), filename=f)
+                    with open(f, "r", encoding="utf-8", errors="ignore") as pf:
+                        content = pf.read()
+                    ast.parse(content, filename=f)
                 except SyntaxError as e:
-                    errors.append(f"{os.path.relpath(f, self.project_root)}: {e}")
-            success = not errors
-            self._last_verify_failed = not success
-            return {"ran": True, "success": success,
-                    "output": "\n".join(errors) or "syntax OK (no test suite found)"}
+                    rel_p = os.path.relpath(f, self.project_root)
+                    errors.append(f"SyntaxError in {rel_p} (line {e.lineno}): {e.msg}")
+                except Exception as e:
+                    rel_p = os.path.relpath(f, self.project_root)
+                    errors.append(f"Parse error in {rel_p}: {e}")
+
+        # 2. JSON check on all touched .json files
+        json_files = [f for f in self.touched_files if f.endswith(".json") and os.path.exists(f)]
+        for f in json_files:
+            try:
+                with open(f, "r", encoding="utf-8", errors="ignore") as jf:
+                    json.load(jf)
+            except Exception as e:
+                rel_p = os.path.relpath(f, self.project_root)
+                errors.append(f"JSON format error in {rel_p}: {e}")
+
+        if errors:
+            self._last_verify_failed = True
+            return {
+                "ran": True,
+                "success": False,
+                "output": "\n".join(errors),
+                "errors": errors,
+                "type": "syntax",
+            }
+
+        # 3. If syntax is clean, run project test suite if available
+        cmd = self.verify_command or self._detect_verify_command()
+        if not cmd:
+            if not self.touched_files:
+                self._last_verify_failed = False
+                return {"ran": False}
+            self._last_verify_failed = False
+            return {
+                "ran": True,
+                "success": True,
+                "output": "All syntax checks passed (no project test command configured).",
+                "errors": [],
+            }
+
         res = await self.shell.execute(cmd, timeout=120)
         success = bool(res.get("success"))
         self._last_verify_failed = not success
         out = (res.get("output") or res.get("error") or "")[:3000]
-        return {"ran": True, "success": success, "output": out, "command": cmd}
+        return {
+            "ran": True,
+            "success": success,
+            "output": out,
+            "command": cmd,
+            "errors": [] if success else [out],
+        }
 
     # ── path safety ──────────────────────────────────────────────────────
     def _resolve(self, path: str) -> str:
@@ -1232,8 +1281,16 @@ class AgentHarness:
     async def run(self, goal: str) -> Dict[str, Any]:
         brain_client, brain_model = self._select_brain()
         if not brain_client:
-            return {"success": False, "error": "no tool-calling brain online (MiMo + Groq both offline)."}
-        brain_label = "MiMo v2.5-pro" if brain_client is self.mimo.client else "Groq Llama"
+            return {"success": False, "error": "no tool-calling brain online (MiMo, Groq, and Ollama all offline)."}
+        
+        if self.mimo and brain_client is getattr(self.mimo, "client", None):
+            brain_label = "MiMo v2.5-pro"
+        elif self.groq and brain_client is getattr(self.groq, "client", None):
+            brain_label = "Groq Llama"
+        elif self.ollama and brain_client is getattr(self.ollama, "openai_client", None):
+            brain_label = f"Ollama Local ({brain_model})"
+        else:
+            brain_label = f"Brain ({brain_model})"
 
         wired = []
         if self.retina: wired.append("vision")
@@ -1265,7 +1322,7 @@ class AgentHarness:
         finished_summary: Optional[str] = None
 
         for step in range(1, self.max_steps + 1):
-            is_mimo = brain_client is self.mimo.client
+            is_mimo = bool(self.mimo and brain_client is getattr(self.mimo, "client", None))
             extra = {"extra_body": {"thinking": {"type": "disabled"}}} if is_mimo else {}
             try:
                 resp = await loop.run_in_executor(
@@ -1310,7 +1367,7 @@ class AgentHarness:
                 # Model answered without calling a tool — treat as final text.
                 text = (msg.content or "").strip()
                 if text:
-                    self.console.print(Panel(text, title="MIMO", border_style="bright_cyan"))
+                    self.console.print(Panel(text, title=brain_label, border_style="bright_cyan"))
                 finished_summary = text or "(no summary)"
                 break
 
@@ -1336,17 +1393,36 @@ class AgentHarness:
                     args = {}
 
                 if name == "done":
-                    if self._last_verify_failed:
+                    # Mandatory Done-Rejection Guard: verify before allowing completion
+                    vres = await self._verify()
+                    if (vres.get("ran") and not vres.get("success")) or self._last_verify_failed:
+                        self._last_verify_failed = True
+                        self.console.print("  [bold red]⛔ DONE REJECTED: Verification failed. System must be repaired before completion.[/bold red]")
+                        self.console.print(Panel(vres.get("output", "")[:2000], title="[bold red]VERIFICATION FAILURE DETECTED[/bold red]", border_style="red"))
                         messages.append({
                             "role": "tool",
                             "tool_call_id": tc.id,
                             "name": name,
-                            "content": "REJECTED: last verification failed. Fix it first.",
+                            "content": (
+                                f"REJECTED: Verification check failed. You called done() but the system has errors:\n"
+                                f"{vres.get('output', '')[:2000]}\n"
+                                f"CRITICAL: View the files, inspect lines around the error, fix the broken code, and verify before calling done() again."
+                            ),
                         })
                         continue
+
+                    # Verification passed or no checks failed
+                    self._last_verify_failed = False
                     finished_summary = args.get("summary", "(no summary)")
+                    self.console.print("  [bold green]✓ VERIFICATION PASSED — Goal successfully achieved[/bold green]")
                     self._render_step(step, name, args, _ok(finished_summary))
                     self.steps_log.append({"step": step, "tool": name, "args": args, "result": _ok(finished_summary)})
+                    messages.append({
+                        "role": "tool",
+                        "tool_call_id": tc.id,
+                        "name": name,
+                        "content": f"Accepted: {finished_summary}",
+                    })
                     break
 
                 result = await self._dispatch(name, args)
@@ -1371,28 +1447,53 @@ class AgentHarness:
             if mutated_this_step and finished_summary is None:
                 vres = await self._verify()
                 if vres.get("ran"):
-                    marker = "✓ VERIFY PASSED" if vres["success"] else "✗ VERIFY FAILED"
-                    self.console.print(f"  [{'green' if vres['success'] else 'red'}]{marker}[/]")
-                    messages.append({
-                        "role": "user",
-                        "content": (
-                            f"[AUTO-VERIFY]\n{marker}\n{vres.get('output','')[:2000]}\n\n"
-                            + ("Fix the failure before calling done."
-                               if not vres["success"]
-                               else "Verification passed — you may proceed or call done.")
-                        ),
-                    })
+                    if not vres["success"]:
+                        self._last_verify_failed = True
+                        marker = "[bold red]✗ AUTO-VERIFY FAILED[/bold red]"
+                        self.console.print(f"  {marker}")
+                        self.console.print(Panel(vres.get("output", "")[:2000], title="[bold red]AUTO-VERIFY SYNTAX/TEST ERROR[/bold red]", border_style="red"))
+                        messages.append({
+                            "role": "user",
+                            "content": (
+                                f"[AUTO-VERIFY FAILED]\n{vres.get('output', '')[:2000]}\n\n"
+                                f"CRITICAL: Fix the syntax or test errors before proceeding or calling done()."
+                            ),
+                        })
+                    else:
+                        self._last_verify_failed = False
+                        marker = "[bold green]✓ AUTO-VERIFY PASSED[/bold green]"
+                        self.console.print(f"  {marker}")
+                        messages.append({
+                            "role": "user",
+                            "content": "[AUTO-VERIFY PASSED] All syntax and verification checks passed — you may proceed or call done().",
+                        })
 
-            # periodic self-critique
+            # periodic self-critique via GeniusMode
             if self.genius and step % self.verify_every_steps == 0 and finished_summary is None:
-                crit = await self.genius.pre_step_critique(
-                    goal=goal, proposed_step=f"about to continue past step {step}"
-                )
-                if crit.get("wrong"):
-                    messages.append({
-                        "role": "user",
-                        "content": "[SELF-CRITIQUE] " + "; ".join(crit["wrong"][:2])[:800],
-                    })
+                try:
+                    crit = await self.genius.pre_step_critique(
+                        goal=goal, proposed_step=f"trajectory up to step {step}"
+                    )
+                    critique_lines = []
+                    if crit.get("wrong"):
+                        critique_lines.append("Rival Critique: " + "; ".join(crit["wrong"][:2]))
+                    if crit.get("blind_spots"):
+                        critique_lines.append("Blind Spots: " + "; ".join(crit["blind_spots"][:2]))
+                    if crit.get("action"):
+                        action_steps = [
+                            a.get("step", str(a)) if isinstance(a, dict) else str(a)
+                            for a in crit["action"][:2]
+                        ]
+                        critique_lines.append("Recommended Action: " + "; ".join(action_steps))
+                    if critique_lines:
+                        crit_body = "\n".join(critique_lines)
+                        self.console.print(Panel(crit_body, title=f"[bold yellow]APEX-GENIUS // Cognitive Critique (Step {step})[/bold yellow]", border_style="yellow"))
+                        messages.append({
+                            "role": "user",
+                            "content": f"[GENIUS-CRITIQUE]\n{crit_body}",
+                        })
+                except Exception:
+                    pass
 
             if finished_summary is not None:
                 break

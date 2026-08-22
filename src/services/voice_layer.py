@@ -24,6 +24,9 @@ from typing import Any, Callable, Optional
 import numpy as np
 from dotenv import load_dotenv
 
+sd = None
+Kokoro = None
+
 _sd = None
 _openwakeword = None
 _WakeWordModel = None
@@ -32,11 +35,14 @@ _SILERO_CHECKED = False
 _Kokoro = None
 
 def _get_sd():
-    global _sd
+    global sd, _sd
+    if sd is not None:
+        return sd
     if _sd is None:
         try:
-            import sounddevice as sd
-            _sd = sd
+            import sounddevice as _sounddevice
+            _sd = _sounddevice
+            sd = _sounddevice
         except Exception:
             _sd = False
     return _sd if _sd is not False else None
@@ -66,11 +72,14 @@ def _get_torch():
     return _torch if _torch is not False else None
 
 def _get_kokoro():
-    global _Kokoro
+    global Kokoro, _Kokoro
+    if Kokoro is not None:
+        return Kokoro
     if _Kokoro is None:
         try:
-            from kokoro_onnx import Kokoro
-            _Kokoro = Kokoro
+            from kokoro_onnx import Kokoro as _KokoroCls
+            _Kokoro = _KokoroCls
+            Kokoro = _KokoroCls
         except Exception:
             _Kokoro = False
     return _Kokoro if _Kokoro is not False else None

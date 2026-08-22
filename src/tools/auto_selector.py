@@ -44,6 +44,12 @@ def _empty(_m: re.Match) -> str:
     return ""
 
 
+def _extract_write(m: re.Match) -> str:
+    path = (m.group("path") or "").strip()
+    content = (m.group("content") or "").strip()
+    return json.dumps({"path": path, "content": content})
+
+
 _PATTERNS: List[Tuple[re.Pattern, str, str, Any]] = [
     # git
     (re.compile(r"^\s*git\s+status\s*$", re.I), "git", "status", _empty),
@@ -55,14 +61,33 @@ _PATTERNS: List[Tuple[re.Pattern, str, str, Any]] = [
     (re.compile(r"^\s*git\s+commit\s+[\"'-]m?\s*[\"']?(?P<arg>.+?)[\"']?\s*$", re.I), "git", "commit", _passthrough),
     (re.compile(r"^\s*git\s+checkout\s+(?P<arg>\S+)\s*$", re.I), "git", "checkout", _passthrough),
 
-    # filesystem read/list
-    (re.compile(r"^\s*(?:read|cat|show|open)\s+(?:the\s+)?(?:file\s+)?(?P<arg>[\w./\\\-]+\.\w+)\s*$", re.I),
+    # filesystem CRUD
+    # create / touch / mkdir
+    (re.compile(r"^\s*(?:create|touch|make)\s+(?:a\s+)?(?:new\s+)?(?:file\s+)?(?P<arg>[\w./\\\-]+\.\w+)\s*$", re.I),
+     "filesystem", "create", _passthrough),
+    (re.compile(r"^\s*(?:create|make|mkdir)\s+(?:a\s+)?(?:new\s+)?(?:dir|directory|folder)\s+(?P<arg>[\w./\\\-]+)\s*$", re.I),
+     "filesystem", "create_dir", _passthrough),
+
+    # read / cat / view
+    (re.compile(r"^\s*(?:read|cat|show|open|view)\s+(?:the\s+)?(?:file\s+)?(?P<arg>[\w./\\\-]+\.\w+)\s*$", re.I),
      "filesystem", "read", _passthrough),
+
+    # write
+    (re.compile(r"^\s*(?:write|save)\s+(?:to\s+)?(?:file\s+)?(?P<path>[\w./\\\-]+\.\w+)\s*:\s*(?P<content>.+)$", re.I),
+     "filesystem", "write", _extract_write),
+
+    # delete / rm
+    (re.compile(r"^\s*(?:delete|remove|rm)\s+(?:the\s+)?(?:file\s+)?(?P<arg>[\w./\\\-]+\.\w+)\s*$", re.I),
+     "filesystem", "delete", _passthrough),
+    (re.compile(r"^\s*(?:delete|remove|rmdir|rm\s+-r|rm\s+-rf)\s+(?:the\s+)?(?:dir|directory|folder)\s+(?P<arg>[\w./\\\-]+)\s*$", re.I),
+     "filesystem", "delete", _passthrough),
+
+    # list / ls
     (re.compile(r"^\s*ls(?:\s+(?P<arg>\S+))?\s*$", re.I), "filesystem", "list", _passthrough),
     (re.compile(r"^\s*list\s+(?:files\s+in\s+)?(?P<arg>[\w./\\\-]+)\s*$", re.I),
      "filesystem", "list", _passthrough),
 
-    # filesystem search/glob
+    # search / glob
     (re.compile(r"^\s*(?:grep|search\s+for)\s+(?P<arg>.+)$", re.I),
      "filesystem", "search", _passthrough),
     (re.compile(r"^\s*(?:glob|find\s+files?\s+matching)\s+(?P<arg>.+)$", re.I),

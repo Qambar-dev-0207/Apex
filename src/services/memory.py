@@ -148,8 +148,7 @@ class RedisManager:
         if self.is_active:
             try:
                 keys = await self.client.keys("apex:session:*")
-                r_keys = [k.split(":", 2)[2] for k in keys]
-                return list(set(r_keys) | set(self._local_sessions.keys()))
+                return [k.split(":", 2)[2] for k in keys]
             except Exception as e:
                 self._on_fail("list_session_ids", e)
         return list(self._local_sessions.keys())
