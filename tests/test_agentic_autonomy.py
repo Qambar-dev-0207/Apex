@@ -3,14 +3,13 @@ import sys
 import os
 import json
 import unittest
-from unittest.mock import MagicMock, patch, AsyncMock
+from unittest.mock import MagicMock, patch
 from rich.console import Console
 
 # Add project root to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from src.routers.router import InputClassifier, ParallelExecutor
-from src.services.memory import MemoryManager
+from src.routers.router import InputClassifier
 from src.core.models import Skill, ExecutionPlan, TaskStep
 
 class AgenticAutonomyTest(unittest.TestCase):

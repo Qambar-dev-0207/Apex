@@ -15,9 +15,7 @@ SmartRouter routes requests to this module.
 import os
 import json
 import logging
-import asyncio
-from typing import Dict, Any, Optional, List, Generator, AsyncGenerator
-from pydantic import ValidationError
+from typing import Optional, List, Generator, AsyncGenerator
 
 from src.core.models import ExecutionPlan, TaskStep
 from src.models.thinking_path import coerce_plan_dict

@@ -3,7 +3,6 @@ import sys
 import os
 import unittest
 from unittest.mock import MagicMock, patch
-from rich.console import Console
 
 # Add project root to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))

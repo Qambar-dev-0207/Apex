@@ -11,7 +11,7 @@ Inputs accepted by `run`:
 import difflib
 import json
 import os
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, List
 
 
 class DiffTool:

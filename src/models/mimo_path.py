@@ -12,13 +12,13 @@ Used by:
 
 import os
 import asyncio
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict
 
 from openai import OpenAI
 from dotenv import load_dotenv
 
 from src.core.time_context import TimeContext
-from src.core.api_security import sanitize_error, detect_threat, KeyThreat
+from src.core.api_security import sanitize_error
 
 
 class MimoClient:

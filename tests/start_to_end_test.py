@@ -3,10 +3,8 @@ import sys
 import os
 import json
 import unittest
-import time
-from unittest.mock import MagicMock, patch, AsyncMock
+from unittest.mock import MagicMock, patch
 from rich.console import Console
-from rich.panel import Panel
 
 # Add project root to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -19,7 +17,6 @@ from src.services.delivery import ResponseAssembler
 from src.services.cognitive import EmotionalCore
 from src.services.cognitive_graph import KnowledgeVisualizer
 from src.tools.workspace import WorkspaceManager
-from src.core.models import TaskStep, ExecutionPlan
 
 class StartToEndTest(unittest.TestCase):
     """

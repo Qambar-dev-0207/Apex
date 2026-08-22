@@ -1,6 +1,5 @@
 import os
 import zipfile
-import shutil
 from datetime import datetime
 
 class SovereignSync:

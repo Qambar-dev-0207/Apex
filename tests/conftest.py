@@ -2,7 +2,7 @@ import pytest
 import re
 import math
 import fnmatch
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 # --- Fake Chroma In-Memory Simulation ---
 class FakeCollection:

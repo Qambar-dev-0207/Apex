@@ -5,7 +5,6 @@ async Chroma ops, response cache stats, pruning).
 """
 
 import asyncio
-import json
 import sys
 import time
 import unittest

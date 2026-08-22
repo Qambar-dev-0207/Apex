@@ -1,7 +1,7 @@
 import os
 import json
 import fnmatch
-from typing import Dict, Any, List, Optional
+from typing import Dict, List, Optional
 from src.core.models import ProjectManifest
 from pathlib import Path
 

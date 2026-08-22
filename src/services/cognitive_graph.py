@@ -1,8 +1,6 @@
 import os
 import json
-import asyncio
 from datetime import datetime
-from typing import List, Dict, Any, Optional
 from google import genai
 from src.core.models import KnowledgeMap, KnowledgeNode, KnowledgeEdge
 from src.services.memory import MemoryManager

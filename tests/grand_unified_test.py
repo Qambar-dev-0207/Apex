@@ -9,10 +9,9 @@ from rich.console import Console
 # Add project root to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from src.services.memory import MemoryManager, ResponseCache
-from src.routers.router import InputClassifier, SmartRouter, ParallelExecutor
+from src.services.memory import MemoryManager
+from src.routers.router import InputClassifier, ParallelExecutor
 from src.core.telemetry import SpendTracker
-from src.core.models import TaskStep, ExecutionPlan, ProjectManifest
 from src.models.thinking_path import GeminiClient
 
 class GrandUnifiedTest(unittest.TestCase):

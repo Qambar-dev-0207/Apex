@@ -2,14 +2,12 @@ import asyncio
 import sys
 import os
 import unittest
-from unittest.mock import MagicMock, patch, AsyncMock
-from rich.console import Console
+from unittest.mock import MagicMock, patch
 
 # Add project root to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from src.services.proactive import BriefingAgent
-from src.services.learning import LearningManager
 from src.models.thinking_path import GeminiClient
 from src.tools.workspace import WorkspaceManager
 from src.core.telemetry import SpendTracker

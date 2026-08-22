@@ -2,7 +2,6 @@ import asyncio
 import os
 import sys
 import unittest
-from unittest.mock import MagicMock
 
 # Add project root to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))

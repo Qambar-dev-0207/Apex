@@ -9,8 +9,6 @@ from rich.console import Console
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from src.routers.router import ParallelExecutor
-from src.core.models import ExecutionPlan, TaskStep
-from src.models.thinking_path import GeminiClient
 
 class TestResilientRecovery(unittest.TestCase):
     def setUp(self):

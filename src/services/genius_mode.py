@@ -23,7 +23,7 @@ before it executes.
 import os
 import json
 import asyncio
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 import httpx
 from dotenv import load_dotenv

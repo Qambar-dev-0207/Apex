@@ -3,10 +3,9 @@ import os
 import unittest
 import tempfile
 import shutil
-import json
 import asyncio
 from pathlib import Path
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 

@@ -2,14 +2,13 @@ import asyncio
 import sys
 import os
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 # Add project root to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from src.tools.hardware import HardwareMonitor
 from src.routers.router import ParallelExecutor
-from src.core.models import TaskStep, ExecutionPlan
 
 class TestHardwareBridge(unittest.TestCase):
     def test_hardware_monitoring(self):

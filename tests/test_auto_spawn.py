@@ -14,7 +14,6 @@ Run:
     python -m pytest tests/test_auto_spawn.py -v
 """
 
-import asyncio
 import re
 import pytest
 

@@ -6,7 +6,6 @@ from rich.console import Console
 # Add project root to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from src.models.thinking_path import GeminiClient
 from src.services.memory import MemoryManager
 from src.routers.router import ParallelExecutor
 from src.core.models import ExecutionPlan, TaskStep

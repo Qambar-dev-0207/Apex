@@ -2,7 +2,7 @@ import os
 import re
 import ast
 import fnmatch
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any
 
 class RepoMapGenerator:
     """

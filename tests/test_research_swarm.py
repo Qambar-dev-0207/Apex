@@ -2,14 +2,13 @@ import asyncio
 import sys
 import os
 import unittest
-from unittest.mock import MagicMock, patch, AsyncMock
+from unittest.mock import MagicMock, patch
 from rich.console import Console
 
 # Add project root to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from src.services.research import ResearchSwarm, KnowledgeSynthesizer
-from src.core.models import KnowledgeArtifact
+from src.services.research import ResearchSwarm
 
 class TestResearchSwarm(unittest.TestCase):
     def setUp(self):

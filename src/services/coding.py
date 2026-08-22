@@ -1,9 +1,8 @@
 import os
 import json
-import asyncio
 import httpx
-from typing import Dict, Any, List, Optional
-from src.core.models import CodeSpec, ValidationResult
+from typing import Dict, Any
+from src.core.models import CodeSpec
 from src.services.validation import CodeValidator
 from src.models.mimo_path import MimoClient
 from dotenv import load_dotenv

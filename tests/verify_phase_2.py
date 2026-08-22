@@ -1,13 +1,10 @@
 import os
 import sqlite3
 import pytest
-import numpy as np
-import pandas as pd
 from unittest.mock import MagicMock, patch, AsyncMock
 from src.services.predictor import PredictorService
 from src.models.local_path import OllamaClient
-from src.routers.router import InputClassifier, SmartRouter, ParallelExecutor
-from src.core.models import ExecutionPlan, TaskStep
+from src.core.models import ExecutionPlan
 
 # Force offline mode for testing
 os.environ["APEX_OFFLINE"] = "1"

@@ -6,13 +6,13 @@ from google import genai
 from google.genai import types
 from typing import Dict, Any, Optional, List
 from pydantic import ValidationError
-from src.core.models import ExecutionPlan, EmotionalState, TaskStep
+from src.core.models import ExecutionPlan, EmotionalState
 from src.services.memory import MemoryManager
 from src.services.learning import SkillManager
 from src.tools.workspace import WorkspaceManager
 from src.models.fallback_path import TertiaryReasoningClient
 from src.core.time_context import TimeContext
-from src.core.api_security import detect_threat, KeyThreat, sanitize_error, leaked_key_warning
+from src.core.api_security import detect_threat, KeyThreat, sanitize_error
 from src.tools.registry import get_prompt_block as get_tools_prompt_block
 from src.tools.registry import resolve_tool_name
 from dotenv import load_dotenv

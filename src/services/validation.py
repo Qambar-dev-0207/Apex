@@ -1,8 +1,6 @@
 import os
-import json
 import asyncio
 from google import genai
-from typing import Dict, Any, List, Optional
 from src.core.models import CodeSpec, ValidationResult
 from src.tools.sandbox import SandboxExecutor
 from dotenv import load_dotenv

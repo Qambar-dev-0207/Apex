@@ -1,4 +1,4 @@
-from rich.console import Console, Group
+from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 from rich.tree import Tree
@@ -6,7 +6,7 @@ from rich.markdown import Markdown
 from rich.text import Text
 from rich.align import Align
 from typing import Dict, Any, List, Optional
-from src.core.models import ExecutionPlan, ValidationResult, ProjectManifest, SystemVitals
+from src.core.models import ExecutionPlan, ProjectManifest, SystemVitals
 
 class ResponseAssembler:
     """

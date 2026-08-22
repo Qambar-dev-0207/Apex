@@ -2,7 +2,6 @@ import sys
 import subprocess
 import tempfile
 import os
-import time
 from typing import Dict, Any
 
 class SandboxExecutor:

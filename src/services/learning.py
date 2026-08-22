@@ -1,14 +1,12 @@
 import os
 import json
-import asyncio
 import glob
 import re
 from datetime import datetime
-from typing import List, Dict, Any, Optional
-from src.core.models import Skill, FailureRecord, ExecutionPlan, MemoryEntry, TaskStep
+from typing import Optional
+from src.core.models import Skill, FailureRecord, ExecutionPlan, TaskStep
 from src.services.memory import MemoryManager
 import chromadb
-from chromadb.utils import embedding_functions
 
 class FailureLogger:
     """

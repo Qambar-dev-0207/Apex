@@ -10,7 +10,6 @@ from rich.console import Console
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from src.services.cognitive_graph import KnowledgeVisualizer
-from src.services.memory import MemoryManager
 from src.core.models import KnowledgeMap, KnowledgeNode, KnowledgeEdge
 
 class TestCognitiveGraph(unittest.TestCase):

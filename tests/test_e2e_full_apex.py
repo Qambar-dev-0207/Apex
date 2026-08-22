@@ -19,7 +19,6 @@ Run:
     PYTHONIOENCODING=utf-8 python -m pytest tests/test_e2e_full_apex.py -v
 """
 
-import asyncio
 import os
 import sys
 import tempfile
@@ -398,7 +397,9 @@ async def test_harness_auto_verification_detects_syntax_errors():
 async def test_harness_done_rejected_when_verify_failed():
     from src.core.harness import AgentHarness
     from unittest.mock import MagicMock
-    h = AgentHarness(project_root=".")
+    tmp = tempfile.mkdtemp()
+    h = AgentHarness(project_root=tmp)
+    await h._dispatch("write", {"path": "broken.py", "content": "def bad(\n"})
     h._last_verify_failed = True
 
     # Mock brain selection to return a mock client

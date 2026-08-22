@@ -1,4 +1,3 @@
-import os
 import sys
 import asyncio
 import pytest
@@ -21,7 +20,7 @@ sys.modules['uiautomation'] = MagicMock()
 from src.services.voice_layer import VoiceLayer
 from src.services.ambient import AmbientService
 from src.tools.desktop_control import DesktopControlTool
-from main import APEXEngine, handle_slash
+from main import handle_slash
 
 
 class MockEngine:

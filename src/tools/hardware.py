@@ -1,7 +1,4 @@
 import psutil
-import os
-import platform
-from typing import Dict, Any, Optional
 from src.core.models import SystemVitals
 
 class HardwareMonitor:

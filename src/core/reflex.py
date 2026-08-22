@@ -32,11 +32,10 @@ import re
 import time
 import math
 import logging
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field
 from typing import Optional, Dict, Any, List, Tuple
 
 from src.tools.auto_selector import regex_match as tool_regex_match
-from src.tools.registry import resolve_tool_name
 
 logger = logging.getLogger("apex.reflex")
 

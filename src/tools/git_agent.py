@@ -1,5 +1,4 @@
 import subprocess
-import os
 from typing import Dict, Any, List, Optional
 from rich.console import Console
 from rich.prompt import Confirm

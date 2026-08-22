@@ -16,7 +16,7 @@ Provides:
 """
 
 import re
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Union
 
 

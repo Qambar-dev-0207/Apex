@@ -7,7 +7,6 @@ from rich.console import Console
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from src.services.memory import MemoryManager
-from src.core.models import MemoryEntry
 
 async def test_memory_system():
     console = Console()

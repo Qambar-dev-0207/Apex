@@ -17,7 +17,7 @@ import os
 import re
 import json
 import asyncio
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, Optional
 
 import httpx
 from dotenv import load_dotenv
@@ -28,7 +28,7 @@ except Exception:
     genai = None
 
 from src.core.time_context import TimeContext
-from src.core.api_security import detect_threat, KeyThreat, sanitize_error, leaked_key_warning
+from src.core.api_security import detect_threat, KeyThreat, leaked_key_warning
 
 _OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 _HIGH_REASON_MODEL = "inclusionai/ring-2.6-1t:free"  # 1T-param free reasoning fallback

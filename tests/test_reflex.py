@@ -11,7 +11,7 @@ import asyncio
 import time
 import pytest
 
-from src.core.reflex import Reflex, PrefetchBundle, ReflexDecision
+from src.core.reflex import Reflex, PrefetchBundle
 
 
 # ── Reflex.decide ────────────────────────────────────────────────────────────

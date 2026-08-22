@@ -3,13 +3,12 @@ Tests for AgentHarness self-verification loop, done-rejection guard,
 and periodic GeniusMode critique injection.
 """
 
-import os
 import json
 import tempfile
 import pytest
-from unittest.mock import MagicMock, patch, AsyncMock
+from unittest.mock import MagicMock, AsyncMock
 
-from src.core.harness import AgentHarness, _ok, _err
+from src.core.harness import AgentHarness
 from src.services.genius_mode import GeniusMode
 
 

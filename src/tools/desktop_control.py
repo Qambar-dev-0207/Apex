@@ -1,9 +1,7 @@
 import os
-import sys
 import json
-import asyncio
 import subprocess
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any
 
 # Lazy imports for pyautogui, uiautomation, win32gui, and playwright
 pyautogui = None

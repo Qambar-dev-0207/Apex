@@ -1,7 +1,5 @@
 import os
-import time
 import asyncio
-import threading
 import pyperclip
 from PIL import Image, ImageChops
 

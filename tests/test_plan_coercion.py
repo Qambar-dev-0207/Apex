@@ -11,7 +11,6 @@ Run:
 
 import json
 import pytest
-from pydantic import ValidationError
 
 from src.models.thinking_path import parse_plan_response, coerce_plan_dict
 from src.core.models import ExecutionPlan

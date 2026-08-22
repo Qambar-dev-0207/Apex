@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from src.services.learning import LearningManager, FailureLogger, SkillManager
-from src.core.models import Skill, ExecutionPlan, TaskStep, MemoryEntry
+from src.core.models import ExecutionPlan, TaskStep
 from src.services.memory import MemoryManager
 
 class TestLearningSystem(unittest.TestCase):

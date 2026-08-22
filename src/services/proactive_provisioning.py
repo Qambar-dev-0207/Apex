@@ -1,9 +1,8 @@
 import os
 import json
-import asyncio
-from typing import List, Dict, Any, Optional
+from typing import List
 from google import genai
-from src.core.models import CapabilityGap, Skill, ExecutionPlan, TaskStep
+from src.core.models import CapabilityGap, Skill
 from src.services.learning import SkillManager
 from src.tools.mcp_client import MCPClient
 from src.tools.workspace import WorkspaceManager

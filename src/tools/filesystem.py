@@ -1,10 +1,8 @@
 import os
-import json
 import shutil
 import re
-from typing import Dict, Any, Optional, List, Union
+from typing import Dict, Any, Optional, List
 from rich.console import Console
-from rich.prompt import Confirm
 from src.tools.safety import SafetyGuard
 
 class FilesystemAgent:
