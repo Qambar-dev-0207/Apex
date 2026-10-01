@@ -75,12 +75,51 @@ class SessionContext(BaseModel):
 class Skill(BaseModel):
     """
     Represents a reusable execution pattern learned by the system.
+    Follows the Tensura evolutionary hierarchy: Common -> Extra -> Unique -> Ultimate.
     """
     name: str
     description: str
     query_pattern: str
     plan_template: ExecutionPlan
     usage_count: int = 1
+    tier: str = "Common"  # "Common" | "Extra" | "Unique" | "Ultimate"
+    ultimate_name: Optional[str] = None  # e.g., "Raphael: Lord of Wisdom"
+    evolution_history: List[str] = []
+
+    def calculate_tier(self) -> str:
+        """
+        Derives skill tier from usage_count and evolution history.
+        Thresholds:
+          - Common: < 5 uses
+          - Extra: 5 - 14 uses
+          - Unique: 15 - 29 uses
+          - Ultimate: 30+ uses or explicitly evolved by Raphael
+        """
+        if self.tier == "Ultimate":
+            return "Ultimate"
+        if self.usage_count >= 30:
+            return "Ultimate"
+        elif self.usage_count >= 15:
+            return "Unique"
+        elif self.usage_count >= 5:
+            return "Extra"
+        return "Common"
+
+    def reinforce(self) -> Optional[str]:
+        """
+        Increments usage_count and checks for tier promotion.
+        Returns promotion message if tier upgraded, else None.
+        """
+        old_tier = self.tier
+        self.usage_count += 1
+        new_tier = self.calculate_tier()
+        if new_tier != old_tier:
+            self.tier = new_tier
+            promo = f"Skill '{self.name}' evolved: {old_tier} → {new_tier} (Reinforced {self.usage_count} times)"
+            self.evolution_history.append(promo)
+            return promo
+        return None
+
 
 class FailureRecord(BaseModel):
     """

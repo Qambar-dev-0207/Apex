@@ -84,7 +84,11 @@ INTENT_PROTOTYPES: Dict[str, List[str]] = {
     "harness_goal": ["do it for me", "act on this autonomously",
                      "go ahead and execute", "run autonomously",
                      "agentic loop on", "make it happen end-to-end",
-                     "implement this on your own"],
+                     "implement this on your own", "run this for me",
+                     "execute this in terminal", "do this in the terminal",
+                     "give it access of the terminal", "do tasks on its own",
+                     "run the audit", "audit the codebase", "scan and fix",
+                     "run the checks", "fix this issue", "investigate and fix"],
 }
 
 PATH_BY_INTENT: Dict[str, str] = {

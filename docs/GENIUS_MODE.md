@@ -1,10 +1,20 @@
-# GeniusMode + ResumeTool + Critique System
+# Raphael (Lord of Wisdom) + Tensura Skill Evolution + ResumeTool
 
 ---
 
-## GeniusMode (`src/services/genius_mode.py`)
+## Raphael (`src/services/raphael.py`)
 
-APEX's built-in high-cognition critic. Give it any prompt and it returns a structured 6-field analysis that cross-questions your thinking, surfaces what's right, calls out what's wrong, finds blind spots, and suggests concrete next actions — with a touch of wit.
+APEX's supreme high-cognition critic and autonomous skill evolution layer (formerly *GeniusMode*, inspired by Tensura's *[Raphael: Lord of Wisdom]*). Give it any prompt, proposed action, or failing execution trajectory, and it returns a structured 6-field appraisal that cross-questions intent, acknowledges architectural strengths, isolates flaws, uncovers blind spots, and suggests high-leverage actions.
+
+`GeniusMode` remains fully aliased to `Raphael` for seamless backward compatibility.
+
+### Tensura Skill Evolution Hierarchy
+
+Skills in APEX evolve along a 4-tier Tensura hierarchy:
+1. **Common** (`usage < 5`): Baseline learned DAG.
+2. **Extra** (`usage 5-14`): Reinforced execution pattern.
+3. **Unique** (`usage 15-29` or deep synthesis): Highly specialized DAG.
+4. **Ultimate** (`usage 30+` or synthesized by Raphael): Named Ultimate Skill (e.g., *[Raphael: Lord of Wisdom]*), armed with socratic self-validation and autonomous healing.
 
 ### The 6-field JSON contract
 

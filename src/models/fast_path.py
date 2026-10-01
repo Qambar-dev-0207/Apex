@@ -8,12 +8,15 @@ from src.core.api_security import sanitize_error, detect_threat, KeyThreat, leak
 class GroqClient:
     """
     A client for interacting with the Groq API for fast inference.
+    Uses 'groq/compound-mini' as the high-speed, free default model.
     """
-    def __init__(self, model: str = "llama-3.1-8b-instant"):
+    DEFAULT_MODEL = "groq/compound-mini"
+
+    def __init__(self, model: str = None):
         load_dotenv()
         api_key = os.getenv("GROQ_API_KEY")
         self.client = Groq(api_key=api_key) if api_key else None
-        self.model = model
+        self.model = model or os.getenv("GROQ_MODEL", self.DEFAULT_MODEL)
 
     def get_completion(self, prompt: str, system_prompt: str = None) -> str:
         """
@@ -30,6 +33,9 @@ class GroqClient:
             You are APEX, an intelligent AI companion and system architect. Be conversational, articulate, helpful, and insightful. Respond clearly and directly to both technical and out-of-the-box questions.
             """
         system_prompt = f"{TimeContext.system_prefix()}\n{system_prompt}"
+        # Cap prompt to prevent 413 Request Entity Too Large on Groq
+        if len(prompt) > 12000:
+            prompt = prompt[-12000:]
         try:
             chat_completion = self.client.chat.completions.create(
                 messages=[
@@ -74,3 +80,11 @@ class GroqClient:
                 yield leaked_key_warning("Groq", rich=False)
             else:
                 yield f"[Groq stream error] {sanitize_error(e)}"
+
+    async def get_completion_async(self, prompt: str, system_prompt: str = None) -> str:
+        """
+        Non-blocking async wrapper around get_completion.
+        """
+        import asyncio
+        return await asyncio.to_thread(self.get_completion, prompt, system_prompt)
+

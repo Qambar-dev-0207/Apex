@@ -801,7 +801,10 @@ class Agent3DLoader:
             self._live.__enter__()
             self._task = asyncio.create_task(self._animate_loop())
         else:
-            self.console.print(f"  [bold {self.style}]▶ Spawning {self.agent_name} ({self.model_name})[/bold {self.style}]")
+            try:
+                self.console.print(f"  [bold {self.style}]>> Spawning {self.agent_name} ({self.model_name})[/bold {self.style}]")
+            except Exception:
+                pass
         return self
 
     async def __aexit__(self, exc_type, exc, tb):
@@ -826,7 +829,10 @@ class Agent3DLoader:
             self._live.update(self._render())
         else:
             elapsed = time.time() - self._t_start
-            self.console.print(f"  [{self.style}]◆ [{self.agent_name}] Step {step}/{total_steps}: {action} ({elapsed:.1f}s)[/{self.style}]")
+            try:
+                self.console.print(f"  [{self.style}]* [{self.agent_name}] Step {step}/{total_steps}: {action} ({elapsed:.1f}s)[/{self.style}]")
+            except Exception:
+                pass
 
     def _project_point(self, x: float, y: float, z: float, width: int = 24, height: int = 9) -> tuple[int, int]:
         # Rotation X
@@ -911,6 +917,69 @@ class Agent3DLoader:
                     grid[py][px] = "🐝" if self.shape == "swarm" else "✦"
 
         return "\n".join("".join(row) for row in grid)
+
+    def _render(self) -> Panel:
+        elapsed = time.time() - self._t_start
+        canvas_str = self._render_3d_canvas()
+
+        # Map shape to Mascot Action State
+        mascot_state_map = {
+            "cube": "coding",
+            "swarm": "building",
+            "sphere": "thinking",
+            "torus": "analyzing",
+            "octahedron": "deploying",
+            "prism": "learning",
+        }
+        mascot_state = mascot_state_map.get(self.shape, "focus")
+
+        # Full-color block-art mascot (Claude Code technique) — or ASCII fallback
+        mascot_art = ApexMascot.render_blockart(mascot_state, cols=22, rows=13)
+
+        # Keep the old plain-text side-by-side for the 3D canvas label
+        canvas_lines = canvas_str.splitlines()
+        max_h = len(canvas_lines)
+        merged_render = "\n".join(canvas_lines)
+
+        prog_bar = "█" * int((self.current_step / max(self.total_steps, 1)) * 14)
+        prog_bar = prog_bar.ljust(14, "░")
+
+        from rich.columns import Columns
+        from rich.panel import Panel as RPanel
+
+        # Left: 3D canvas + stats
+        left = Text()
+        left.append(merged_render + "\n\n", style=f"bold {self.style}")
+        left.append(f"  Step [{self.current_step}/{self.total_steps}] ", style="bold bright_white")
+        left.append(f"[{prog_bar}] ", style=f"bold {self.style}")
+        left.append(f"({elapsed:.1f}s)\n", style="dim white")
+        left.append(f"▶ {self.current_action}", style="bold white")
+
+        # Right: full-color mascot + state label
+        right = Text()
+        right.append_text(mascot_art)
+        right.append(f"\n[{mascot_state.upper()}]", style="bold gold1")
+
+        layout = Columns([left, right], equal=False, expand=True)
+
+        return Panel(
+            layout,
+            title=f"APEX 3D // {self.agent_name}",
+            border_style=self.style,
+            expand=False,
+        )
+
+    async def _animate_loop(self):
+        try:
+            while not self._stop.is_set():
+                self._angle_x += 0.08
+                self._angle_y += 0.12
+                if self._live:
+                    self._live.update(self._render())
+                await asyncio.sleep(1.0 / self.fps)
+        except asyncio.CancelledError:
+            pass
+
 
 class ApexMascot:
     r"""
@@ -1471,68 +1540,6 @@ class ApexMascot:
         cls._IMG_CACHE[state] = text
         return text
 
-    def _render(self) -> Panel:
-        elapsed = time.time() - self._t_start
-        canvas_str = self._render_3d_canvas()
-
-        # Map shape to Mascot Action State
-        mascot_state_map = {
-            "cube": "coding",
-            "swarm": "building",
-            "sphere": "thinking",
-            "torus": "analyzing",
-            "octahedron": "deploying",
-            "prism": "learning",
-        }
-        mascot_state = mascot_state_map.get(self.shape, "focus")
-
-        # Full-color block-art mascot (Claude Code technique) — or ASCII fallback
-        mascot_art = ApexMascot.render_blockart(mascot_state, cols=22, rows=13)
-
-        # Keep the old plain-text side-by-side for the 3D canvas label
-        canvas_lines = canvas_str.splitlines()
-        max_h = len(canvas_lines)
-        merged_render = "\n".join(canvas_lines)
-
-        prog_bar = "█" * int((self.current_step / max(self.total_steps, 1)) * 14)
-        prog_bar = prog_bar.ljust(14, "░")
-
-        from rich.columns import Columns
-        from rich.panel  import Panel as RPanel
-
-        # Left: 3D canvas + stats
-        left = Text()
-        left.append(merged_render + "\n\n", style=f"bold {self.style}")
-        left.append(f"  Step [{self.current_step}/{self.total_steps}] ", style="bold bright_white")
-        left.append(f"[{prog_bar}] ", style=f"bold {self.style}")
-        left.append(f"({elapsed:.1f}s)\n", style="dim white")
-        left.append(f"▶ {self.current_action}", style="bold white")
-
-        # Right: full-color mascot + state label
-        right = Text()
-        right.append_text(mascot_art)
-        right.append(f"\n[{mascot_state.upper()}]", style="bold gold1")
-
-        layout = Columns([left, right], equal=False, expand=True)
-
-        return Panel(
-            layout,
-            title=f"APEX 3D // {self.agent_name}",
-            border_style=self.style,
-            expand=False,
-        )
-
-    async def _animate_loop(self):
-        try:
-            while not self._stop.is_set():
-                self._angle_x += 0.08
-                self._angle_y += 0.12
-                if self._live:
-                    self._live.update(self._render())
-                await asyncio.sleep(1.0 / self.fps)
-        except asyncio.CancelledError:
-            pass
-
 
 def agent_3d_loader(
     agent_name: str,
@@ -1551,4 +1558,50 @@ def agent_3d_loader(
         console=console,
         fps=fps,
     )
+
+
+def skill_evolution_banner(
+    skill_name: str,
+    old_tier: str,
+    new_tier: str,
+    uses: int,
+    console: Optional[Console] = None,
+    ultimate_name: Optional[str] = None
+) -> None:
+    """
+    Renders a dynamic Tensura evolution notification banner when a skill ascends tiers.
+    Color rules:
+      - Ultimate: Red
+      - Unique: Gold
+      - Extra: Purple / Magenta
+      - Common: White
+    """
+    c = console or Console()
+    tier_colors = {
+        "Ultimate": "bold red",
+        "Unique": "bold gold1",
+        "Extra": "bold magenta",
+        "Common": "white",
+    }
+    old_color = tier_colors.get(old_tier, "white")
+    new_color = tier_colors.get(new_tier, "bold red")
+    
+    border_color = "red" if new_tier == "Ultimate" else ("gold1" if new_tier == "Unique" else "magenta")
+    
+    lines = [
+        f"[bold bright_white]« NOTICE // SKILL SYNTHESIS & EVOLUTION »[/bold bright_white]",
+        "",
+        f"  Target: [bold bright_cyan]{skill_name}[/bold bright_cyan]",
+        f"  Evolution Path: [{old_color}]{old_tier}[/{old_color}]  ──▶  [{new_color}]{new_tier}[/{new_color}]",
+        f"  Reinforcement Count: [bold bright_yellow]{uses}[/bold bright_yellow] executions",
+    ]
+    if ultimate_name:
+        lines.append(f"  Acquired Name: [bold red]« {ultimate_name} »[/bold red]")
+    lines.append("")
+    lines.append(f"[italic dim {border_color}]Analysis: Skill parameters reconfigured. Efficiency promoted to {new_tier} tier.[/italic dim {border_color}]")
+
+    body = "\n".join(lines)
+    title = f"★ TENSUAL EVOLUTION: {new_tier.upper()} RANK ★" if new_tier == "Ultimate" else f"◆ SKILL EVOLUTION: {new_tier.upper()} RANK ◆"
+    c.print(Panel(body, title=title, border_style=border_color, padding=(1, 2)))
+
 

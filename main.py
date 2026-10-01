@@ -55,7 +55,7 @@ from src.tools.auto_selector import AutoToolSelector, regex_match as tool_regex_
 from src.core.reflex import PrefetchBundle
 from src.core.hooks import HookManager
 from src.core.harness import AgentHarness
-from src.services.genius_mode import GeniusMode
+from src.services.raphael import Raphael, GeniusMode
 from src.tools.resume_tool import ResumeTool
 from src.core.api_security import validate_all_keys, leaked_key_warning
 from src.services.predictor import PredictorService
@@ -94,7 +94,7 @@ SLASH_HELP = """\
   /map                     Render knowledge graph SVG
   /prune                   Show pruned context for current focus
   /project <name>          Create new project
-  /skills                  List registered skills
+  /skills                  List registered skills + Tensura evolution tiers
   /reload-skills           Reload markdown skills
   /todo <task>             Add todo to active project
   /todo done <n>           Mark todo #n complete
@@ -112,7 +112,8 @@ SLASH_HELP = """\
   /local                   Show local Ollama status, models, and connection
   /socratic                Toggle Socratic critique
   /steelman                Toggle Steelman counter-arch mode
-  /genius                  Toggle Genius multi-pass reasoning (deepest mode)
+  /raphael <prompt>        Raphael (Lord of Wisdom) 5-stage critique & appraisal
+  /genius <prompt>         (Alias) Raphael appraisal mode
   /autothink on|off        Toggle auto-routing of ambiguous prompts to ThinkPartner
   /autotool on|off         Toggle bypass-planner for single-tool prompts (e.g. "git status")
   /autoswarm on|off        Toggle auto-spawn agent swarm on high-complexity coding/architect
@@ -256,7 +257,7 @@ class APEXEngine:
         await _stage("Indexing workspace + skills")
         self.workspace = WorkspaceManager()
         self.knowledge_visualizer = KnowledgeVisualizer(self.memory_manager, self.workspace)
-        self.learning_manager = LearningManager(self.memory_manager)
+        self.learning_manager = LearningManager(self.memory_manager, console=self.console)
         self.learning_manager.seed_skills()
 
         await _stage("Linking codebase indexer + repo map")
@@ -315,7 +316,7 @@ class APEXEngine:
         await _stage("Calibrating think partner + agent swarm")
         self.think_partner = ThinkPartner(console=self.console)
         self.auto_think_enabled = False
-        self.economy_mode = os.getenv("APEX_ECONOMY", "1") != "0"
+        self.economy_mode = os.getenv("APEX_ECONOMY", "0") == "1"
         self.background_loops_enabled = os.getenv("APEX_BG_LOOPS", "0") == "1"
         self.briefing_enabled = os.getenv("APEX_BRIEFING", "0") == "1"
         self.daily_call_limit = int(os.getenv("APEX_DAILY_CALL_LIMIT", "40"))
@@ -341,11 +342,12 @@ class APEXEngine:
         self.parallel_executor.knowledge_forge = self.knowledge_forge
         self.knowledge_forge.engine = self
 
-        await _stage("Loading Genius critique + Resume tool")
-        self.genius = GeniusMode(
+        await _stage("Loading Raphael (Lord of Wisdom) + Resume tool")
+        self.raphael = Raphael(
             mimo_client=self.parallel_executor.coding_pipeline.mimo,
             groq_client=self.groq_client,
         )
+        self.genius = self.raphael
         self.resume_tool = ResumeTool()
 
         await _stage("Arming autonomous harness (35 tools)")
@@ -637,13 +639,12 @@ class APEXEngine:
                     )
                     return True
 
-                if not engine.economy_mode:
-                    if _kw_decision.intent == "swarm_goal" and _kw_decision.confidence > 0.50:
-                        await dispatch_swarm(engine, console, user_input, trigger="keyword")
-                        return True
-                    if _kw_decision.intent == "harness_goal" and _kw_decision.confidence > 0.50:
-                        await dispatch_harness(engine, console, user_input, trigger="keyword")
-                        return True
+                if _kw_decision.intent == "swarm_goal" and _kw_decision.confidence > 0.40:
+                    await dispatch_swarm(engine, console, user_input, trigger="keyword")
+                    return True
+                if _kw_decision.intent == "harness_goal" and _kw_decision.confidence > 0.40:
+                    await dispatch_harness(engine, console, user_input, trigger="keyword")
+                    return True
 
             effective_input = user_input
             if getattr(engine, "pending_clarification", None):
@@ -1532,12 +1533,41 @@ async def cmd_skills(engine):
     if not meta:
         engine.console.print("[dim]No skills registered.[/dim]")
         return
-    table = Table(title="REGISTERED SKILLS", border_style="magenta")
-    table.add_column("Name", style="bold")
+    table = Table(title="SKILL REGISTRY // Tensura Evolution Hierarchy", border_style="bright_magenta")
+    table.add_column("Tier", style="bold", justify="center")
+    table.add_column("Skill Name", style="bold")
+    table.add_column("Uses", justify="right")
     table.add_column("Description")
+    
+    tier_styles = {
+        "Ultimate": "[bold red]Ultimate ★[/bold red]",
+        "Unique": "[bold gold1]Unique[/bold gold1]",
+        "Extra": "[bold magenta]Extra[/bold magenta]",
+        "Common": "[white]Common[/white]",
+    }
+
     for m in meta:
         if m:
-            table.add_row(m.get("name", ""), m.get("description", "")[:80])
+            tier_raw = m.get("tier", "Common")
+            tier_display = tier_styles.get(tier_raw, f"[white]{tier_raw}[/white]")
+            name = m.get("name", "")
+            if tier_raw == "Ultimate" and m.get("ultimate_name"):
+                name = f"[bold red]{name}[/bold red] [dim red]({m['ultimate_name']})[/dim red]"
+            elif tier_raw == "Ultimate":
+                name = f"[bold red]{name}[/bold red]"
+            elif tier_raw == "Unique":
+                name = f"[bold gold1]{name}[/bold gold1]"
+            elif tier_raw == "Extra":
+                name = f"[bold magenta]{name}[/bold magenta]"
+            else:
+                name = f"[white]{name}[/white]"
+
+            table.add_row(
+                tier_display,
+                name,
+                str(m.get("usage_count", 1)),
+                m.get("description", "")[:70]
+            )
     engine.console.print(table)
 
 
@@ -1678,7 +1708,7 @@ def _render_genius(console, res: dict, terse: bool = False):
 
     rival = res.get("rival_name", "")
     scorecard = res.get("rival_scorecard", "")
-    title = f"APEX GENIUS  ·  {rival} ({scorecard})" if rival else "APEX GENIUS"
+    title = f"APEX RAPHAEL (Lord of Wisdom)  ·  {rival} ({scorecard})" if rival else "APEX RAPHAEL // Lord of Wisdom"
 
     console.print(Panel(
         "\n\n".join(sections) or "(no analysis)",
@@ -2377,14 +2407,14 @@ async def handle_slash(engine, cmd_line: str, skills_dir: str) -> bool:
         context = await engine.knowledge_visualizer.get_pruned_context("current focus")
         console.print(Panel(context or "(empty)", title="PRUNED CONTEXT"))
         return True
-    if cmd == "/genius":
+    if cmd in ("/raphael", "/genius"):
         prompt = " ".join(args).strip()
         if not prompt:
-            console.print("[red]Usage: /genius <prompt>[/red]")
+            console.print("[red]Usage: /raphael <prompt>[/red]")
             return True
         result = await thinking_cascade(
-            engine.genius.analyze(prompt),
-            phases=["Cross-questioning", "Evaluating right", "Finding wrong", "Surfacing blind spots", "Formulating wit"],
+            engine.raphael.analyze(prompt),
+            phases=["Appraising intent", "Evaluating strengths", "Detecting flaws", "Surfacing blind spots", "Deriving Raphael insight"],
             console=console,
             style="bright_magenta",
         )

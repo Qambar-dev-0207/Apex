@@ -602,6 +602,7 @@ class AgentHarness:
         workspace: Optional[Any] = None,
         project_root: Optional[str] = None,
         genius: Optional[Any] = None,
+        raphael: Optional[Any] = None,
         verify_command: Optional[str] = None,
         verify_every_steps: int = 4,
         max_steps: int = 25,
@@ -616,7 +617,7 @@ class AgentHarness:
         self.todo = TodoTool()
         # Brains — tool-calling capable, OpenAI-compatible.
         self.mimo = mimo or MimoClient()
-        self.groq = groq or GroqClient(model="llama-3.3-70b-versatile")
+        self.groq = groq or GroqClient(model="qwen/qwen3.6-27b")
         self.ollama = ollama or OllamaClient()
         self.brain_pref = brain
         # APEX-wide collaborators (used only if wired in by APEXEngine).
@@ -629,7 +630,8 @@ class AgentHarness:
         self.swarm = swarm or (executor.agent_swarm if executor else None)
         self.think_partner = think_partner or (executor.think_partner if executor else None)
         self.workspace = workspace or (executor.workspace if executor else None)
-        self.genius = genius or (executor.genius if (executor and hasattr(executor, "genius")) else None)
+        self.raphael = raphael or genius or (executor.raphael if (executor and hasattr(executor, "raphael")) else (executor.genius if (executor and hasattr(executor, "genius")) else None))
+        self.genius = self.raphael
         self.verify_command = verify_command
         self.verify_every_steps = verify_every_steps
         self._last_verify_failed = False
@@ -1261,11 +1263,14 @@ class AgentHarness:
     # ── pretty step rendering ────────────────────────────────────────────
     def _render_step(self, step: int, name: str, args: Dict[str, Any], result: Dict[str, Any]) -> None:
         ok = result.get("success")
-        marker = "[bold green]✓[/bold green]" if ok else "[bold red]✗[/bold red]"
+        marker = "[bold green][OK][/bold green]" if ok else "[bold red][FAIL][/bold red]"
         arg_repr = json.dumps(args, ensure_ascii=False)
         if len(arg_repr) > 200:
             arg_repr = arg_repr[:200] + "..."
-        self.console.print(f"  {marker} [cyan]{step:02d}[/cyan] [bold]{name}[/bold]  [dim]{arg_repr}[/dim]")
+        try:
+            self.console.print(f"  {marker} [cyan]{step:02d}[/cyan] [bold]{name}[/bold]  [dim]{arg_repr}[/dim]")
+        except Exception:
+            pass
         body = result.get("output") if ok else result.get("error")
         if body:
             body = str(body)
@@ -1318,8 +1323,6 @@ class AgentHarness:
         finished_summary: Optional[str] = None
 
         for step in range(1, self.max_steps + 1):
-            is_mimo = bool(self.mimo and brain_client is getattr(self.mimo, "client", None))
-            extra = {"extra_body": {"thinking": {"type": "disabled"}}} if is_mimo else {}
             try:
                 resp = await loop.run_in_executor(
                     None,
@@ -1328,11 +1331,8 @@ class AgentHarness:
                         messages=messages,
                         tools=TOOL_SCHEMAS,
                         tool_choice="auto",
-                        max_completion_tokens=2048 if is_mimo else None,
-                        max_tokens=None if is_mimo else 2048,
-                        temperature=0.4,
-                        top_p=0.95,
-                        **extra,
+                        max_tokens=2048,
+                        temperature=0.2,
                     ),
                 )
             except TypeError:
@@ -1483,10 +1483,10 @@ class AgentHarness:
                         critique_lines.append("Recommended Action: " + "; ".join(action_steps))
                     if critique_lines:
                         crit_body = "\n".join(critique_lines)
-                        self.console.print(Panel(crit_body, title=f"[bold yellow]APEX-GENIUS // Cognitive Critique (Step {step})[/bold yellow]", border_style="yellow"))
+                        self.console.print(Panel(crit_body, title=f"[bold yellow]APEX-RAPHAEL // Lord of Wisdom (Step {step})[/bold yellow]", border_style="yellow"))
                         messages.append({
                             "role": "user",
-                            "content": f"[GENIUS-CRITIQUE]\n{crit_body}",
+                            "content": f"[RAPHAEL-CRITIQUE]\n{crit_body}",
                         })
                 except Exception:
                     pass

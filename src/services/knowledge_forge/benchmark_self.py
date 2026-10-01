@@ -222,7 +222,7 @@ class SelfBenchmark:
                 models.append({"label": "gemini-3.5-flash", "id": "gemini-3.5-flash", "provider": "gemini"})
                 models.append({"label": "gemini-2.5-flash-lite", "id": "gemini-2.5-flash-lite", "provider": "gemini"})
             if self.groq:
-                models.append({"label": "groq-llama-3.1-8b", "id": "llama-3.1-8b-instant", "provider": "groq"})
+                models.append({"label": "groq-compound-mini", "id": "groq/compound-mini", "provider": "groq"})
 
         if not models:
             self._log("no models configured (missing API keys)", level="warn")

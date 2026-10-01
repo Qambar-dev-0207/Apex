@@ -33,7 +33,11 @@ PROPOSAL_SCHEMA = """
 
 class CapabilitySynthesizer:
     """
-    Bridges PaperReader + EcosystemWatcher output to actionable APEX patches.
+    [Predator Absorption & Synthesis Engine]
+    Inspired by Rimuru's Ultimate/Unique skill [Predator / Gluttony].
+    Swallows, analyzes, and synthesizes external papers and ecosystem packages
+    into actionable, queue-ready APEX sovereign capabilities.
+
     Always-queue mode: writes proposals to data/forge/proposals.json — never
     auto-applies. The user reviews via /forge proposals and approves manually.
     """

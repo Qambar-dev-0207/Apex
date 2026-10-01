@@ -30,7 +30,7 @@ backups/
 graphify-out/
 *.svg
 image.png
-
+Apex_Project_Synopsis.docx
 # Data Directory (Runtime artifacts)
 data/
 

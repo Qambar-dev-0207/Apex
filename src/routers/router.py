@@ -151,14 +151,24 @@ class InputClassifier:
         t = text.lower()
         intent = "chat"
         vision = any(k in t for k in ["see", "screen", "look", "this"])
-        complexity = "high" if (len(text) > 80 or any(w in t for w in ["complex", "optimize", "rewrite", "scrape", "refactor"])) else "low"
-        if matched_skill: intent = "skill_activation"
-        elif "git" in t: intent = "git"
-        elif any(k in t for k in ["search", "grep", "find in file"]): intent = "search"
-        elif any(k in t for k in ["write", "code", "create file", "delete"]): intent = "coding"
-        elif any(k in t for k in ["scan", "explore", "list", "what is", "tell me about"]): 
+        complexity = "high" if (len(text) > 80 or any(w in t for w in ["complex", "optimize", "rewrite", "scrape", "refactor", "audit", "system-wide"])) else "low"
+        if matched_skill:
+            intent = "skill_activation"
+            requires_tools = True
+        elif any(k in t for k in ["git", "working tree", "status", "commit", "branch", "diff", "checkout", "pull", "push"]):
+            intent = "git"
+            requires_tools = True
+        elif any(k in t for k in ["search", "grep", "find in file"]):
+            intent = "search"
+            requires_tools = True
+        elif any(k in t for k in ["write", "code", "create file", "delete", "edit", "implement", "fix"]):
+            intent = "coding"
+            requires_tools = True
+        elif any(k in t for k in ["scan", "explore", "inspect", "list", "what is", "tell me about", "audit"]): 
             return {"intent": "exploration", "complexity": "high", "priority": 2, "requires_tools": True, "requires_vision": vision, "autonomous_skill_id": matched_skill.name if matched_skill else None}
-        return {"intent": intent, "complexity": complexity, "priority": 3, "requires_tools": intent != "chat", "requires_vision": vision, "autonomous_skill_id": matched_skill.name if matched_skill else None}
+        else:
+            requires_tools = False
+        return {"intent": intent, "complexity": complexity, "priority": 3, "requires_tools": requires_tools, "requires_vision": vision, "autonomous_skill_id": matched_skill.name if matched_skill else None}
 
 class SmartRouter:
     def route(self, classification: Dict[str, Any], user_input: str = "") -> str:

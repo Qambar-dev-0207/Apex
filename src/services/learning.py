@@ -50,13 +50,18 @@ class SkillManager:
         )
 
     def add_skill(self, skill: Skill):
+        meta = {
+            "name": skill.name,
+            "description": skill.description,
+            "plan_template": skill.plan_template.model_dump_json(),
+            "tier": skill.tier,
+            "usage_count": skill.usage_count,
+            "ultimate_name": skill.ultimate_name or "",
+            "evolution_history": json.dumps(skill.evolution_history)
+        }
         self.collection.add(
             documents=[skill.query_pattern],
-            metadatas=[{
-                "name": skill.name,
-                "description": skill.description,
-                "plan_template": skill.plan_template.model_dump_json()
-            }],
+            metadatas=[meta],
             ids=[skill.name]
         )
 
@@ -67,20 +72,108 @@ class SkillManager:
         )
         if results['documents'] and results['documents'][0] and results['distances'][0][0] < threshold:
             meta = results['metadatas'][0][0]
+            evo_hist = []
+            try:
+                if meta.get('evolution_history'):
+                    evo_hist = json.loads(meta['evolution_history'])
+            except Exception:
+                evo_hist = []
             return Skill(
                 name=meta['name'],
                 description=meta['description'],
                 query_pattern=results['documents'][0][0],
-                plan_template=ExecutionPlan.model_validate_json(meta['plan_template'])
+                plan_template=ExecutionPlan.model_validate_json(meta['plan_template']),
+                tier=meta.get('tier', 'Common'),
+                usage_count=int(meta.get('usage_count', 1)),
+                ultimate_name=meta.get('ultimate_name') or None,
+                evolution_history=evo_hist
             )
         return None
+
+    def reinforce_skill(self, skill: Skill) -> Optional[str]:
+        """
+        Increments skill usage and evaluates Tensura tier promotion (Common -> Extra -> Unique -> Ultimate).
+        Updates ChromaDB collection with the evolved metadata.
+        """
+        promo = skill.reinforce()
+        meta = {
+            "name": skill.name,
+            "description": skill.description,
+            "plan_template": skill.plan_template.model_dump_json(),
+            "tier": skill.tier,
+            "usage_count": skill.usage_count,
+            "ultimate_name": skill.ultimate_name or "",
+            "evolution_history": json.dumps(skill.evolution_history)
+        }
+        try:
+            self.collection.update(
+                ids=[skill.name],
+                documents=[skill.query_pattern],
+                metadatas=[meta]
+            )
+        except Exception:
+            # Fallback if update isn't supported or ID missing
+            try:
+                self.collection.upsert(
+                    ids=[skill.name],
+                    documents=[skill.query_pattern],
+                    metadatas=[meta]
+                )
+            except Exception:
+                pass
+        return promo
+
+    def evolve_skill_with_raphael(self, skill: Skill, evolved_plan: ExecutionPlan, evolution_note: str, ultimate_name: Optional[str] = None):
+        """
+        Synthesizes an evolved skill DAG following a Raphael critique/rewrite.
+        Promotes the skill tier to Unique or Ultimate.
+        """
+        old_tier = skill.tier
+        skill.plan_template = evolved_plan
+        if ultimate_name:
+            skill.ultimate_name = ultimate_name
+            skill.tier = "Ultimate"
+        elif skill.tier in ("Common", "Extra"):
+            skill.tier = "Unique"
+        else:
+            skill.tier = "Ultimate"
+        
+        entry = f"Raphael Synthesis [{old_tier} → {skill.tier}]: {evolution_note}"
+        skill.evolution_history.append(entry)
+        
+        meta = {
+            "name": skill.name,
+            "description": skill.description,
+            "plan_template": skill.plan_template.model_dump_json(),
+            "tier": skill.tier,
+            "usage_count": skill.usage_count,
+            "ultimate_name": skill.ultimate_name or "",
+            "evolution_history": json.dumps(skill.evolution_history)
+        }
+        self.collection.upsert(
+            ids=[skill.name],
+            documents=[skill.query_pattern],
+            metadatas=[meta]
+        )
+        try:
+            from src.core.animations import skill_evolution_banner
+            skill_evolution_banner(
+                skill_name=skill.name,
+                old_tier=old_tier,
+                new_tier=skill.tier,
+                uses=skill.usage_count,
+                ultimate_name=skill.ultimate_name
+            )
+        except Exception:
+            pass
 
 class LearningManager:
     """
     Central manager for self-improvement logic.
     """
-    def __init__(self, memory_manager: MemoryManager):
+    def __init__(self, memory_manager: MemoryManager, console=None):
         self.memory = memory_manager
+        self.console = console
         self.failure_logger = FailureLogger()
         self.skill_manager = SkillManager()
 
@@ -98,27 +191,56 @@ class LearningManager:
                     name=f"skill_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
                     description=f"Automated skill for: {plan.summary}",
                     query_pattern=query,
-                    plan_template=plan
+                    plan_template=plan,
+                    tier="Common",
+                    usage_count=1
                 )
                 self.skill_manager.add_skill(new_skill)
-                print(f"[Learning] New skill created: {new_skill.name}")
+                print(f"[Learning] New skill created: {new_skill.name} [Tier: {new_skill.tier}]")
             else:
-                print(f"[Learning] Skill reinforced: {existing_skill.name}")
+                old_tier = existing_skill.tier
+                promo = self.skill_manager.reinforce_skill(existing_skill)
+                if promo:
+                    try:
+                        from src.core.animations import skill_evolution_banner
+                        skill_evolution_banner(
+                            skill_name=existing_skill.name,
+                            old_tier=old_tier,
+                            new_tier=existing_skill.tier,
+                            uses=existing_skill.usage_count,
+                            console=self.console,
+                            ultimate_name=existing_skill.ultimate_name
+                        )
+                    except Exception:
+                        print(f"[Learning] 🌟 {promo}")
+                else:
+                    print(f"[Learning] Skill reinforced: {existing_skill.name} ({existing_skill.tier}, uses={existing_skill.usage_count})")
 
     def log_tool_failure(self, tool: str, input_data: str, error: str, session_id: str):
         self.failure_logger.log(tool, input_data, error, session_id)
 
     def seed_skills(self):
         """
-        Pre-populates the skill registry with high-tier templates.
+        Pre-populates and refreshes the skill registry with high-tier anime templates.
         """
         from src.core.skills_library import get_god_mode_skills
         for skill in get_god_mode_skills():
             try:
-                if not self.skill_manager.find_matching_skill(skill.query_pattern, threshold=0.01):
-                    self.skill_manager.add_skill(skill)
-                    print(f"[Seed] Skill initialized: {skill.name}")
-            except:
+                meta = {
+                    "name": skill.name,
+                    "description": skill.description,
+                    "plan_template": skill.plan_template.model_dump_json(),
+                    "tier": skill.tier,
+                    "usage_count": skill.usage_count,
+                    "ultimate_name": skill.ultimate_name or "",
+                    "evolution_history": json.dumps(skill.evolution_history)
+                }
+                self.skill_manager.collection.upsert(
+                    ids=[skill.name],
+                    documents=[skill.query_pattern],
+                    metadatas=[meta]
+                )
+            except Exception as e:
                 pass
 
     def load_markdown_skills(self, skills_dir: str):

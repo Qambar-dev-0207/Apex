@@ -18,7 +18,9 @@ class SpendTracker:
             "gemini-2.5-flash-lite": {"in": 0.06, "out": 0.18},
             "gemini-1.5-pro": {"in": 1.25, "out": 5.00},
             "llama-3.1-8b-instant": {"in": 0.05, "out": 0.08},
-            "llama-3.1-70b-versatile": {"in": 0.59, "out": 0.79}
+            "llama-3.1-70b-versatile": {"in": 0.59, "out": 0.79},
+            "groq/compound-mini": {"in": 0.05, "out": 0.08},
+            "llama-3.3-70b-versatile": {"in": 0.59, "out": 0.79}
         }
 
     def _init_db(self):

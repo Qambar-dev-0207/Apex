@@ -47,15 +47,15 @@ class MimoClient:
         load_dotenv()
         
         nvidia_key = os.getenv("NVIDIA_API_KEY")
-        if nvidia_key and nvidia_key.strip():
-            self.model = model or "z-ai/glm-5.2"
+        if nvidia_key and nvidia_key.strip() and os.getenv("USE_NVIDIA_MIMO", "0") == "1":
+            self.model = model or "meta/llama-3.3-70b-instruct"
             self.base_url = base_url or "https://integrate.api.nvidia.com/v1"
             self.api_key = nvidia_key
             self.is_nvidia = True
         else:
-            self.model = model or self.DEFAULT_MODEL
-            self.base_url = base_url or self.DEFAULT_BASE_URL
-            self.api_key = os.getenv(api_key_env)
+            self.model = model or "qwen/qwen3.6-27b"
+            self.base_url = base_url or "https://api.groq.com/openai/v1"
+            self.api_key = os.getenv("GROQ_API_KEY")
             self.is_nvidia = False
             
         self.thinking = thinking
