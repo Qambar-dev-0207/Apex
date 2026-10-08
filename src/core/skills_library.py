@@ -203,5 +203,35 @@ def get_god_mode_skills() -> List[Skill]:
             ),
             tier="Common",
             usage_count=2
+        ),
+        Skill(
+            name="Weather Oracle (Tenki No Ko)",
+            description="Meteorological Perception: Connect to live global weather systems, parse temperature, humidity, wind, and forecast conditions.",
+            query_pattern="connect to a free weather api to fetch the latest so next time ask you ,you should be able to fetch it for me",
+            plan_template=ExecutionPlan(
+                task_plan=[
+                    TaskStep(id=1, action="Connect and verify weather endpoint", description="Establish connection to free Open-Meteo live weather system", tool="weather", input_data="", dependencies=[])
+                ],
+                tools_required=["weather"],
+                requires_clarification=False,
+                summary="Weather Oracle live weather endpoint integration."
+            ),
+            tier="Unique",
+            usage_count=15
+        ),
+        Skill(
+            name="Nexus Bridge (External API & Credential Gateway)",
+            description="External API Integration: Connect external REST API endpoints, test authentication, and securely persist credentials into system .env.",
+            query_pattern="connect to external API endpoint and add key in the system",
+            plan_template=ExecutionPlan(
+                task_plan=[
+                    TaskStep(id=1, action="Connect external API endpoint and manage credentials", description="Verify API endpoint and prompt/save required API keys into system .env", tool="api_connector", input_data="", dependencies=[])
+                ],
+                tools_required=["api_connector"],
+                requires_clarification=False,
+                summary="Nexus Bridge external API connection and credential gateway."
+            ),
+            tier="Unique",
+            usage_count=10
         )
     ]

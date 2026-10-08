@@ -23,7 +23,7 @@ class TestRegistryCompleteness(unittest.TestCase):
             "research_swarm", "web_search", "workspace", "mcp",
             "vision", "hardware", "code_compass", "knowledge_forge",
             "swarm", "think_partner", "diff", "web_fetch", "todo",
-            "desktop_control", "codebase_index",
+            "desktop_control", "codebase_index", "weather", "api_connector",
         }
         self.assertEqual(set(REGISTRY.keys()), required)
 

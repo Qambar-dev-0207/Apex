@@ -598,6 +598,8 @@ class Reflex:
             "code_compass": "exploration",
             "knowledge_forge": "search",
             "todo": "chat",
+            "weather": "search",
+            "api_connector": "exploration",
         }.get(tool, "chat")
 
     def _apply_vision_flags(self, d: ReflexDecision, low: str):

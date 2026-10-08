@@ -216,6 +216,29 @@ REGISTRY: Dict[str, ToolSpec] = {
             "codebase_index:index input_data='rebuild'",
         ],
     ),
+    "weather": ToolSpec(
+        name="weather",
+        aliases=["meteo", "forecast", "climate", "temperature", "weather_api"],
+        actions=["current", "forecast", "connect"],
+        input_schema="city/location name string or JSON {'location': str, 'days': int, 'provider': str}",
+        when_to_use="Fetch real-time weather conditions, temperature, or multi-day forecasts for any city worldwide using free or configured weather APIs.",
+        examples=[
+            "weather:current input_data='London'",
+            "weather:forecast input_data='{\"location\": \"Tokyo\", \"days\": 3}'",
+            "weather:connect input_data=''",
+        ],
+    ),
+    "api_connector": ToolSpec(
+        name="api_connector",
+        aliases=["api", "endpoint", "connect_api", "env_manager", "credentials"],
+        actions=["connect", "save_key", "call", "list", "request_key"],
+        input_schema="JSON with endpoint URL, key_name/key_value, or connection configuration",
+        when_to_use="Connect APEX with external API endpoints, verify connectivity, and securely manage or prompt for API keys in system .env.",
+        examples=[
+            "api_connector:connect input_data='{\"url\": \"https://api.open-meteo.com/v1/forecast\", \"name\": \"weather\"}'",
+            "api_connector:save_key input_data='{\"key_name\": \"WEATHER_API_KEY\", \"key_value\": \"sk-...\"}'",
+        ],
+    ),
 }
 
 

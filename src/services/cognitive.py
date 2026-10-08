@@ -27,6 +27,55 @@ class EmotionalCore:
         """Zero-cost default — used by economy mode to skip LLM analyze_user."""
         return EmotionalState(sentiment="neutral", cognitive_load="low", velocity_mps=velocity)
 
+    def analyze_input(self, text: str, velocity: float = 0.0) -> EmotionalState:
+        """
+        Synchronously analyzes user input and interaction velocity without blocking
+        the planning loop. Performs fast heuristic sentiment and cognitive load detection,
+        synthesizes APEX's complementary affective state, and updates internal state.
+        """
+        text_lower = (text or "").lower()
+        sentiment = "neutral"
+        cognitive_load = "low"
+        flow_active = False
+
+        # Fast sentiment heuristics
+        if any(w in text_lower for w in ["hurry", "urgent", "asap", "deadline", "fast", "pressure", "broken", "critical"]):
+            sentiment = "stressed"
+            cognitive_load = "high"
+        elif any(w in text_lower for w in ["error", "fail", "not working", "why", "stuck", "frustrated", "bug", "crash", "wrong", "broke"]):
+            sentiment = "frustrated"
+            cognitive_load = "medium"
+        elif any(w in text_lower for w in ["awesome", "great", "cool", "excited", "wow", "love", "let's go", "nice", "amazing", "super"]):
+            sentiment = "excited"
+            cognitive_load = "low"
+
+        # Complexity / cognitive load scaling
+        word_count = len(text_lower.split())
+        if word_count > 40:
+            cognitive_load = "high"
+        elif word_count > 15:
+            if cognitive_load == "low":
+                cognitive_load = "medium"
+
+        if velocity > 0.1 and cognitive_load in ["medium", "high"]:
+            flow_active = True
+
+        user_state = EmotionalState(
+            sentiment=sentiment,
+            cognitive_load=cognitive_load,
+            flow_active=flow_active,
+            velocity_mps=velocity,
+        )
+        self.synthesize_apex_state(user_state)
+        return user_state
+
+    def get_system_personality_prompt(self) -> str:
+        """
+        Returns a system-prompt fragment encoding APEX's current emotional tone and persona.
+        Used by the thinking path and plan generator.
+        """
+        return self.style_directive(self.last_apex_state)
+
     async def analyze_user(self, message: str, velocity: float) -> EmotionalState:
         if not self.client:
             return EmotionalState(sentiment="neutral", cognitive_load="low", velocity_mps=velocity)

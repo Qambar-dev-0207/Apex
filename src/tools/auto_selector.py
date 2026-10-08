@@ -133,6 +133,16 @@ _PATTERNS: List[Tuple[re.Pattern, str, str, Any]] = [
     (re.compile(r"^\s*(?:todos?|tasks?)\s*$", re.I), "todo", "list", _empty),
     (re.compile(r"^\s*(?:todos?|tasks?)\s+list\s*$", re.I), "todo", "list", _empty),
     (re.compile(r"^\s*(?:add\s+todo|todo\s+add)\s+(?P<arg>.+)$", re.I), "todo", "add", _passthrough),
+
+    # weather
+    (re.compile(r"^\s*connect\s+to\s+(?:a\s+)?(?:free\s+)?weather\s+api.*$", re.I), "weather", "connect", _empty),
+    (re.compile(r"^\s*(?:what(?:'s|\s+is)\s+the\s+)?weather\s+(?:like\s+)?(?:in|at|for)\s+(?P<arg>[a-zA-Z\s,.-]+?)\s*\??$", re.I), "weather", "current", _passthrough),
+    (re.compile(r"^\s*(?:weather\s+)?forecast\s+(?:in|at|for)\s+(?P<arg>[a-zA-Z\s,.-]+?)\s*\??$", re.I), "weather", "forecast", _passthrough),
+    (re.compile(r"^\s*temperature\s+(?:in|at|for)\s+(?P<arg>[a-zA-Z\s,.-]+?)\s*\??$", re.I), "weather", "current", _passthrough),
+
+    # api_connector
+    (re.compile(r"^\s*(?:save|add|set)\s+(?:api\s+)?key\s+(?P<arg>.+)$", re.I), "api_connector", "save_key", _passthrough),
+    (re.compile(r"^\s*connect\s+(?:to\s+)?(?:external\s+)?api\s+(?P<arg>.+)$", re.I), "api_connector", "connect", _passthrough),
 ]
 
 

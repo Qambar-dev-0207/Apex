@@ -21,6 +21,8 @@ from src.services.learning import SkillManager
 from src.tools.filesystem import FilesystemAgent
 from src.tools.shell import ShellAgent
 from src.tools.mcp_client import MCPClient
+from src.tools.weather_tool import WeatherTool
+from src.tools.api_connector import ApiConnectorTool
 from src.tools.registry import resolve_tool_name, ToolTelemetry, get_spec
 from src.core.reflex import Reflex
 from dotenv import load_dotenv
@@ -274,6 +276,8 @@ class ParallelExecutor:
         self.think_partner = think_partner
         from src.tools.codebase_index import CodebaseIndexTool
         self.codebase_index = CodebaseIndexTool(indexer=codebase_indexer)
+        self.weather = WeatherTool()
+        self.api_connector = ApiConnectorTool()
         self.primary = primary_brain
         self.console = console
         self.concurrency_limit = asyncio.Semaphore(10)
@@ -598,6 +602,10 @@ class ParallelExecutor:
                         else:
                             tp_res = await method(prompt_text)
                             res["output"] = tp_res.get("output", json.dumps(tp_res, indent=2)[:4000])
+                elif step['tool'] == "weather":
+                    res.update(await self.weather.execute(step['action'], step['input_data']))
+                elif step['tool'] == "api_connector":
+                    res.update(await self.api_connector.execute(step['action'], step['input_data']))
                 else:
                     spec = get_spec(step['tool'])
                     hint = ""
