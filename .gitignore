@@ -28,13 +28,18 @@ ENV/
 .apex_history
 backups/
 graphify-out/
+scratch/
 *.svg
 image.png
 Apex_Project_Synopsis.docx
 # Data Directory (Runtime artifacts)
 data/
+*.log
+*.tmp
+apex_*_test.txt
 
 # IDEs
 .vscode/
 .idea/
 .claude/
+
