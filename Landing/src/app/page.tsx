@@ -392,29 +392,6 @@ export default function Home() {
               </MagneticCTA>
             </motion.div>
 
-            {/* Social Proof Strip */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.6, delay: 0.4 }}
-              className="flex items-center justify-center gap-3 text-xs text-[#545454] font-mono mb-16"
-            >
-              <div className="flex -space-x-2">
-                {["#FF3700", "#000000", "#262626", "#545454"].map((color, i) => (
-                  <div
-                    key={i}
-                    className="w-7 h-7 rounded-full border-2 border-white flex items-center justify-center text-[9px] font-bold text-white shadow-xs"
-                    style={{ backgroundColor: color }}
-                  >
-                    Ax
-                  </div>
-                ))}
-              </div>
-              <span className="font-semibold text-[#000000]">Trusted by Leaders</span>
-              <span className="text-[#FF3700] tracking-widest font-bold">★★★★★</span>
-              <span className="text-[#D9D9D9]">|</span>
-              <span>Zero Hallucination SLA</span>
-            </motion.div>
 
             {/* ─── Hero Showcase Card (Hanzo Browser Container) ─── */}
             <motion.div
