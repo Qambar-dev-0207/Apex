@@ -120,6 +120,14 @@ class InputClassifier:
         INPUT: {text}
         SKILL_MATCH: {skill.name if skill else 'None'}
 
+        RULES:
+        - "exploration": ANY request to explore, deep-dive, understand, inspect, scan, explain, or audit the current project/codebase/files (e.g. "do a deep dive understanding everything about this project", "explain this codebase", "what does this project do"). For exploration: requires_tools MUST be true, complexity MUST be high.
+        - "coding": creating, modifying, editing, refactoring, fixing code or files. requires_tools MUST be true.
+        - "git": git status, diff, commit, log, branch. requires_tools MUST be true.
+        - "search": searching web or grepping files. requires_tools MUST be true.
+        - "skill_activation": matches an existing sovereign skill.
+        - "chat": ONLY casual greetings, jokes, or non-technical chit-chat unrelated to the project.
+
         Output MUST be valid JSON with these keys:
         - intent: (chat, coding, search, git, exploration, skill_activation)
         - complexity: (low, medium, high)
@@ -129,11 +137,21 @@ class InputClassifier:
         - autonomous_skill_id: (string or null)
         """
         try:
-            res = self.client.models.generate_content(
-                model=self.model_id,
-                contents=prompt,
-                config={'response_mime_type': 'application/json'}
-            )
+            models_to_try = [self.model_id, "gemini-3.8-flash", "gemini-2.5-flash", "gemini-flash-latest"]
+            res = None
+            for m in models_to_try:
+                try:
+                    res = self.client.models.generate_content(
+                        model=m,
+                        contents=prompt,
+                        config={'response_mime_type': 'application/json'}
+                    )
+                    if res and res.text:
+                        break
+                except Exception:
+                    continue
+            if not res or not res.text:
+                return self._heuristic_classify(text, skill)
             classification = json.loads(res.text)
             if skill and not classification.get('autonomous_skill_id'):
                 classification['autonomous_skill_id'] = skill.name
@@ -164,7 +182,11 @@ class InputClassifier:
         elif any(k in t for k in ["write", "code", "create file", "delete", "edit", "implement", "fix"]):
             intent = "coding"
             requires_tools = True
-        elif any(k in t for k in ["scan", "explore", "inspect", "list", "what is", "tell me about", "audit"]): 
+        elif any(k in t for k in [
+            "scan", "explore", "inspect", "list", "what is", "tell me about", "audit",
+            "deep dive", "deepdive", "understand", "overview", "walkthrough", "codebase",
+            "this project", "the project", "this repo", "the repo", "architecture"
+        ]): 
             return {"intent": "exploration", "complexity": "high", "priority": 2, "requires_tools": True, "requires_vision": vision, "autonomous_skill_id": matched_skill.name if matched_skill else None}
         else:
             requires_tools = False
@@ -179,6 +201,13 @@ class SmartRouter:
             or os.getenv("APEX_OFFLINE", "0") == "1"
             or not (os.getenv("GEMINI_API_KEY") or os.getenv("GROQ_API_KEY"))
         )
+
+        low_input = (user_input or "").lower()
+        if any(phrase in low_input for phrase in [
+            "this project", "the project", "this codebase", "the codebase",
+            "this repo", "the repo", "deep dive", "deepdive", "understand everything"
+        ]):
+            return "thinking_path"
 
         # Reflex path takes precedence ONLY when it's high-confidence (needs_llm is False).
         reflex = classification.get("_reflex") or {}

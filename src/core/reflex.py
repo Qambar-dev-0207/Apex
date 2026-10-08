@@ -60,7 +60,9 @@ INTENT_PROTOTYPES: Dict[str, List[str]] = {
                     "show diff", "checkout branch", "git log"],
     "exploration": ["analyze project", "what is in this repo",
                     "summarize codebase", "explore the project",
-                    "scan workspace"],
+                    "scan workspace", "deep dive understanding everything about this project",
+                    "do a deep dive", "understand this project", "explain this project",
+                    "overview of the codebase", "walkthrough of this project"],
     "vision":      ["look at screen", "describe this image",
                     "what's on screen", "ocr this", "see my screen"],
     "media":       ["transcribe", "describe video",
@@ -126,7 +128,8 @@ MEDIA_EXTS = (".png", ".jpg", ".jpeg", ".webp", ".gif",
 COMPLEX_HINTS = (
     "design", "architect", "refactor", "migrate", "audit",
     "optimize", "benchmark", "compare", "trade-off", "strategy",
-    "plan", "blueprint", "swarm", "multi-step",
+    "plan", "blueprint", "swarm", "multi-step", "deep dive", "deepdive",
+    "understand", "codebase", "this project", "everything about",
 )
 TRIVIAL_HINTS = (
     "ls", "pwd", "time", "date", "hello", "hi", "what time",
@@ -462,6 +465,20 @@ class Reflex:
             d.source_kind = "regex"
             d.sources.append("regex:casual")
             d.needs_llm = False  # deterministic intent — no Gemini classify needed
+            return d
+
+        # Stage A.2 — project exploration / deep-dive intent
+        if re.search(r"\b(deep\s*dive|understand(ing)?\s+(everything\s+about\s+)?|explain\s+|what\s+is\s+|overview\s+of\s+)(this|the)?\s*(project|codebase|repo|workspace)\b", low):
+            d.intent = "exploration"
+            d.path = "thinking_path"
+            d.complexity = "high"
+            d.priority = 1
+            d.requires_tools = True
+            d.requires_memory = True
+            d.confidence = 0.96
+            d.needs_llm = True
+            d.prefetch_hint = ["workspace", "compass"]
+            d.sources.append("regex:project_deep_dive")
             return d
 
         # Stage B — regex tool match (instant single-tool intents). Deterministic.

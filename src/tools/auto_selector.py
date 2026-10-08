@@ -106,7 +106,7 @@ _PATTERNS: List[Tuple[re.Pattern, str, str, Any]] = [
      "web_search", "search", _passthrough),
 
     # workspace
-    (re.compile(r"^\s*(?:project\s+summary|workspace\s+summary|summarize\s+project)\s*$", re.I),
+    (re.compile(r"^\s*(?:project\s+summary|workspace\s+summary|summarize\s+project|(?:do\s+a\s+)?deep\s*dive(?:\s+understanding\s+everything\s+about)?\s+(?:this\s+)?(?:project|codebase|repo))\s*$", re.I),
      "workspace", "summarize", _empty),
     (re.compile(r"^\s*(?:scan\s+project|scan\s+workspace|rescan)\s*$", re.I),
      "workspace", "scan", _empty),

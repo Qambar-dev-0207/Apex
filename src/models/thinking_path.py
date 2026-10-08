@@ -251,6 +251,7 @@ class GeminiClient:
            - For all workspace requests (audits, builds, refactors, debugging, deployments): generate a clean, executable Execution Plan (DAG).
            - RESEARCH & DISCOVER FIRST: Use tools to inspect files and AST structures.
            - DIRECT EXECUTION & VALIDATION: Emit tasks that run real tools.
+           - ANCHORED PROJECT CONTEXT (CRITICAL): You are working directly in the project detailed under WORKSPACE CONTEXT. When the user asks to "understand this project", "do a deep dive", "audit this codebase", or asks about "this project/codebase", ALWAYS analyze the active workspace project directly. NEVER ask generic questions like "Could you tell me a bit more about the project you're referring to?". Use `workspace:summarize`, `filesystem:read`, or code compass tools if steps are needed, or provide a comprehensive synthesis from the WORKSPACE CONTEXT.
 
         4. OUTPUT SCHEMA (STRICT — emit ONLY this JSON shape, no markdown fences):
         {
@@ -275,12 +276,15 @@ class GeminiClient:
     async def generate_plan(self, user_query: str, session_id: str = "default_user",
                             file_paths: Optional[List[str]] = None,
                             emotional_state: Optional[EmotionalState] = None,
-                            skip_internal_context: bool = False) -> ExecutionPlan:
+                            skip_internal_context: bool = False,
+                            personality_prompt: Optional[str] = None,
+                            directives: Optional[str] = None,
+                            knowledge_context: Optional[str] = None,
+                            compass_context: Optional[str] = None,
+                            **kwargs) -> ExecutionPlan:
         """
-        `skip_internal_context=True` — caller already injected memory + project
-        context + directives (e.g. via PrefetchBundle.render_as_prompt_block).
-        Avoids double-fetching, which was bloating the prompt to 30K+ chars and
-        causing 20-30s Gemini round-trips for simple goals like "scan codebase".
+        Generates an ExecutionPlan using Gemini 3.1 Pro.
+        Accepts dynamic workspace directives, prefetch knowledge, and compass contexts.
         """
         # Initial variable to ensure it exists in the exception scope
         full_prompt = f"ARCHITECT'S INPUT: {user_query}"
@@ -292,32 +296,34 @@ class GeminiClient:
             if skill and not self.socratic_mode and not self.steelman_mode and not file_paths:
                 return skill.plan_template
 
-            # 2. Context Builder — skipped when caller pre-supplied context.
+            active_project = self.workspace.get_active()
+
+            if personality_prompt:
+                self.apex_state_directive = personality_prompt
+
+            # 2. Context Builder
             if skip_internal_context:
-                history_context = ""
-                project_context = ""
-                directives_block = ""
-                active_project = self.workspace.get_active()  # still needed by emotional_block below
+                history_context = knowledge_context or ""
+                directives_block = f"\n--- PROJECT DIRECTIVES ---\n{directives}\n--- END PROJECT DIRECTIVES ---\n" if directives else ""
             else:
-                active_project = self.workspace.get_active()
                 history_context = await self.memory.get_relevant_context(
                     user_query, session_id, project_name=active_project.name if active_project else None
                 )
-                project_context = ""
-                directives_block = ""
-                if active_project:
-                    project_context = (
-                        f"\n--- WORKSPACE CONTEXT ---\n"
-                        f"{self.workspace.get_project_context_summary(active_project.name)}\n"
-                        f"--- END WORKSPACE CONTEXT ---\n"
-                    )
-                    directives = self.workspace.get_directives(active_project.name)
-                    if directives:
-                        directives_block = (
-                            f"\n--- PROJECT DIRECTIVES ---\n"
-                            f"{directives}\n"
-                            f"--- END PROJECT DIRECTIVES ---\n"
-                        )
+                if knowledge_context:
+                    history_context = f"{history_context}\n{knowledge_context}".strip()
+                active_directives = directives or (self.workspace.get_directives(active_project.name) if active_project else "")
+                directives_block = f"\n--- PROJECT DIRECTIVES ---\n{active_directives}\n--- END PROJECT DIRECTIVES ---\n" if active_directives else ""
+
+            # Always anchor the active project workspace context
+            project_context = ""
+            if active_project:
+                project_context = (
+                    f"\n--- WORKSPACE CONTEXT: {active_project.name} ---\n"
+                    f"{self.workspace.get_project_context_summary(active_project.name, include_directives=True)}\n"
+                    f"--- END WORKSPACE CONTEXT ---\n"
+                )
+
+            compass_block = f"\n--- CODE COMPASS (compressed symbol map) ---\n{compass_context}\n" if compass_context else ""
             
             # Dynamic Tool Context
             mcp_tools_context = ""
@@ -371,7 +377,8 @@ class GeminiClient:
             {instruction_block}
             {emotional_block}
 
-            {_cap(project_context, 5000)}
+            {_cap(project_context, 6000)}
+            {_cap(compass_block, 4000)}
 
             --- CONTEXTUAL MEMORIES ---
             {_cap(history_context, 5000)}
@@ -396,14 +403,28 @@ class GeminiClient:
                             # Direct text injection for MD, PY, etc.
                             contents.append(f"FILE_CONTENT ({path}):\n{data.decode('utf-8', errors='ignore')}")
             
-            # 4. Call Gemini
-            response = self.client.models.generate_content(
-                model=self.model_id,
-                contents=contents,
-                config={'response_mime_type': 'application/json'}
-            )
-            
-            return parse_plan_response(response.text)
+            # 4. Call Gemini with fallback models if primary hits quota or 404/503
+            models_to_try = [self.model_id]
+            for candidate in ("gemini-3.1-pro", "gemini-3.8-flash", "gemini-2.5-flash", "gemini-flash-latest"):
+                if candidate not in models_to_try:
+                    models_to_try.append(candidate)
+
+            last_gemini_err = None
+            for m in models_to_try:
+                try:
+                    response = self.client.models.generate_content(
+                        model=m,
+                        contents=contents,
+                        config={'response_mime_type': 'application/json'}
+                    )
+                    if response and response.text:
+                        return parse_plan_response(response.text)
+                except Exception as g_err:
+                    last_gemini_err = g_err
+                    continue
+
+            if last_gemini_err:
+                raise last_gemini_err
         except Exception as e:
             err_str = str(e)
             threat = detect_threat(err_str)

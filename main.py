@@ -846,7 +846,14 @@ class APEXEngine:
                     )
                     # Include project directives if prefetch is active (same shape as thinking path)
                     _tp_is_offline = os.getenv("APEX_OFFLINE", "0") == "1"
-                    _casual_prompt = f"{context}\n\nUser: {user_input}"
+                    _proj_ctx = ""
+                    if active_proj:
+                        _proj_ctx = (
+                            f"CURRENT ACTIVE PROJECT: '{active_proj.name}' at '{active_proj.root_dir}'.\n"
+                            f"Files in workspace ({len(active_proj.file_tree)}): {', '.join(active_proj.file_tree[:40])}\n"
+                            f"{directives_block}\n"
+                        )
+                    _casual_prompt = f"{_proj_ctx}{context}\n\nUser: {user_input}"
                     if _tp_is_offline:
                         response = engine.ollama_client.get_completion(_casual_prompt)
                         _casual_model = engine.ollama_client.llm_model
@@ -1076,11 +1083,14 @@ class APEXEngine:
                                 asyncio.create_task(engine.knowledge_visualizer.extract_knowledge(user_input, response))
                             return True
                 elif path == "thinking_path" and not engine.gemini_client:
-                    console.print("[yellow]Gemini offline — falling back to Groq fast-path.[/yellow]")
-                    context = await engine.memory_manager.get_relevant_context(
-                        user_input, engine.session_id, project_name=active_proj.name if active_proj else None
-                    )
-                    response = engine.groq_client.get_completion(f"{context}\n\nUser: {user_input}")
+                    _fallback_proj = ""
+                    if active_proj:
+                        _fallback_proj = (
+                            f"CURRENT ACTIVE PROJECT: '{active_proj.name}' at '{active_proj.root_dir}'.\n"
+                            f"Files in workspace ({len(active_proj.file_tree)}): {', '.join(active_proj.file_tree[:40])}\n"
+                            f"{directives_block}\n"
+                        )
+                    response = engine.groq_client.get_completion(f"{_fallback_proj}{context}\n\nUser: {user_input}")
                     engine.assembler.render_final_response(user_input, response, project=active_proj, vitals=vitals)
                     if engine.voice_enabled:
                         engine.voice.speak(response)

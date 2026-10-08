@@ -21,6 +21,9 @@ class SpendTracker:
             "gemini-1.5-pro": {"in": 1.25, "out": 5.00},
             "llama-3.1-8b-instant": {"in": 0.05, "out": 0.08},
             "llama-3.1-70b-versatile": {"in": 0.59, "out": 0.79},
+            "openai/gpt-oss-20b": {"in": 0.05, "out": 0.08},
+            "openai/gpt-oss-120b": {"in": 0.15, "out": 0.60},
+            "qwen/qwen3.8-27b": {"in": 0.10, "out": 0.20},
             "groq/compound-mini": {"in": 0.05, "out": 0.08},
             "llama-3.3-70b-versatile": {"in": 0.59, "out": 0.79}
         }

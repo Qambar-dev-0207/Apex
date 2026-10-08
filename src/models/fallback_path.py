@@ -94,6 +94,13 @@ class TertiaryReasoningClient:
         )
         text = await self.generate_response(prompt + instructions)
         if not text:
+            try:
+                from src.models.fast_path import GroqClient
+                groq = GroqClient(model="openai/gpt-oss-120b")
+                text = await groq.get_completion_async(prompt + instructions)
+            except Exception:
+                text = ""
+        if not text:
             return None
         try:
             clean = text.replace("```json", "").replace("```", "").strip()
