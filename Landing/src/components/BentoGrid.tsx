@@ -83,7 +83,7 @@ export default function BentoGrid() {
               Intent Normalizer &amp; Socratic Gate
             </h3>
             <p className="text-[#6B7280] text-sm leading-relaxed mt-3 max-w-lg">
-              Classifies objectives using Gemini 2.0 Flash, activates sovereign skills automatically, and forces Steelman critiques before execution.
+              Classifies objectives using Gemini 3.8 Flash, reasons with Gemini 3.1 Pro, activates sovereign skills automatically, and forces Steelman critiques before execution.
             </p>
           </div>
         </div>

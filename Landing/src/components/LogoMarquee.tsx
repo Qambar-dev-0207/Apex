@@ -2,7 +2,8 @@
 
 const LOGOS = [
   { name: "ANTHROPIC CLAUDE 3.7", abbr: "CL" },
-  { name: "GEMINI 2.0 FLASH", abbr: "GF" },
+  { name: "GEMINI 3.8 FLASH", abbr: "GF" },
+  { name: "GEMINI 3.1 PRO", abbr: "GP" },
   { name: "NVIDIA NIM HARNESS", abbr: "NV" },
   { name: "CHROMADB VECTOR", abbr: "CD" },
   { name: "REDIS WORKING CACHE", abbr: "RD" },

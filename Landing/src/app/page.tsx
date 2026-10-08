@@ -88,7 +88,7 @@ const PRESETS: PresetSpec[] = [
     description: "Resolves semantic intent, computes vector similarity in ChromaDB, and executes Socratic steelman rewrites.",
     logs: [
       "$ apex run router --input='tailor resume for Google SWE'",
-      "⏳ [Strategy] Parsing intent using Gemini 2.0 Flash...",
+      "⏳ [Strategy] Parsing intent using Gemini 3.8 Flash...",
       "🔍 [Router] Intent resolved: 'RESUME_TAILORING'.",
       "🔋 [Vitals] RAM: 32.4GB · Vector latency: 38ms.",
       "🟢 [Router] Skill compiled: 'resume_tailor_skill.json'.",
@@ -250,7 +250,7 @@ const CASE_STUDIES = [
     category: "AUTONOMOUS SYNTHESIS",
     stat: "12 Artifacts Synthesized",
     description: "Vector-driven job description parsing, gap analysis, and Socratic steelman rewriting with verified Google ATS compatibility.",
-    tag: "ChromaDB + Gemini 2.0",
+    tag: "ChromaDB + Gemini 3.8 Flash",
   },
   {
     title: "AST Code Compass Refactor Engine",

@@ -99,7 +99,8 @@ class SystemReadinessTest(unittest.TestCase):
         
         # STAGE 5: Cost Telemetry (L11)
         self.console.print("[yellow]STAGE 5: Cost & Usage Telemetry[/yellow]")
-        self.spend.log_interaction(session_id, "gemini-1.5-pro", 1000, 200)
+        self.spend.log_interaction(session_id, "gemini-3.1-pro", 1000, 200)
+        self.spend.log_interaction(session_id, "gemini-3.8-flash", 2000, 500)
         daily = self.spend.get_daily_spend()
         self.assertGreater(daily, 0)
         self.console.print(f"  [green]✓ Telemetry logged. Today's Spend: ${daily:.6f}[/green]")

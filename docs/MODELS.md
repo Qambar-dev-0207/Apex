@@ -6,8 +6,8 @@ Every brain in APEX has a specific role. No provider is used for everything — 
 
 ## Provider map
 
-| Google Gemini | `gemini-3.5-flash` | `src/models/thinking_path.py` | DAG planner, JSON-forced reasoning, vision, resume rewrite, genius critique |
-| Google Gemini | `gemini-2.5-flash-lite` | inline | Input classification, LLM auto-selector tier 2, summarize-before-drop |
+| Google Gemini (Thinking) | `gemini-3.1-pro` | `src/models/thinking_path.py` | DAG planner, high-complexity reasoning, JSON-forced architecture, genius critique |
+| Google Gemini (Fast) | `gemini-3.8-flash` | various | Input classification, auto-selector, vision, summaries, validation, research |
 | Groq | `llama-3.1-8b` | `src/models/fast_path.py` | Fast path streaming, AgentHarness fallback brain, GeniusMode fallback |
 | Groq | `whisper-large-v3` | `src/tools/vision.py` | Audio transcription |
 | Xiaomi MiMo | `mimo-v2.5-pro` | `src/models/mimo_path.py` | Code implementation (CodingPipeline), AgentHarness primary brain |
@@ -17,9 +17,9 @@ Every brain in APEX has a specific role. No provider is used for everything — 
 
 ---
 
-## Gemini 3.5 Flash (`src/models/thinking_path.py`)
+## Gemini 3.1 Pro & Gemini 3.8 Flash (`src/models/thinking_path.py`)
 
-**Used for:** planning, JSON generation, vision, analysis
+**Used for:** planning, JSON generation, vision, analysis, fast classification
 
 - `TimeContext.system_prefix()` + `tool_registry.get_prompt_block()` auto-injected into every call
 - `genius_mode` flag: multi-pass (hypothesis → counters → blind-spot → synthesis)

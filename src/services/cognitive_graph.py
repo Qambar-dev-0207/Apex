@@ -67,7 +67,7 @@ class KnowledgeVisualizer:
         """
         try:
             res = self.client.models.generate_content(
-                model="gemini-2.5-flash",
+                model="gemini-3.8-flash",
                 contents=prompt,
                 config={'response_mime_type': 'application/json'}
             )
@@ -174,7 +174,7 @@ class KnowledgeVisualizer:
             """
             try:
                 res = self.client.models.generate_content(
-                    model="gemini-2.5-flash-lite", 
+                    model="gemini-3.8-flash", 
                     contents=compression_prompt
                 )
                 return f"--- KNOWLEDGE GRAPH CONTEXT (COMPRESSED) ---\n{res.text.strip()}"

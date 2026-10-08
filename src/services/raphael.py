@@ -113,7 +113,7 @@ class Raphael:
     Returns structured analysis suitable for direct rendering or for feeding back into planning.
     """
 
-    DEFAULT_MODEL = "gemini-3.5-flash"
+    DEFAULT_MODEL = "gemini-3.1-pro"
 
     def __init__(self, model_name: str = DEFAULT_MODEL,
                  mimo_client=None, groq_client=None):
@@ -198,7 +198,7 @@ Scrutinize this path aggressively according to your specialty ({rival_name}).
                         )
                     except Exception:
                         return self.gemini.models.generate_content(
-                            model="gemini-2.5-flash",
+                            model="gemini-3.8-flash",
                             contents=user_content,
                             config={
                                 "system_instruction": SYSTEM_PROMPT,
@@ -334,7 +334,7 @@ Output valid JSON for an ExecutionPlan:
             try:
                 resp = await asyncio.to_thread(
                     self.gemini.models.generate_content,
-                    model="gemini-3.5-flash",
+                    model="gemini-3.1-pro",
                     contents=prompt,
                     config={"response_mime_type": "application/json"}
                 )

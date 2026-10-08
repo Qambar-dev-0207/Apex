@@ -36,8 +36,8 @@ class SelfEvolver:
         self.forge = forge
         api_key = os.getenv("GEMINI_API_KEY")
         self.client = genai.Client(api_key=api_key) if (genai and api_key) else None
-        self.model_id = "gemini-3.5-flash"
-        self.fallback_models = ["gemini-3.5-flash", "gemini-2.5-flash", "gemini-1.5-flash"]
+        self.model_id = "gemini-3.8-flash"
+        self.fallback_models = ["gemini-3.8-flash", "gemini-3.1-pro", "gemini-2.5-flash"]
 
         self.apex_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         self.last_input_time = time.time()

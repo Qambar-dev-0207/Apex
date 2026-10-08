@@ -153,9 +153,9 @@ class ThinkPartner:
         "next_action": str (suggested follow-up) }
     """
 
-    def __init__(self, console=None, model_id: str = "gemini-3.5-flash",
-                 deep_model_id: str = "gemini-3.5-flash",
-                 fast_model_id: str = "gemini-2.5-flash-lite"):
+    def __init__(self, console=None, model_id: str = "gemini-3.8-flash",
+                 deep_model_id: str = "gemini-3.1-pro",
+                 fast_model_id: str = "gemini-3.8-flash"):
         load_dotenv()
         self.console = console
         api_key = os.getenv("GEMINI_API_KEY")

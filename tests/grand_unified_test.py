@@ -113,7 +113,8 @@ class GrandUnifiedTest(unittest.TestCase):
         self.assertEqual(cached, "Cached Fibonacci Response")
         self.console.print("  [green]✓ Response Cache operational.[/green]")
 
-        self.spend.log_interaction(session_id, "gemini-1.5-pro", 5000, 1000)
+        self.spend.log_interaction(session_id, "gemini-3.1-pro", 5000, 1000)
+        self.spend.log_interaction(session_id, "gemini-3.8-flash", 3000, 800)
         daily = self.spend.get_daily_spend()
         self.assertGreater(daily, 0)
         self.console.print(f"  [green]✓ Spend Tracker operational. Today's Spend: ${daily:.6f}[/green]")

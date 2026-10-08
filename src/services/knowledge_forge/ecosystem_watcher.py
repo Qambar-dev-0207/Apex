@@ -59,7 +59,7 @@ class EcosystemWatcher:
 
         api_key = os.getenv("GEMINI_API_KEY")
         self.client = genai.Client(api_key=api_key) if (genai and api_key) else None
-        self.model_id = "gemini-2.5-flash-lite"
+        self.model_id = "gemini-3.8-flash"
 
     # ---------- helpers ----------
 

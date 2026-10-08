@@ -20,7 +20,7 @@ class AutoProvisioner:
         self.skill_manager = skill_manager
         self.mcp_client = mcp_client
         self.workspace = workspace
-        self.model_id = "gemini-2.5-flash-lite" # Optimized for cost/speed analysis
+        self.model_id = "gemini-3.8-flash" # Optimized for cost/speed analysis
 
     async def analyze_project_gaps(self, project_name: str) -> List[CapabilityGap]:
         """
@@ -93,7 +93,7 @@ class AutoProvisioner:
         
         try:
             res = self.client.models.generate_content(
-                model="gemini-3.5-flash", # Use higher reasoning for manifest generation
+                model="gemini-3.1-pro", # Use higher reasoning for manifest generation
                 contents=prompt,
                 config={'response_mime_type': 'application/json'}
             )
@@ -127,7 +127,7 @@ class AutoProvisioner:
         
         try:
             res = self.client.models.generate_content(
-                model="gemini-3.5-flash",
+                model="gemini-3.1-pro",
                 contents=prompt
             )
             code = res.text.replace("```python", "").replace("```", "").strip()

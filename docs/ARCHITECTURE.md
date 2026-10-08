@@ -45,7 +45,7 @@ Every layer ships with a fallback so degradation is graceful, not fatal.
 
 ## Brain layer
 
-### Primary planner — Gemini 2.5 Flash (`src/models/thinking_path.py`)
+### Primary planner — Gemini 3.1 Pro (`src/models/thinking_path.py`)
 - System prompt auto-prefixed with `TimeContext.system_prefix()` + `tool_registry.get_prompt_block()`
 - **Prompt Boundary Tags**: Encloses directives (`--- PROJECT DIRECTIVES ---` ... `--- END PROJECT DIRECTIVES ---`) and workspace context (`--- WORKSPACE CONTEXT ---` ... `--- END WORKSPACE CONTEXT ---`) in clear opening/closing tags to prevent LLM leaking/repetition.
 - **Conditional Directives**: Resolves directives early and prepends them to the thinking path plan prompt only when prefetch is active (`_has_prefetch` is `True`), avoiding context duplication.

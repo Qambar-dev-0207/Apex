@@ -266,8 +266,8 @@ class APEXEngine:
         self.codebase_indexer = CodebaseIndexer(self.memory_manager, self.workspace)
         self.repo_map_generator = RepoMapGenerator(root_dir=os.getcwd())
 
-        await _stage("Wiring brains — Gemini 3.5 / Groq / MiMo")
-        self.gemini_client = GeminiClient(model_name="gemini-3.5-flash", mcp_client=self.mcp_client) if os.getenv("GEMINI_API_KEY") else None
+        await _stage("Wiring brains — Gemini 3.1 Pro / Groq / MiMo")
+        self.gemini_client = GeminiClient(model_name="gemini-3.1-pro", mcp_client=self.mcp_client) if os.getenv("GEMINI_API_KEY") else None
         self.provisioner = AutoProvisioner(self.learning_manager.skill_manager, self.mcp_client, self.workspace)
 
         await _stage("Spawning parallel executor + 17 tools")
@@ -744,19 +744,40 @@ class APEXEngine:
                     await ticker.set("Heuristic classify (economy mode)")
                     classification = engine.classifier.heuristic_classify(user_input)
                 else:
-                    # check speculative prefetch
-                    prefetch_bundle = engine.classifier.reflex.check_prefetch(user_input)
-                    if prefetch_bundle is not None:
-                        await ticker.set("Speculative prefetch active")
-                        prefetch_results = await prefetch_bundle.wait_and_consume()
-
-                    await ticker.set("Classifying input")
-                    if prefetch_results.get("classification"):
-                        classification = prefetch_results["classification"]
-                    else:
+                    decision = await engine.classifier.reflex.decide(user_input)
+                    if not decision.needs_llm:
+                        await ticker.set("Reflex deterministic — skipping Gemini classify")
+                        classification = decision.to_classification()
+                    elif not decision.prefetch_hint:
+                        await ticker.set("Gemini classify (no prefetch — adaptive gate)")
                         classification = await engine.classifier.classify(user_input)
+                    else:
+                        active = engine.workspace.get_active()
+                        prefetch_bundle = PrefetchBundle(
+                            hints=decision.prefetch_hint,
+                            prompt=user_input,
+                            session_id=engine.session_id,
+                            memory_manager=engine.memory_manager,
+                            code_compass=engine.code_compass,
+                            workspace=engine.workspace,
+                            skill_manager=engine.classifier.skill_manager,
+                            active_project_name=active.name if active else None,
+                            reflex=engine.classifier.reflex,
+                        ).start()
 
-                    if classification.get("requires_memory"):
+                        await ticker.set(
+                            f"Prefetching {','.join(decision.prefetch_hint)} + Gemini classify in parallel"
+                        )
+                        classify_task = asyncio.create_task(
+                            engine.classifier.classify(user_input)
+                        )
+                        prefetch_results, classification = await asyncio.gather(
+                            prefetch_bundle.await_all(timeout=3.0),
+                            classify_task,
+                        )
+
+                    _reflex_meta = classification.get("_reflex") or {}
+                    if _reflex_meta.get("requires_memory", True):
                         if prefetch_results.get("memory"):
                             pruned_knowledge = prefetch_results["memory"]
                         else:
@@ -1026,7 +1047,7 @@ class APEXEngine:
                                 _plan_model = engine.ollama_client.llm_model
                             else:
                                 response = engine.groq_client.get_completion(synthesis_prompt)
-                                _plan_model = "gemini-3.5-flash"
+                                _plan_model = "gemini-3.1-pro"
                             engine.assembler.render_final_response(user_input, response, plan, results, active_proj, vitals)
                             if engine.voice_enabled:
                                 engine.voice.speak(response)
@@ -1288,7 +1309,7 @@ async def boot_sequence(console: Console):
     console.print(Align.center(tagline))
     console.print()
     badges = Text()
-    badges.append("  Gemini 2.5  ", style="black on cyan")
+    badges.append("  Gemini 3.1 Pro  ", style="black on cyan")
     badges.append("  Groq Llama  ", style="black on magenta")
     badges.append("  MiMo v2.5-pro  ", style="black on gold1")
     badges.append("  ring-2.6-1t  ", style="black on bright_green")
@@ -1484,7 +1505,7 @@ async def cmd_compact(engine):
     history_str = "\n".join([f"{e.role}: {e.content}" for e in context.history])
     try:
         res = engine.gemini_client.client.models.generate_content(
-            model="gemini-2.5-flash-lite",
+            model="gemini-3.8-flash",
             contents=f"Summarize this conversation into 5 bullets capturing decisions, open threads, and key facts:\n\n{history_str}",
         )
         summary = res.text.strip()
@@ -2913,7 +2934,7 @@ async def main():
 
     console.print(Panel(
         "[bold green]System Wake-up Initiated.[/bold green]\n"
-        "Initializing [cyan]Gemini 2.5 Flash[/cyan], [gold1]Xiaomi MiMo v2.5-pro[/gold1], "
+        "Initializing [cyan]Gemini 3.1 Pro & 3.8 Flash[/cyan], [gold1]Xiaomi MiMo v2.5-pro[/gold1], "
         "[magenta]Groq Llama[/magenta], [white]MiniMax 2.5[/white].\n"
         "[italic cyan]Good morning, Architect. All systems at 100%. Type /help for commands.[/italic cyan]",
         border_style="bright_black", title="GREETING"

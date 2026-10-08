@@ -416,7 +416,7 @@ class MemoryManager:
         try:
             res = await asyncio.to_thread(
                 self._gemini.models.generate_content,
-                model="gemini-2.5-flash-lite",
+                model="gemini-3.8-flash",
                 contents=prompt,
             )
             return f"[SUMMARY of {len(entries)} earlier turns]: {(res.text or '').strip()[:600]}"
@@ -602,7 +602,7 @@ class MemoryManager:
                 try:
                     r = await asyncio.to_thread(
                         self._gemini.models.generate_content,
-                        model="gemini-2.5-flash-lite",
+                        model="gemini-3.8-flash",
                         contents=prompt
                     )
                     legend_text = (r.text or "").strip()

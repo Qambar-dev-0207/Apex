@@ -16,7 +16,7 @@ const COMMANDS: CommandSpec[] = [
     output: [
       "⚡ APEX Sovereign Operating System v2.4",
       "🔋 [Vitals] Hardware Bridge Active (CPU: 38°C, RAM: 32.4GB free)",
-      "🧠 [Brain] Intent Router initialized with Gemini 2.0 Flash",
+      "🧠 [Brain] Intent Router initialized with Gemini 3.8 Flash",
       "💾 [Memory] Redis working cache & ChromaDB semantic memory loaded",
       "🟢 System ready. Socratic reasoning gate enforced."
     ]

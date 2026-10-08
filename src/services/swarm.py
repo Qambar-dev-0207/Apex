@@ -87,7 +87,7 @@ class Agent:
     """A single specialist agent."""
 
     def __init__(self, name: str, role: str, console=None,
-                 model_id: str = "gemini-3.5-flash",
+                 model_id: str = "gemini-3.8-flash",
                  client=None, system_prompt_override: str = ""):
         self.name = name
         self.role = role
@@ -160,8 +160,8 @@ class Swarm:
 
     DEFAULT_ROSTER = ["architect", "coder", "critic"]
 
-    def __init__(self, console=None, model_id: str = "gemini-3.5-flash",
-                 deep_model_id: str = "gemini-3.5-flash"):
+    def __init__(self, console=None, model_id: str = "gemini-3.8-flash",
+                 deep_model_id: str = "gemini-3.1-pro"):
         load_dotenv()
         self.console = console
         api_key = os.getenv("GEMINI_API_KEY")

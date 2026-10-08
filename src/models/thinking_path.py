@@ -210,10 +210,10 @@ def parse_plan_response(text: str) -> ExecutionPlan:
 
 class GeminiClient:
     """
-    The Master Orchestrator brain upgraded to Gemini 1.5 Flash.
+    The Master Orchestrator brain upgraded to Gemini 3.1 Pro.
     Handles high-complexity reasoning and DAG synthesis.
     """
-    def __init__(self, model_name: str = "gemini-3.5-flash", mcp_client: Optional[Any] = None):
+    def __init__(self, model_name: str = "gemini-3.1-pro", mcp_client: Optional[Any] = None):
         load_dotenv()
         api_key = os.getenv("GEMINI_API_KEY")
         self.client = genai.Client(api_key=api_key)

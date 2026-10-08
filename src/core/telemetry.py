@@ -13,6 +13,8 @@ class SpendTracker:
         
         # 2026 Estimated Pricing (per 1M tokens)
         self.pricing = {
+            "gemini-3.8-flash": {"in": 0.15, "out": 0.60},
+            "gemini-3.1-pro": {"in": 1.25, "out": 5.00},
             "gemini-3.5-flash": {"in": 1.50, "out": 9.00},
             "gemini-2.5-flash": {"in": 0.12, "out": 0.45},
             "gemini-2.5-flash-lite": {"in": 0.06, "out": 0.18},

@@ -365,9 +365,40 @@ class Reflex:
         c["adaptive_window_filled"] = len(self._recent_results)
         return c
 
+    def check_prefetch(
+        self,
+        prompt: str,
+        session_id: str = "default",
+        memory_manager=None,
+        code_compass=None,
+        workspace=None,
+        active_project_name: Optional[str] = None,
+    ) -> Optional["PrefetchBundle"]:
+        """
+        Check if speculative prefetch is appropriate for the prompt,
+        returning a started PrefetchBundle if hints exist, else None.
+        """
+        if not self.prefetch_enabled:
+            return None
+        d = self._decide_uncached(prompt)
+        if not d.prefetch_hint:
+            return None
+        return PrefetchBundle(
+            hints=d.prefetch_hint,
+            prompt=prompt,
+            session_id=session_id,
+            memory_manager=memory_manager,
+            code_compass=code_compass,
+            workspace=workspace,
+            skill_manager=self.skill_manager,
+            active_project_name=active_project_name,
+            reflex=self,
+        ).start()
+
     def reset_cache(self):
         self._cache.clear()
         self._cache_order.clear()
+
 
     # ── internal ─────────────────────────────────────────────────────────────
 
@@ -812,7 +843,12 @@ class PrefetchBundle:
             self._cache_put(self._cache_key, cacheable)
         return results
 
+    async def wait_and_consume(self, timeout: float = 3.0) -> Dict[str, Any]:
+        """Alias for await_all for convenience/backward compatibility."""
+        return await self.await_all(timeout=timeout)
+
     def cancel(self) -> None:
+
         """Abandon all in-flight prefetch tasks (Gemini took different path)."""
         for task in self._tasks.values():
             if not task.done():

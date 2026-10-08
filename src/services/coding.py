@@ -21,7 +21,7 @@ class CodingPipeline:
         load_dotenv()
         self.mimo = MimoClient()
         self.openrouter_api_key = os.getenv("OPENROUTER_API_KEY")
-        self.validator = CodeValidator(model_name="gemini-2.5-flash")
+        self.validator = CodeValidator(model_name="gemini-3.8-flash")
 
     async def _call_minimax(self, prompt: str) -> str:
         if not self.openrouter_api_key:
@@ -101,5 +101,5 @@ class CodingPipeline:
             "spec": spec,
             "code": code,
             "validation": validation_result,
-            "agents_used": ["MiniMax 2.5", "Xiaomi MiMo v2.5-pro", "Gemini 2.5 Flash"],
+            "agents_used": ["MiniMax 2.5", "Xiaomi MiMo v2.5-pro", "Gemini 3.8 Flash"],
         }

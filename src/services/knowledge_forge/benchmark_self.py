@@ -219,8 +219,8 @@ class SelfBenchmark:
         if models is None:
             models = []
             if self.gemini:
-                models.append({"label": "gemini-3.5-flash", "id": "gemini-3.5-flash", "provider": "gemini"})
-                models.append({"label": "gemini-2.5-flash-lite", "id": "gemini-2.5-flash-lite", "provider": "gemini"})
+                models.append({"label": "gemini-3.1-pro", "id": "gemini-3.1-pro", "provider": "gemini"})
+                models.append({"label": "gemini-3.8-flash", "id": "gemini-3.8-flash", "provider": "gemini"})
             if self.groq:
                 models.append({"label": "groq-compound-mini", "id": "groq/compound-mini", "provider": "groq"})
 

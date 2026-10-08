@@ -166,7 +166,7 @@ class AutoToolSelector:
     pick_best(prompt) → top candidate or None.
     """
 
-    def __init__(self, model_id: str = "gemini-2.5-flash-lite"):
+    def __init__(self, model_id: str = "gemini-3.8-flash"):
         load_dotenv()
         api_key = os.getenv("GEMINI_API_KEY")
         self.client = genai.Client(api_key=api_key) if (genai and api_key) else None

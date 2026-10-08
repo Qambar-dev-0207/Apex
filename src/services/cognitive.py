@@ -15,7 +15,7 @@ class EmotionalCore:
     calm, mirrors excitement with energy, deepens skepticism when user is overconfident).
     """
 
-    def __init__(self, model_name: str = "gemini-2.5-flash-lite"):
+    def __init__(self, model_name: str = "gemini-3.8-flash"):
         load_dotenv()
         api_key = os.getenv("GEMINI_API_KEY")
         self.client = genai.Client(api_key=api_key) if api_key else None
