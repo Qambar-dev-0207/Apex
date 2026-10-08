@@ -30,7 +30,7 @@ result = await os.dispatch(
     token_budget_usd=0.05
 )
 
-print(f"Status: {result.status} | Latency: {result.vector_latency_ms}ms")`
+print(f"Status: {result.status} | Latency: {result.vector_latency_ms}ms")`,
   },
   {
     id: "typescript",
@@ -50,7 +50,7 @@ async function runSwarm() {
     parallelThreads: 4
   });
   console.log(\`Compressed tokens by \${trace.compressionRatio}x\`);
-}`
+}`,
   },
   {
     id: "curl",
@@ -63,7 +63,7 @@ async function runSwarm() {
     "objective": "Execute Socratic Steelman verification",
     "router_threshold": 0.85,
     "isolated_sandbox": true
-  }'`
+  }'`,
   },
   {
     id: "cli",
@@ -73,8 +73,8 @@ async function runSwarm() {
 npm install -g @apex/cli
 
 # Run Socratic Gate with hardware vitals monitoring
-apex socratic-gate --verify-thesis --max-ram-gb 32`
-  }
+apex socratic-gate --verify-thesis --max-ram-gb 32`,
+  },
 ];
 
 export default function CodePlayground() {
@@ -90,26 +90,28 @@ export default function CodePlayground() {
   };
 
   return (
-    <div className="bg-[#111111] text-[#F9FAFB] rounded-3xl p-6 sm:p-8 shadow-2xl overflow-hidden relative border border-white/10">
+    <div className="bg-[#000000] text-white rounded-3xl p-6 sm:p-8 shadow-xl overflow-hidden relative border border-[#262626]">
       {/* Header Bar Controls */}
       <div className="flex flex-wrap items-center justify-between gap-4 pb-6 mb-4 border-b border-white/10">
         <div className="flex items-center gap-2">
-          <span className="w-3 h-3 rounded-full bg-red-500/80"></span>
-          <span className="w-3 h-3 rounded-full bg-amber-500/80"></span>
-          <span className="w-3 h-3 rounded-full bg-emerald-500/80"></span>
-          <span className="font-mono text-xs text-gray-400 ml-2">apex-sdk-playground</span>
+          <span className="w-2.5 h-2.5 rounded-full bg-[#262626] border border-white/20" />
+          <span className="w-2.5 h-2.5 rounded-full bg-[#262626] border border-white/20" />
+          <span className="w-2.5 h-2.5 rounded-full bg-[#262626] border border-white/20" />
+          <span className="font-mono text-xs text-[#8C8C8C] ml-3">
+            apex://sdk/playground · v2.4
+          </span>
         </div>
 
         {/* Tab Buttons */}
-        <div className="flex items-center gap-1.5 font-mono text-xs">
+        <div className="flex flex-wrap items-center gap-1.5 font-mono text-xs p-1 bg-[#1A1A1A] rounded-xl border border-white/10">
           {TABS.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`px-3 py-1.5 rounded-lg transition-all ${
+              className={`px-3.5 py-1.5 rounded-lg transition-all cursor-pointer font-semibold ${
                 activeTab === tab.id
-                  ? "bg-[#84CC16] text-[#111111] font-bold shadow-md"
-                  : "text-gray-400 hover:text-white"
+                  ? "bg-[#FF3700] text-white shadow-xs"
+                  : "text-[#8C8C8C] hover:text-white"
               }`}
             >
               {tab.label}
@@ -119,22 +121,34 @@ export default function CodePlayground() {
       </div>
 
       {/* Code Editor Body */}
-      <div className="relative font-mono text-xs sm:text-sm leading-relaxed overflow-x-auto min-h-[240px]">
+      <div className="relative font-mono text-xs sm:text-sm leading-relaxed overflow-x-auto min-h-[220px]">
         <button
           onClick={handleCopy}
-          className="absolute top-0 right-0 px-3 py-1 rounded bg-[#222222] hover:bg-[#333333] text-gray-300 text-xs font-mono transition-colors border border-white/10 z-10"
+          className="absolute top-0 right-0 px-4 py-1.5 rounded-full bg-[#1A1A1A] hover:bg-[#262626] text-white text-xs font-mono transition-colors border border-white/10 z-10 cursor-pointer flex items-center gap-2"
         >
-          {copied ? "COPIED ✓" : "COPY CODE"}
+          {copied ? (
+            <>
+              <span className="text-[#0CB300]">✓</span>
+              <span>COPIED</span>
+            </>
+          ) : (
+            <>
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+              <span>COPY SPEC</span>
+            </>
+          )}
         </button>
 
         <AnimatePresence mode="wait">
           <motion.pre
             key={currentTab.id}
-            initial={{ opacity: 0, y: 10 }}
+            initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
+            exit={{ opacity: 0, y: -6 }}
             transition={{ duration: 0.2 }}
-            className="text-emerald-400 pt-4"
+            className="text-white/85 pt-4"
           >
             <code>{currentTab.code}</code>
           </motion.pre>
@@ -142,9 +156,12 @@ export default function CodePlayground() {
       </div>
 
       {/* Footer Status */}
-      <div className="mt-4 pt-4 border-t border-white/10 flex items-center justify-between font-mono text-[10px] text-gray-400">
-        <span>LANGUAGE: {currentTab.lang.toUpperCase()}</span>
-        <span className="text-[#84CC16] font-semibold">SOCRATIC GATE READY</span>
+      <div className="mt-4 pt-4 border-t border-white/10 flex items-center justify-between font-mono text-[11px] text-[#8C8C8C]">
+        <span>RUNTIME: {currentTab.lang.toUpperCase()} · VERIFIED DETERMINISM</span>
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-[#0CB300] animate-pulse" />
+          <span className="text-[#0CB300] font-bold">SOCRATIC GATE READY</span>
+        </div>
       </div>
     </div>
   );

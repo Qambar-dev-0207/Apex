@@ -54,10 +54,13 @@ const NEURAL_LINKS: VisualLink[] = [
   { from: 4, to: 7 },
   { from: 5, to: 8 },
   { from: 7, to: 10 },
-  { from: 8, to: 11 }
+  { from: 8, to: 11 },
 ];
 
-export default function OrchestratorVisualizer({ activePreset, isSimulating }: VisualizerProps) {
+export default function OrchestratorVisualizer({
+  activePreset,
+  isSimulating,
+}: VisualizerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mouseRef = useRef<{ x: number; y: number }>({ x: -1000, y: -1000 });
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
@@ -68,7 +71,7 @@ export default function OrchestratorVisualizer({ activePreset, isSimulating }: V
     const rect = canvas.getBoundingClientRect();
     mouseRef.current = {
       x: e.clientX - rect.left,
-      y: e.clientY - rect.top
+      y: e.clientY - rect.top,
     };
   };
 
@@ -87,32 +90,33 @@ export default function OrchestratorVisualizer({ activePreset, isSimulating }: V
     let animationFrameId: number;
     let angleY = 0;
 
+    // Hanzo Monochromatic Palette with #FF3700 & #0CB300 accents
     const nodes: VisualNode[] = [
-      { x: 0, y: 0, z: 0, initialX: 0, initialY: 0, initialZ: 0, radius: 10, label: "APEX CORE", tier: "brain", color: "#FF4500" },
-      { x: -130, y: -70, z: 50, initialX: -130, initialY: -70, initialZ: 50, radius: 7, label: "Intent Router", tier: "brain", color: "#2563EB" },
-      { x: 130, y: -70, z: -30, initialX: 130, initialY: -70, initialZ: -30, radius: 7, label: "Socratic Gate", tier: "brain", color: "#FF4500" },
-      { x: 0, y: -110, z: 80, initialX: 0, initialY: -110, initialZ: 80, radius: 7, label: "Steelman Engine", tier: "brain", color: "#7C3AED" },
-      { x: -150, y: 30, z: -60, initialX: -150, initialY: 30, initialZ: -60, radius: 6.5, label: "ChromaDB Memory", tier: "memory", color: "#0284C7" },
-      { x: 150, y: 30, z: 60, initialX: 150, initialY: 30, initialZ: 60, radius: 6.5, label: "Redis Cache", tier: "memory", color: "#059669" },
-      { x: 0, y: 120, z: -50, initialX: 0, initialY: 120, initialZ: -50, radius: 6.5, label: "Code Compass", tier: "memory", color: "#2563EB" },
-      { x: -100, y: 100, z: 90, initialX: -100, initialY: 100, initialZ: 90, radius: 6, label: "Parallel Dispatch", tier: "execution", color: "#7C3AED" },
-      { x: 100, y: 100, z: -80, initialX: 100, initialY: 100, initialZ: -80, radius: 6, label: "Sandbox Engine", tier: "execution", color: "#DC2626" },
-      { x: -130, y: -40, z: -90, initialX: -130, initialY: -40, initialZ: -90, radius: 6, label: "Agent Swarm", tier: "execution", color: "#FF4500" },
-      { x: 130, y: -40, z: 100, initialX: 130, initialY: -40, initialZ: 100, radius: 6, label: "Hardware Bridge", tier: "vitals", color: "#059669" },
-      { x: 0, y: 60, z: 130, initialX: 0, initialY: 60, initialZ: 130, radius: 6, label: "Vision Retina", tier: "vitals", color: "#0284C7" }
+      { x: 0, y: 0, z: 0, initialX: 0, initialY: 0, initialZ: 0, radius: 10, label: "APEX CORE", tier: "brain", color: "#FF3700" },
+      { x: -130, y: -70, z: 50, initialX: -130, initialY: -70, initialZ: 50, radius: 7, label: "Intent Router", tier: "brain", color: "#000000" },
+      { x: 130, y: -70, z: -30, initialX: 130, initialY: -70, initialZ: -30, radius: 7, label: "Socratic Gate", tier: "brain", color: "#FF3700" },
+      { x: 0, y: -110, z: 80, initialX: 0, initialY: -110, initialZ: 80, radius: 7, label: "Steelman Engine", tier: "brain", color: "#000000" },
+      { x: -150, y: 30, z: -60, initialX: -150, initialY: 30, initialZ: -60, radius: 6.5, label: "ChromaDB Memory", tier: "memory", color: "#262626" },
+      { x: 150, y: 30, z: 60, initialX: 150, initialY: 30, initialZ: 60, radius: 6.5, label: "Redis Cache", tier: "memory", color: "#262626" },
+      { x: 0, y: 120, z: -50, initialX: 0, initialY: 120, initialZ: -50, radius: 6.5, label: "Code Compass", tier: "memory", color: "#FF3700" },
+      { x: -100, y: 100, z: 90, initialX: -100, initialY: 100, initialZ: 90, radius: 6, label: "Parallel Dispatch", tier: "execution", color: "#000000" },
+      { x: 100, y: 100, z: -80, initialX: 100, initialY: 100, initialZ: -80, radius: 6, label: "Sandbox Engine", tier: "execution", color: "#000000" },
+      { x: -130, y: -40, z: -90, initialX: -130, initialY: -40, initialZ: -90, radius: 6, label: "Agent Swarm", tier: "execution", color: "#262626" },
+      { x: 130, y: -40, z: 100, initialX: 130, initialY: -40, initialZ: 100, radius: 6, label: "Hardware Bridge", tier: "vitals", color: "#0CB300" },
+      { x: 0, y: 60, z: 130, initialX: 0, initialY: 60, initialZ: 130, radius: 6, label: "Vision Retina", tier: "vitals", color: "#545454" },
     ];
 
-    const particles: PathParticle[] = Array.from({ length: 24 }, () => ({
+    const particles: PathParticle[] = Array.from({ length: 22 }, () => ({
       linkIndex: Math.floor(Math.random() * NEURAL_LINKS.length),
       progress: Math.random(),
       speed: 0.005 + Math.random() * 0.008,
-      color: Math.random() > 0.5 ? "#FF4500" : "#2563EB"
+      color: Math.random() > 0.4 ? "#FF3700" : "#0CB300",
     }));
 
     const resizeCanvas = () => {
       if (!canvas) return;
       canvas.width = canvas.parentElement?.clientWidth || 650;
-      canvas.height = 420;
+      canvas.height = 360;
     };
     resizeCanvas();
     window.addEventListener("resize", resizeCanvas);
@@ -123,11 +127,11 @@ export default function OrchestratorVisualizer({ activePreset, isSimulating }: V
 
       const centerX = canvas.width / 2;
       const centerY = canvas.height / 2;
-      const focalLength = 350;
+      const focalLength = 340;
 
-      angleY += isSimulating ? 0.006 : 0.002;
+      angleY += isSimulating ? 0.005 : 0.0015;
 
-      // Project 3D to 2D with STRICT scale clamping
+      // Project 3D to 2D
       const projectedNodes = nodes.map((node) => {
         const cos = Math.cos(angleY);
         const sin = Math.sin(angleY);
@@ -137,7 +141,7 @@ export default function OrchestratorVisualizer({ activePreset, isSimulating }: V
         const ry = node.initialY;
 
         const rawScale = focalLength / (focalLength + rz);
-        const scale = Math.min(1.25, Math.max(0.65, rawScale));
+        const scale = Math.min(1.2, Math.max(0.65, rawScale));
 
         const px = centerX + rx * scale;
         const py = centerY + ry * scale;
@@ -147,16 +151,16 @@ export default function OrchestratorVisualizer({ activePreset, isSimulating }: V
 
       projectedNodes.sort((a, b) => b.rz - a.rz);
 
-      // Draw Links
+      // Draw Links (Hanzo hairline #D9D9D9 equivalent)
       NEURAL_LINKS.forEach((link) => {
-        const fromNode = projectedNodes.find(n => n.label === nodes[link.from].label);
-        const toNode = projectedNodes.find(n => n.label === nodes[link.to].label);
+        const fromNode = projectedNodes.find((n) => n.label === nodes[link.from].label);
+        const toNode = projectedNodes.find((n) => n.label === nodes[link.to].label);
 
         if (fromNode && toNode) {
           ctx.beginPath();
           ctx.moveTo(fromNode.px, fromNode.py);
           ctx.lineTo(toNode.px, toNode.py);
-          ctx.strokeStyle = "rgba(12, 12, 14, 0.1)";
+          ctx.strokeStyle = "rgba(0, 0, 0, 0.12)";
           ctx.lineWidth = 1;
           ctx.stroke();
         }
@@ -165,8 +169,8 @@ export default function OrchestratorVisualizer({ activePreset, isSimulating }: V
       // Draw Signal Pulse Particles
       particles.forEach((p) => {
         const link = NEURAL_LINKS[p.linkIndex];
-        const fromNode = projectedNodes.find(n => n.label === nodes[link.from].label);
-        const toNode = projectedNodes.find(n => n.label === nodes[link.to].label);
+        const fromNode = projectedNodes.find((n) => n.label === nodes[link.from].label);
+        const toNode = projectedNodes.find((n) => n.label === nodes[link.to].label);
 
         if (fromNode && toNode) {
           p.progress += p.speed;
@@ -176,7 +180,7 @@ export default function OrchestratorVisualizer({ activePreset, isSimulating }: V
           const py = fromNode.py + (toNode.py - fromNode.py) * p.progress;
 
           ctx.beginPath();
-          ctx.arc(px, py, 2.5, 0, Math.PI * 2);
+          ctx.arc(px, py, 2.2, 0, Math.PI * 2);
           ctx.fillStyle = p.color;
           ctx.fill();
         }
@@ -195,19 +199,19 @@ export default function OrchestratorVisualizer({ activePreset, isSimulating }: V
 
         // Outer Glow Ring
         ctx.beginPath();
-        ctx.arc(node.px, node.py, r + (isHovered ? 6 : 3), 0, Math.PI * 2);
-        ctx.fillStyle = `${node.color}${isHovered ? '40' : '20'}`;
+        ctx.arc(node.px, node.py, r + (isHovered ? 5 : 2.5), 0, Math.PI * 2);
+        ctx.fillStyle = isHovered ? "rgba(255, 55, 0, 0.25)" : "rgba(0, 0, 0, 0.05)";
         ctx.fill();
 
         // Node Core Circle
         ctx.beginPath();
         ctx.arc(node.px, node.py, r, 0, Math.PI * 2);
-        ctx.fillStyle = isHovered ? "#0C0C0E" : node.color;
+        ctx.fillStyle = isHovered ? "#FF3700" : node.color;
         ctx.fill();
 
         // Label
-        ctx.font = `600 ${Math.max(9, Math.min(12, 11 * node.scale))}px "JetBrains Mono", monospace`;
-        ctx.fillStyle = isHovered ? "#FF4500" : "#0C0C0E";
+        ctx.font = `600 ${Math.max(9, Math.min(12, 11 * node.scale))}px "Fragment Mono", monospace`;
+        ctx.fillStyle = isHovered ? "#FF3700" : "#000000";
         ctx.fillText(node.label, node.px + r + 5, node.py + 4);
       });
 
@@ -224,11 +228,11 @@ export default function OrchestratorVisualizer({ activePreset, isSimulating }: V
   }, [activePreset, isSimulating]);
 
   return (
-    <div className="relative w-full h-[420px] bg-white border border-black/8 rounded-2xl overflow-hidden shadow-md">
-      <div className="absolute top-3 left-4 z-10 flex items-center gap-2.5">
-        <span className="w-2 h-2 rounded-full bg-[#FF4500] animate-ping"></span>
-        <span className="font-mono text-[11px] font-semibold text-[#0C0C0E] uppercase tracking-wider">
-          LIVE DAG • {activePreset.toUpperCase()}
+    <div className="relative w-full h-full min-h-[340px] bg-[#FAFAF9] rounded-2xl overflow-hidden">
+      <div className="absolute top-3 left-4 z-10 flex items-center gap-2">
+        <span className="w-2 h-2 rounded-full bg-[#0CB300] animate-pulse" />
+        <span className="font-mono text-[11px] font-semibold text-[#000000] uppercase tracking-wider">
+          TOPOLOGY • {activePreset.toUpperCase()}
         </span>
       </div>
 
@@ -240,8 +244,8 @@ export default function OrchestratorVisualizer({ activePreset, isSimulating }: V
       />
 
       {hoveredNode && (
-        <div className="absolute bottom-3 left-4 z-10 bg-[#0C0C0E] text-white px-3 py-1 rounded-lg text-[11px] font-mono shadow-md">
-          ACTIVE NODE: <span className="text-[#FF4500] font-bold">{hoveredNode}</span>
+        <div className="absolute bottom-3 left-4 z-10 bg-[#000000] text-white px-3.5 py-1.5 rounded-full text-[11px] font-mono shadow-md border border-[#262626]">
+          NODE: <span className="text-[#FF3700] font-bold">{hoveredNode}</span>
         </div>
       )}
     </div>

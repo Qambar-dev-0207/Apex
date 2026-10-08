@@ -53,7 +53,7 @@ class MimoClient:
             self.api_key = nvidia_key
             self.is_nvidia = True
         else:
-            self.model = model or "qwen/qwen3.6-27b"
+            self.model = model or self.DEFAULT_MODEL
             self.base_url = base_url or "https://api.groq.com/openai/v1"
             self.api_key = os.getenv("GROQ_API_KEY")
             self.is_nvidia = False

@@ -8,7 +8,7 @@ interface TelemetryCardProps {
   unit?: string;
   subtext?: string;
   type: "sine" | "bars" | "random";
-  color: "cyan" | "violet" | "emerald" | "amber";
+  color?: "cyan" | "violet" | "emerald" | "amber";
 }
 
 export default function TelemetryCard({
@@ -17,19 +17,20 @@ export default function TelemetryCard({
   unit = "",
   subtext = "",
   type,
-  color,
+  color = "amber",
 }: TelemetryCardProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [liveVal, setLiveVal] = useState<number | string>(value);
 
-  const colorMap = {
-    cyan: { base: "#2563EB", glow: "rgba(37, 99, 235, 0.15)", line: "#2563EB" },
-    violet: { base: "#7C3AED", glow: "rgba(124, 58, 237, 0.15)", line: "#7C3AED" },
-    emerald: { base: "#059669", glow: "rgba(5, 150, 105, 0.15)", line: "#059669" },
-    amber: { base: "#FF4500", glow: "rgba(255, 69, 0, 0.15)", line: "#FF4500" },
+  // Hanzo Strictly Controlled Palette
+  const colorMap: Record<string, { stroke: string; dot: string }> = {
+    emerald: { stroke: "#0CB300", dot: "#0CB300" },
+    amber: { stroke: "#FF3700", dot: "#FF3700" },
+    cyan: { stroke: "#000000", dot: "#000000" },
+    violet: { stroke: "#262626", dot: "#262626" },
   };
 
-  const colors = colorMap[color] || colorMap.cyan;
+  const activeColor = colorMap[color] || { stroke: "#FF3700", dot: "#FF3700" };
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -64,8 +65,8 @@ export default function TelemetryCard({
       const w = canvas.width;
       const h = canvas.height;
 
-      // Light Tech Grid Lines
-      ctx.strokeStyle = "rgba(12, 12, 14, 0.04)";
+      // Subtle Hanzo hairline grid lines
+      ctx.strokeStyle = "rgba(0, 0, 0, 0.04)";
       ctx.lineWidth = 0.5;
       for (let y = 10; y < h; y += 15) {
         ctx.beginPath();
@@ -75,7 +76,7 @@ export default function TelemetryCard({
       }
 
       ctx.lineWidth = 1.8;
-      ctx.strokeStyle = colors.line;
+      ctx.strokeStyle = activeColor.stroke;
 
       if (type === "sine") {
         ctx.beginPath();
@@ -86,19 +87,19 @@ export default function TelemetryCard({
         }
         ctx.stroke();
       } else if (type === "bars") {
-        const barWidth = 6;
+        const barWidth = 5;
         const gap = 4;
         const count = Math.floor(w / (barWidth + gap));
         for (let i = 0; i < count; i++) {
-          const bh = 10 + Math.sin((i + offset * 0.1) * 0.5) * 20 + Math.random() * 8;
-          ctx.fillStyle = colors.line;
+          const bh = 8 + Math.sin((i + offset * 0.1) * 0.5) * 18 + Math.random() * 6;
+          ctx.fillStyle = activeColor.stroke;
           ctx.fillRect(i * (barWidth + gap), h - bh, barWidth, bh);
         }
       } else {
         ctx.beginPath();
         ctx.moveTo(0, h / 2);
         for (let x = 0; x < w; x += 10) {
-          const y = h / 2 + (Math.random() - 0.5) * 28;
+          const y = h / 2 + (Math.random() - 0.5) * 24;
           ctx.lineTo(x, y);
         }
         ctx.stroke();
@@ -115,30 +116,35 @@ export default function TelemetryCard({
       clearInterval(interval);
       cancelAnimationFrame(animationFrameId);
     };
-  }, [value, type, color, colors.line]);
+  }, [value, type, activeColor.stroke]);
 
   return (
-    <div className="editorial-card p-5 flex flex-col justify-between">
+    <div className="p-6 sm:p-7 rounded-3xl bg-white border border-[#D9D9D9] hover:border-[#000000] transition-all duration-300 shadow-xs flex flex-col justify-between min-h-[220px]">
       <div className="flex items-center justify-between mb-2">
-        <span className="font-display font-semibold text-xs text-[#0C0C0E] uppercase tracking-wider">
+        <span className="font-mono text-xs font-bold text-[#545454] uppercase tracking-wider">
           {title}
         </span>
-        <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: colors.line }}></span>
+        <span
+          className="w-2 h-2 rounded-full animate-pulse"
+          style={{ backgroundColor: activeColor.dot }}
+        />
       </div>
 
-      <div className="flex items-baseline gap-1.5 my-1">
-        <span className="font-mono text-2xl font-extrabold text-[#0C0C0E] tracking-tight">
+      <div className="flex items-baseline gap-1.5 my-2">
+        <span className="font-display font-extrabold text-3xl sm:text-4xl text-[#000000] tracking-tight">
           {liveVal}
         </span>
-        {unit && <span className="font-mono text-xs text-[#71717A] font-semibold">{unit}</span>}
+        {unit && (
+          <span className="font-mono text-xs text-[#545454] font-semibold">{unit}</span>
+        )}
       </div>
 
-      <div className="w-full my-2 overflow-hidden rounded">
-        <canvas ref={canvasRef} className="w-full h-[70px]" />
+      <div className="w-full my-2 overflow-hidden rounded-xl bg-[#FAFAF9] p-1 border border-[#D9D9D9]/50">
+        <canvas ref={canvasRef} className="w-full h-[65px]" />
       </div>
 
       {subtext && (
-        <span className="font-mono text-[10px] text-[#71717A] mt-1 block tracking-wider font-medium">
+        <span className="font-mono text-[10px] text-[#545454] tracking-wider uppercase font-medium">
           {subtext}
         </span>
       )}

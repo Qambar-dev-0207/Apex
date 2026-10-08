@@ -617,7 +617,7 @@ class AgentHarness:
         self.todo = TodoTool()
         # Brains — tool-calling capable, OpenAI-compatible.
         self.mimo = mimo or MimoClient()
-        self.groq = groq or GroqClient(model="qwen/qwen3.6-27b")
+        self.groq = groq or GroqClient(model="openai/gpt-oss-20b")
         self.ollama = ollama or OllamaClient()
         self.brain_pref = brain
         # APEX-wide collaborators (used only if wired in by APEXEngine).

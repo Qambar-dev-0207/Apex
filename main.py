@@ -3026,7 +3026,11 @@ async def main():
     if engine.briefing_enabled:
         await check_proactive_briefing(console, engine.briefing_agent, flow_active=False)
 
-    session = PromptSession(history=FileHistory(".apex_history"), auto_suggest=AutoSuggestFromHistory())
+    try:
+        session = PromptSession(history=FileHistory(".apex_history"), auto_suggest=AutoSuggestFromHistory())
+    except Exception:
+        session = None
+
     last_msg_time = time.time()
 
     while True:
@@ -3052,7 +3056,10 @@ async def main():
                 f"<grey>·</grey> <{ram_color}>RAM {ram}%</{ram_color}>"
             )
 
-            kb_task = asyncio.create_task(session.prompt_async(HTML(f"\n{status_line}\n<b><cyan>❯</cyan></b> ")))
+            if session:
+                kb_task = asyncio.create_task(session.prompt_async(HTML(f"\n{status_line}\n<b><cyan>❯</cyan></b> ")))
+            else:
+                kb_task = asyncio.create_task(asyncio.to_thread(sys.stdin.readline))
             interrupt_task = asyncio.create_task(engine.interrupt_queue.get())
             tasks_to_wait = [kb_task, interrupt_task]
             voice_task = None
@@ -3085,7 +3092,10 @@ async def main():
                     title="APEX SYSTEM GUARD", border_style="red"
                 ))
 
-                resp_task = asyncio.create_task(session.prompt_async(HTML("<b>[Response / Dismiss] ❯ </b>")))
+                if session:
+                    resp_task = asyncio.create_task(session.prompt_async(HTML("<b>[Response / Dismiss] ❯ </b>")))
+                else:
+                    resp_task = asyncio.create_task(asyncio.to_thread(sys.stdin.readline))
                 resp_input = await resp_task
                 resp_text = resp_input.strip()
                 if resp_text:
@@ -3098,6 +3108,12 @@ async def main():
                 console.print(f"\n[Voice Command Heard] {user_input}")
             else:
                 user_input = kb_task.result()
+
+            if user_input == "":
+                break
+            
+            if not getattr(engine, "voice_task", None) or voice_task not in done:
+                console.print(f"[DEBUG] Raw input: {repr(user_input)}")
 
             if not user_input.strip():
                 continue
@@ -3112,7 +3128,7 @@ async def main():
             console.print(f"[bold red]ERROR: {e}[/bold red]")
 
     await engine.hooks.fire("Stop", {"session_id": engine.session_id})
-    if hasattr(engine, "voice"):
+    if getattr(engine, "voice", None):
         engine.voice.stop()
     if getattr(engine, "voice_task", None) and not engine.voice_task.done():
         engine.voice_task.cancel()
