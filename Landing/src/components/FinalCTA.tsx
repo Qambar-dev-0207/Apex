@@ -1,135 +1,90 @@
 "use client";
 
+import Image from "next/image";
 import { motion, useReducedMotion } from "motion/react";
-import { ArrowUp, ArrowUpRight } from "lucide-react";
-import ApexMascot from "./ApexMascot";
+import { ArrowUpRight } from "lucide-react";
 
 export default function FinalCTA() {
   const shouldReduceMotion = useReducedMotion();
 
-  const scrollToTop = (e: React.MouseEvent) => {
-    e.preventDefault();
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
   return (
     <section
       id="final-cta"
-      className="relative w-full min-h-[70vh] bg-[#050607] border-t border-[rgba(255,255,255,0.1)] flex items-center justify-center overflow-hidden py-32 px-6 sm:px-10 select-none"
-      aria-label="Return to the Threshold"
+      className="relative w-full bg-[#050607] border-t border-[rgba(255,255,255,0.08)] select-none overflow-hidden"
+      aria-label="Beyond the prompt"
     >
-      {/* Background Architectural Monoliths & Warm Ambient Light Source */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
-        {/* Left Monolithic Pillar */}
-        <div className="absolute top-0 bottom-0 left-0 w-[12%] sm:w-[18%] bg-gradient-to-r from-[#020303] via-[#08090A] to-transparent border-r border-[rgba(255,255,255,0.06)]" />
+      {/* Wide Panoramic Landscape Banner Container */}
+      <div className="relative w-full min-h-[380px] sm:min-h-[440px] lg:min-h-[500px] flex items-center overflow-hidden">
+        {/* Panoramic Landscape Background Artwork */}
+        <div className="absolute inset-0 z-0 pointer-events-none">
+          <Image
+            src="/apex-beyond-prompt.jpg"
+            alt="APEX companion overlooking the planetary horizon"
+            fill
+            priority
+            sizes="100vw"
+            quality={92}
+            className="object-cover object-center scale-[1.01]"
+          />
+          {/* Subtle Right-Side Gradient to guarantee crisp readability of headline and button */}
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#050607]/20 to-[#050607]/75 sm:to-[#050607]/60 pointer-events-none" />
+          <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#050607] to-transparent pointer-events-none" />
+        </div>
 
-        {/* Right Monolithic Pillar */}
-        <div className="absolute top-0 bottom-0 right-0 w-[12%] sm:w-[18%] bg-gradient-to-l from-[#020303] via-[#08090A] to-transparent border-l border-[rgba(255,255,255,0.06)]" />
+        {/* Foreground Content: Right-Aligned Composition matching exact reference */}
+        <div className="relative z-10 w-full max-w-[1600px] mx-auto px-6 sm:px-10 lg:px-16 flex items-center justify-end py-16 sm:py-20 lg:py-24">
+          <div className="max-w-[540px] text-left">
+            {/* Masked Editorial Headline: Beyond the prompt. */}
+            <h2 className="font-editorial text-4xl sm:text-5xl lg:text-6xl text-[#F5F3EF] tracking-tight leading-[1.08] mb-3">
+              <span className="overflow-mask block relative py-0.5">
+                <motion.span
+                  initial={
+                    shouldReduceMotion
+                      ? { opacity: 1, y: 0 }
+                      : { opacity: 0, y: "110%" }
+                  }
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.75, ease: [0.16, 1, 0.3, 1] }}
+                  className="block font-normal"
+                >
+                  Beyond the prompt.
+                </motion.span>
+              </span>
+            </h2>
 
-        {/* Center Vertical Aperture of Warm Light */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-px h-full bg-gradient-to-b from-transparent via-[#E9D0AD]/25 to-transparent" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[340px] h-[340px] rounded-full bg-[#E9D0AD]/5 blur-[120px]" />
-
-        {/* Subtle Horizon Ground Line */}
-        <div className="absolute bottom-24 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[rgba(255,255,255,0.12)] to-transparent" />
-      </div>
-
-      <div className="relative z-10 max-w-3xl mx-auto text-center flex flex-col items-center">
-        {/* Architectural Emblem */}
-        <motion.div
-          initial={shouldReduceMotion ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.9 }}
-          whileInView={{ opacity: 1, scale: 1 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-          className="w-10 h-10 mb-8 rounded-full border border-[rgba(255,255,255,0.16)] flex items-center justify-center bg-[#08090A]/80 backdrop-blur-sm"
-        >
-          <div className="w-1.5 h-1.5 rounded-full bg-[#FF4A16] shadow-[0_0_8px_#FF4A16]" />
-        </motion.div>
-
-        {/* Masked Line Reveal Headline: Calm, quiet resolution */}
-        <h2 className="font-editorial text-5xl sm:text-7xl lg:text-8xl text-[#F5F3EF] tracking-tight leading-[1.05] mb-6 flex flex-col items-center">
-          <span className="overflow-mask block relative py-1">
-            <motion.span
-              initial={
-                shouldReduceMotion
-                  ? { opacity: 1, y: 0 }
-                  : { opacity: 0, y: "110%", filter: "blur(3px)" }
-              }
-              whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+            {/* Supporting Copy */}
+            <motion.p
+              initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
+              whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ duration: 0.88, ease: [0.16, 1, 0.3, 1] }}
-              className="block font-normal"
+              transition={{ duration: 0.6, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
+              className="text-[#D8D6D2] text-sm sm:text-base font-normal leading-relaxed mb-6"
             >
-              Beyond the prompt.
-            </motion.span>
-          </span>
-        </h2>
+              Explore the architecture behind APEX.
+            </motion.p>
 
-        {/* Supporting Copy */}
-        <motion.p
-          initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.65, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
-          className="text-[#B2B0AD] text-base sm:text-lg font-light tracking-wide max-w-md mb-12"
-        >
-          Explore the architecture behind APEX.
-        </motion.p>
-
-        {/* CTAs */}
-        <motion.div
-          initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6, delay: 0.35, ease: [0.16, 1, 0.3, 1] }}
-          className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6"
-        >
-          {/* Primary CTA */}
-          <a
-            href="https://github.com/Qambar-dev-0207/Apex"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="group relative inline-flex items-center gap-2.5 px-8 py-3.5 rounded-full bg-[#F5F3EF] text-[#050607] font-sans text-xs tracking-wider uppercase font-medium hover:bg-white transition-all duration-300 shadow-[0_0_30px_rgba(245,243,239,0.15)] hover:shadow-[0_0_40px_rgba(245,243,239,0.3)] hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
-          >
-            <span>Explore APEX on GitHub</span>
-            <ArrowUpRight
-              size={14}
-              className="transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
-              aria-hidden="true"
-            />
-          </a>
-
-          {/* Secondary CTA: Return to beginning */}
-          <button
-            type="button"
-            onClick={scrollToTop}
-            className="group link-underline inline-flex items-center gap-2 px-6 py-3.5 rounded-full text-[#B2B0AD] hover:text-[#F5F3EF] font-sans text-xs tracking-wider uppercase transition-colors duration-200 border border-[rgba(255,255,255,0.14)] hover:border-[rgba(255,255,255,0.3)] cursor-pointer"
-          >
-            <span>Return to the beginning</span>
-            <ArrowUp
-              size={13}
-              className="transition-transform duration-200 group-hover:-translate-y-0.5"
-              aria-hidden="true"
-            />
-          </button>
-        </motion.div>
-
-        {/* Subordinate Monolithic Note with Proud Companion Mascot */}
-        <div className="mt-20 pt-8 border-t border-[rgba(255,255,255,0.06)] w-full flex flex-col sm:flex-row items-center justify-between gap-6">
-          <span className="font-mono text-[10px] tracking-[0.28em] text-[#737575] uppercase text-center sm:text-left">
-            24 LAYERS · DETERMINISTIC GRAPHS · IMMUTABLE MEMORY
-          </span>
-
-          <div className="flex items-center gap-3 opacity-80 hover:opacity-100 transition-opacity">
-            <span className="font-code text-[9px] tracking-[0.22em] text-[#737575] uppercase hidden sm:inline">
-              SYS::STANDBY // SOVEREIGN
-            </span>
-            <ApexMascot
-              variant="proud"
-              height={72}
-              animateIdle={true}
-              alt="APEX companion standing proud beside the sovereign system"
-            />
+            {/* Orange Pill Action Button: Explore APEX on GitHub ↗ */}
+            <motion.div
+              initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.55, delay: 0.28, ease: [0.16, 1, 0.3, 1] }}
+            >
+              <a
+                href="https://github.com/Qambar-dev-0207/Apex"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group inline-flex items-center gap-2.5 px-6 sm:px-8 py-3 sm:py-3.5 rounded-full bg-[#FF4A16] hover:bg-[#ff5d2e] text-white font-sans text-xs sm:text-sm font-semibold tracking-wide transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] shadow-[0_0_24px_rgba(255,74,22,0.4)] cursor-pointer"
+              >
+                <span>Explore APEX on GitHub</span>
+                <ArrowUpRight
+                  size={15}
+                  className="transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+                  aria-hidden="true"
+                />
+              </a>
+            </motion.div>
           </div>
         </div>
       </div>

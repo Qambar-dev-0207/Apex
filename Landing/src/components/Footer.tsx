@@ -3,32 +3,55 @@
 import { ArrowUpRight } from "lucide-react";
 
 export default function Footer() {
+  const scrollTo = (id: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    const el = document.getElementById(id);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth" });
+    }
+  };
+
   return (
     <footer
-      className="w-full bg-[#050607] border-t border-[rgba(255,255,255,0.12)] py-12 sm:py-16 px-6 sm:px-10 lg:px-16 text-[#B2B0AD] select-none"
+      className="w-full bg-[#050607] border-t border-[rgba(255,255,255,0.08)] py-6 sm:py-7 px-6 sm:px-10 lg:px-16 text-[#B2B0AD] select-none"
       aria-label="APEX Footer"
     >
-      <div className="max-w-[1440px] mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-8 sm:gap-10">
-        {/* Left: Brand & Descriptor */}
-        <div className="flex flex-col gap-1.5">
-          <div className="flex items-center gap-2.5">
-            <span className="font-sans font-bold text-base tracking-[0.2em] text-[#F5F3EF]">
+      <div className="max-w-[1600px] mx-auto flex flex-col md:flex-row items-center justify-between gap-5 sm:gap-6">
+        {/* Left: <APEX> Wordmark with Warm Orange Brackets + SOVEREIGN AGENTIC AI OS */}
+        <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+          <a
+            href="#"
+            onClick={(e) => {
+              e.preventDefault();
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }}
+            className="flex items-center group cursor-pointer"
+            aria-label="APEX - Return to top"
+          >
+            <span className="font-code font-bold text-base sm:text-lg text-[#FF4A16] transition-transform duration-200 group-hover:-translate-x-0.5">
+              &lt;
+            </span>
+            <span className="font-sans font-bold text-sm sm:text-base tracking-[0.22em] text-[#F5F3EF] uppercase mx-1">
               APEX
             </span>
-            <span className="w-1.5 h-1.5 rounded-full bg-[#FF4A16]" aria-hidden="true" />
-          </div>
-          <span className="font-mono text-[10px] tracking-[0.24em] text-[#737575] uppercase">
+            <span className="font-code font-bold text-base sm:text-lg text-[#FF4A16] transition-transform duration-200 group-hover:translate-x-0.5">
+              &gt;
+            </span>
+          </a>
+
+          <span className="font-code text-[10px] sm:text-[11px] tracking-[0.26em] text-[#8C9295] uppercase font-normal">
             SOVEREIGN AGENTIC AI OS
           </span>
         </div>
 
-        {/* Right: Functional Navigation Links */}
+        {/* Right: Architecture | Orchestration | Memory | Research | GitHub ↗ */}
         <nav aria-label="Footer Navigation">
-          <ul className="flex flex-wrap items-center gap-6 sm:gap-8 font-sans text-xs tracking-wider text-[#B2B0AD]">
+          <ul className="flex flex-wrap items-center gap-6 sm:gap-8 lg:gap-10 font-sans text-xs sm:text-[13px] tracking-wider text-[#A5AAAD]">
             <li>
               <a
                 href="#architecture"
-                className="link-underline hover:text-[#F5F3EF] transition-colors duration-200"
+                onClick={(e) => scrollTo("architecture", e)}
+                className="link-underline hover:text-[#F5F3EF] transition-colors duration-200 py-1"
               >
                 Architecture
               </a>
@@ -36,7 +59,8 @@ export default function Footer() {
             <li>
               <a
                 href="#orchestration"
-                className="link-underline hover:text-[#F5F3EF] transition-colors duration-200"
+                onClick={(e) => scrollTo("orchestration", e)}
+                className="link-underline hover:text-[#F5F3EF] transition-colors duration-200 py-1"
               >
                 Orchestration
               </a>
@@ -44,7 +68,8 @@ export default function Footer() {
             <li>
               <a
                 href="#memory"
-                className="link-underline hover:text-[#F5F3EF] transition-colors duration-200"
+                onClick={(e) => scrollTo("memory", e)}
+                className="link-underline hover:text-[#F5F3EF] transition-colors duration-200 py-1"
               >
                 Memory
               </a>
@@ -52,7 +77,8 @@ export default function Footer() {
             <li>
               <a
                 href="#research"
-                className="link-underline hover:text-[#F5F3EF] transition-colors duration-200"
+                onClick={(e) => scrollTo("research", e)}
+                className="link-underline hover:text-[#F5F3EF] transition-colors duration-200 py-1"
               >
                 Research
               </a>
@@ -62,11 +88,11 @@ export default function Footer() {
                 href="https://github.com/Qambar-dev-0207/Apex"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="group link-underline inline-flex items-center gap-1 text-[#F5F3EF] hover:text-[#FF4A16] transition-colors duration-200"
+                className="group link-underline inline-flex items-center gap-1.5 text-[#F5F3EF] hover:text-[#FF4A16] transition-colors duration-200 py-1 font-medium"
               >
                 <span>GitHub</span>
                 <ArrowUpRight
-                  size={12}
+                  size={13}
                   className="transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
                   aria-hidden="true"
                 />
@@ -74,16 +100,6 @@ export default function Footer() {
             </li>
           </ul>
         </nav>
-      </div>
-
-      {/* Bottom Copyright and Technical Metadata */}
-      <div className="max-w-[1440px] mx-auto mt-10 pt-6 border-t border-[rgba(255,255,255,0.06)] flex flex-col sm:flex-row items-center justify-between gap-4 font-mono text-[11px] text-[#737575]">
-        <span>
-          © {new Date().getFullYear()} APEX OS · Sovereign Agentic Infrastructure
-        </span>
-        <span className="tracking-widest uppercase text-[10px]">
-          24-LAYER ORCHESTRATION ENGINE
-        </span>
       </div>
     </footer>
   );
