@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
+import ApexMascot from "./ApexMascot";
 
 interface ModelEndpoint {
   id: string;
@@ -137,11 +138,21 @@ export default function ModelRoutingSection() {
               Classifies semantic bounds and dynamically routes execution streams
             </span>
 
-            {/* Downward/Outward Branching Vector Indicators */}
-            <div className="flex items-center gap-2 text-xs font-code text-[#737575]">
-              <span>3 VERIFIED TIERS</span>
-              <span>•</span>
-              <span className="text-[#FF4A16]">0 LOCK-IN</span>
+            {/* Downward/Outward Branching Vector Indicators + Mascot */}
+            <div className="flex flex-col items-center gap-3 text-xs font-code text-[#737575]">
+              <div className="flex items-center gap-2">
+                <span>3 VERIFIED TIERS</span>
+                <span>•</span>
+                <span className="text-[#FF4A16]">0 LOCK-IN</span>
+              </div>
+              <div className="pt-2 opacity-80 hover:opacity-100 transition-opacity">
+                <ApexMascot
+                  variant="connected"
+                  height={72}
+                  animateIdle={true}
+                  alt="APEX companion coordinating multi-model routing"
+                />
+              </div>
             </div>
           </div>
 

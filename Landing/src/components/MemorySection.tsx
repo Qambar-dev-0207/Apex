@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
+import ApexMascot from "./ApexMascot";
 
 export default function MemorySection() {
   const [activeLayer, setActiveLayer] = useState<"all" | "redis" | "chroma">("all");
@@ -258,10 +259,23 @@ export default function MemorySection() {
           </div>
         </div>
 
-        {/* Bottom Technical Notation */}
+        {/* Bottom Technical Notation + Learning Mascot at Secondary Edge */}
         <div className="pt-6 border-t border-[rgba(255,255,255,0.08)] flex flex-wrap items-center justify-between gap-4 text-[#737575] font-code text-[11px] tracking-[0.2em] uppercase">
-          <span>WORKING CACHE ↔ SEMANTIC VECTOR MANIFOLD</span>
-          <span>DETERMINISTIC RETRIEVAL BOUNDS</span>
+          <div className="flex items-center gap-4">
+            <span>WORKING CACHE ↔ SEMANTIC VECTOR MANIFOLD</span>
+            <span className="text-[#737575]/40">·</span>
+            <span>DETERMINISTIC RETRIEVAL BOUNDS</span>
+          </div>
+
+          <div className="flex items-center gap-3 opacity-80 hover:opacity-100 transition-opacity">
+            <span className="text-[9px] text-[#8C9295] tracking-widest hidden sm:inline">MEMORY::CONSOLIDATE</span>
+            <ApexMascot
+              variant="learning"
+              height={74}
+              animateIdle={true}
+              alt="APEX companion indexing memory context"
+            />
+          </div>
         </div>
       </div>
     </section>

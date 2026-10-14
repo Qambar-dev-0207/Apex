@@ -93,19 +93,41 @@ export default function Navbar() {
           <span className="hidden md:inline-block w-px h-3.5 bg-[rgba(255,255,255,0.2)] mx-1.5" />
 
           <span className="hidden md:inline-block font-code text-[11px] tracking-[0.28em] text-[#9A9FA1] uppercase font-normal">
-            SOVEREIGN INTELLIGENCE
+            SOVEREIGN AGENTIC AI OS
           </span>
         </a>
 
-        {/* Right: Architecture + View source + 2-line Hamburger Menu */}
-        <div className="flex items-center gap-8 lg:gap-10">
-          <nav className="hidden sm:flex items-center gap-8 font-sans text-xs tracking-wider" aria-label="Main Navigation">
+        {/* Right: Architecture + Orchestration + Research + View source + 2-line Menu Control */}
+        <div className="flex items-center gap-7 lg:gap-8">
+          <nav className="hidden md:flex items-center gap-6 lg:gap-8 font-sans text-xs tracking-wider" aria-label="Main Navigation">
             <a
               href="#architecture"
               onClick={scrollToArchitecture}
               className="link-underline text-[#B2B0AD] hover:text-[#F5F3EF] transition-colors duration-200 py-1"
             >
               Architecture
+            </a>
+
+            <a
+              href="#orchestration"
+              onClick={(e) => {
+                e.preventDefault();
+                document.getElementById("orchestration")?.scrollIntoView({ behavior: "smooth" });
+              }}
+              className="link-underline text-[#B2B0AD] hover:text-[#F5F3EF] transition-colors duration-200 py-1"
+            >
+              Orchestration
+            </a>
+
+            <a
+              href="#research"
+              onClick={(e) => {
+                e.preventDefault();
+                document.getElementById("research")?.scrollIntoView({ behavior: "smooth" });
+              }}
+              className="link-underline text-[#B2B0AD] hover:text-[#F5F3EF] transition-colors duration-200 py-1"
+            >
+              Research
             </a>
 
             <a
@@ -117,7 +139,7 @@ export default function Navbar() {
               <span>View source</span>
               <ArrowUpRight
                 size={13}
-                className="transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+                className="transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 text-[#9A9FA1] group-hover:text-white"
                 aria-hidden="true"
               />
             </a>

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
+import ApexMascot from "./ApexMascot";
 
 interface LoopStage {
   id: string;
@@ -189,7 +190,7 @@ export default function EvolutionSection() {
                 transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
                 className="w-full grid grid-cols-1 lg:grid-cols-12 gap-8 items-center bg-[#08090A] border border-[rgba(255,255,255,0.08)] rounded-xl p-6 sm:p-8"
               >
-                <div className="lg:col-span-7">
+                <div className="lg:col-span-6">
                   <div className="flex items-center gap-2 font-code text-xs text-[#FF4A16] uppercase font-semibold mb-2">
                     <span>STAGE {LOOP_STAGES[selectedStage].step} — {LOOP_STAGES[selectedStage].role}</span>
                   </div>
@@ -201,13 +202,30 @@ export default function EvolutionSection() {
                   </p>
                 </div>
 
-                <div className="lg:col-span-5 bg-[#111315] border border-[rgba(255,255,255,0.06)] rounded-lg p-5 font-code text-xs">
+                <div className="lg:col-span-4 bg-[#111315] border border-[rgba(255,255,255,0.06)] rounded-lg p-5 font-code text-xs">
                   <span className="text-[#737575] text-[10px] tracking-wider uppercase block mb-2">
                     HARNESS TELEMETRY
                   </span>
                   <p className="text-[#E9D0AD] leading-relaxed">
                     {LOOP_STAGES[selectedStage].telemetry}
                   </p>
+                </div>
+
+                {/* Focused / Determined Companion Mascot */}
+                <div className="lg:col-span-2 flex flex-col items-center justify-center pt-2 lg:pt-0">
+                  <ApexMascot
+                    variant={LOOP_STAGES[selectedStage].id === "recover" ? "determined" : "focused"}
+                    height={80}
+                    animateIdle={true}
+                    alt={
+                      LOOP_STAGES[selectedStage].id === "recover"
+                        ? "APEX companion determined to rollback state"
+                        : "APEX companion monitoring loop execution"
+                    }
+                  />
+                  <span className="font-code text-[9px] text-[#737575] tracking-widest mt-2 uppercase">
+                    HARNESS::{LOOP_STAGES[selectedStage].id.toUpperCase()}
+                  </span>
                 </div>
               </motion.div>
             </AnimatePresence>

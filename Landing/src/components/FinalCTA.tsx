@@ -2,6 +2,7 @@
 
 import { motion, useReducedMotion } from "motion/react";
 import { ArrowUp, ArrowUpRight } from "lucide-react";
+import ApexMascot from "./ApexMascot";
 
 export default function FinalCTA() {
   const shouldReduceMotion = useReducedMotion();
@@ -113,11 +114,23 @@ export default function FinalCTA() {
           </button>
         </motion.div>
 
-        {/* Subordinate Monolithic Note */}
-        <div className="mt-20 pt-8 border-t border-[rgba(255,255,255,0.06)] w-full flex justify-center">
-          <span className="font-mono text-[10px] tracking-[0.28em] text-[#737575] uppercase">
+        {/* Subordinate Monolithic Note with Proud Companion Mascot */}
+        <div className="mt-20 pt-8 border-t border-[rgba(255,255,255,0.06)] w-full flex flex-col sm:flex-row items-center justify-between gap-6">
+          <span className="font-mono text-[10px] tracking-[0.28em] text-[#737575] uppercase text-center sm:text-left">
             24 LAYERS · DETERMINISTIC GRAPHS · IMMUTABLE MEMORY
           </span>
+
+          <div className="flex items-center gap-3 opacity-80 hover:opacity-100 transition-opacity">
+            <span className="font-code text-[9px] tracking-[0.22em] text-[#737575] uppercase hidden sm:inline">
+              SYS::STANDBY // SOVEREIGN
+            </span>
+            <ApexMascot
+              variant="proud"
+              height={72}
+              animateIdle={true}
+              alt="APEX companion standing proud beside the sovereign system"
+            />
+          </div>
         </div>
       </div>
     </section>

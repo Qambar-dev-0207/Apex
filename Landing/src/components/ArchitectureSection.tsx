@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
+import ApexMascot from "./ApexMascot";
 
 interface ArchitectureTier {
   id: string;
@@ -267,10 +268,24 @@ export default function ArchitectureSection() {
               })}
             </div>
 
-            {/* Bottom Clarifying Notation */}
-            <div className="pt-6 border-t border-[rgba(255,255,255,0.08)] flex items-center justify-between text-[#737575] font-code text-[10px] tracking-[0.2em] uppercase">
-              <span>FOUR ARCHITECTURAL TIERS</span>
-              <span>24 DEEP INTERNAL LAYERS</span>
+            {/* Bottom Clarifying Notation + Analyzing Mascot at outer edge */}
+            <div className="pt-6 border-t border-[rgba(255,255,255,0.08)] flex flex-wrap items-center justify-between gap-4 text-[#737575] font-code text-[10px] tracking-[0.2em] uppercase">
+              <div className="flex items-center gap-4">
+                <span>FOUR ARCHITECTURAL TIERS</span>
+                <span className="text-[#737575]/40">·</span>
+                <span>24 DEEP INTERNAL LAYERS</span>
+              </div>
+
+              {/* Analyzing Companion at outer edge */}
+              <div className="flex items-center gap-3 opacity-80 hover:opacity-100 transition-opacity">
+                <span className="text-[9px] text-[#8C9295] tracking-widest hidden sm:inline">TELEMETRY::INSPECT</span>
+                <ApexMascot
+                  variant="analyzing"
+                  height={80}
+                  animateIdle={true}
+                  alt="APEX companion analyzing system architecture"
+                />
+              </div>
             </div>
           </div>
         </div>
