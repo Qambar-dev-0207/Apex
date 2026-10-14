@@ -28,7 +28,7 @@ export default function Footer() {
             <li>
               <a
                 href="#architecture"
-                className="hover:text-[#F5F3EF] transition-colors duration-200"
+                className="link-underline hover:text-[#F5F3EF] transition-colors duration-200"
               >
                 Architecture
               </a>
@@ -36,7 +36,7 @@ export default function Footer() {
             <li>
               <a
                 href="#orchestration"
-                className="hover:text-[#F5F3EF] transition-colors duration-200"
+                className="link-underline hover:text-[#F5F3EF] transition-colors duration-200"
               >
                 Orchestration
               </a>
@@ -44,7 +44,7 @@ export default function Footer() {
             <li>
               <a
                 href="#memory"
-                className="hover:text-[#F5F3EF] transition-colors duration-200"
+                className="link-underline hover:text-[#F5F3EF] transition-colors duration-200"
               >
                 Memory
               </a>
@@ -52,7 +52,7 @@ export default function Footer() {
             <li>
               <a
                 href="#research"
-                className="hover:text-[#F5F3EF] transition-colors duration-200"
+                className="link-underline hover:text-[#F5F3EF] transition-colors duration-200"
               >
                 Research
               </a>
@@ -62,10 +62,14 @@ export default function Footer() {
                 href="https://github.com/Qambar-dev-0207/Apex"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-[#F5F3EF] hover:text-[#FF4A16] transition-colors duration-200"
+                className="group link-underline inline-flex items-center gap-1 text-[#F5F3EF] hover:text-[#FF4A16] transition-colors duration-200"
               >
                 <span>GitHub</span>
-                <ArrowUpRight size={12} aria-hidden="true" />
+                <ArrowUpRight
+                  size={12}
+                  className="transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+                  aria-hidden="true"
+                />
               </a>
             </li>
           </ul>

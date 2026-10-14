@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { motion, AnimatePresence } from "motion/react";
+import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 
 interface ModelEndpoint {
   id: string;
@@ -18,8 +18,7 @@ const MODEL_ENDPOINTS: ModelEndpoint[] = [
     name: "Gemini 2.0 Flash",
     role: "Strategic Planning & Intent Routing",
     latency: "High-reasoning tier",
-    description:
-      "Analyzes unstructured intent, normalizes query boundaries, and decomposes multi-step goals into dependency-ordered task graphs.",
+    description: "Analyzes unstructured intent, normalizes query boundaries, and decomposes multi-step goals into dependency-ordered task graphs.",
     routingTrigger: "Activated on complex reasoning, schema compilation, and strategic planning goals.",
   },
   {
@@ -27,58 +26,89 @@ const MODEL_ENDPOINTS: ModelEndpoint[] = [
     name: "Groq LPU Inference",
     role: "Low-Latency Edge Tool Execution",
     latency: "Sub-100ms inference tier",
-    description:
-      "Dispatches fast atomic tool invocations, code completion steps, and real-time interactive evaluations without high latency penalties.",
-    routingTrigger: "Selected for interactive CLI commands, real-time tool loops, and rapid classification.",
+    description: "Executes deterministic function calling, atomic tool selection, and rapid code validation cycles with instantaneous response.",
+    routingTrigger: "Activated for fast reflexive tool selection, parameter extraction, and status validation.",
   },
   {
-    id: "local",
+    id: "ollama",
     name: "Ollama / Local Sovereignty",
-    role: "Air-Gapped Offline Fallback",
-    latency: "Edge local hardware tier",
-    description:
-      "Executes private, on-device models (DeepSeek, Qwen) when internet connectivity is severed or absolute data sovereignty is mandated.",
-    routingTrigger: "Triggered during network disconnects or sensitive sovereign filesystem operations.",
+    role: "Air-Gapped Private Execution",
+    latency: "Zero external network tier",
+    description: "Runs local DeepSeek and Qwen models directly on private hardware without sending sensitive code or credentials over the network.",
+    routingTrigger: "Activated during air-gapped operations, offline failovers, or confidential token policies.",
   },
 ];
 
 export default function ModelRoutingSection() {
   const [selectedEndpoint, setSelectedEndpoint] = useState<number>(0);
+  const shouldReduceMotion = useReducedMotion();
 
   return (
     <section
       id="models"
-      className="relative w-full bg-[#08090A] text-[#F5F3EF] py-32 sm:py-40 lg:py-48 overflow-hidden border-t border-[rgba(255,255,255,0.06)]"
-      aria-label="APEX Multi-Model Intelligence Orchestration"
+      className="relative w-full bg-[#08090A] text-[#F5F3EF] py-32 sm:py-40 lg:py-48 overflow-hidden border-t border-[rgba(255,255,255,0.06)] select-none"
+      aria-label="APEX Multi-Model Intelligence"
     >
       <div className="max-w-[1600px] mx-auto px-6 sm:px-10 lg:px-16">
         {/* Section Header */}
         <div className="max-w-[840px] mb-20">
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-            className="font-code text-[10px] sm:text-[11px] tracking-[0.28em] text-[#737575] uppercase font-medium mb-5"
-          >
-            MODEL ORCHESTRATION
-          </motion.div>
+          {/* Eyebrow with horizontal line draw */}
+          <div className="flex items-center gap-3 mb-5">
+            <motion.span
+              initial={shouldReduceMotion ? { width: 24 } : { width: 0 }}
+              whileInView={{ width: 24 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+              className="h-px bg-[#FF4A16] block"
+              aria-hidden="true"
+            />
+            <motion.div
+              initial={shouldReduceMotion ? { opacity: 1, x: 0 } : { opacity: 0, x: -8 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+              className="font-code text-[10px] sm:text-[11px] tracking-[0.28em] text-[#737575] uppercase font-medium"
+            >
+              MODEL ORCHESTRATION
+            </motion.div>
+          </div>
 
-          <motion.h2
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.7, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
-            className="font-editorial text-4xl sm:text-6xl lg:text-7xl leading-[1.04] tracking-[-0.02em] text-[#F5F3EF] mb-6"
-          >
-            One objective.{" "}
-            <span className="font-editorial italic font-normal text-[#E9D0AD]">
-              Multiple minds.
+          {/* Masked Line Reveal Headline */}
+          <h2 className="font-editorial text-4xl sm:text-6xl lg:text-7xl leading-[1.04] tracking-[-0.02em] text-[#F5F3EF] mb-6 flex flex-col">
+            <span className="overflow-mask block relative py-0.5">
+              <motion.span
+                initial={
+                  shouldReduceMotion
+                    ? { opacity: 1, y: 0 }
+                    : { opacity: 0, y: "110%", filter: "blur(3px)" }
+                }
+                whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.75, ease: [0.16, 1, 0.3, 1] }}
+                className="block font-normal"
+              >
+                One objective.
+              </motion.span>
             </span>
-          </motion.h2>
+            <span className="overflow-mask block relative py-0.5">
+              <motion.span
+                initial={
+                  shouldReduceMotion
+                    ? { opacity: 1, y: 0 }
+                    : { opacity: 0, y: "110%", filter: "blur(3px)" }
+                }
+                whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.85, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+                className="block font-editorial italic font-normal text-[#E9D0AD]"
+              >
+                Multiple minds.
+              </motion.span>
+            </span>
+          </h2>
 
           <motion.p
-            initial={{ opacity: 0, y: 16 }}
+            initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 16 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
@@ -133,7 +163,7 @@ export default function ModelRoutingSection() {
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-3">
                       <span
-                        className={`w-2 h-2 rounded-full ${
+                        className={`w-2 h-2 rounded-full transition-colors ${
                           isSelected ? "bg-[#FF4A16]" : "bg-[rgba(255,255,255,0.2)]"
                         }`}
                       />
@@ -154,13 +184,14 @@ export default function ModelRoutingSection() {
                     {endpoint.description}
                   </p>
 
-                  <AnimatePresence>
+                  <AnimatePresence mode="wait">
                     {isSelected && (
                       <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        exit={{ opacity: 0, height: 0 }}
-                        transition={{ duration: 0.25 }}
+                        key={endpoint.id}
+                        initial={{ opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -4 }}
+                        transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
                         className="pt-3 border-t border-[rgba(255,255,255,0.08)] font-code text-[11px] text-[#E9D0AD]/90 overflow-hidden"
                       >
                         <span className="text-[#737575] mr-2">DISPATCH POLICY:</span>

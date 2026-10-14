@@ -1,45 +1,81 @@
 "use client";
 
 import { useState } from "react";
-import { motion, AnimatePresence } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
 
 export default function MemorySection() {
   const [activeLayer, setActiveLayer] = useState<"all" | "redis" | "chroma">("all");
+  const shouldReduceMotion = useReducedMotion();
 
   return (
     <section
       id="memory"
-      className="relative w-full bg-[#050607] text-[#F5F3EF] py-32 sm:py-40 lg:py-48 overflow-hidden border-t border-[rgba(255,255,255,0.06)]"
+      className="relative w-full bg-[#050607] text-[#F5F3EF] py-32 sm:py-40 lg:py-48 overflow-hidden border-t border-[rgba(255,255,255,0.06)] select-none"
       aria-label="APEX Hybrid Memory Architecture"
     >
       <div className="max-w-[1600px] mx-auto px-6 sm:px-10 lg:px-16">
         {/* Section Header */}
         <div className="max-w-[840px] mb-20">
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-            className="font-code text-[10px] sm:text-[11px] tracking-[0.28em] text-[#737575] uppercase font-medium mb-5"
-          >
-            HYBRID MEMORY
-          </motion.div>
+          {/* Eyebrow with horizontal line draw */}
+          <div className="flex items-center gap-3 mb-5">
+            <motion.span
+              initial={shouldReduceMotion ? { width: 24 } : { width: 0 }}
+              whileInView={{ width: 24 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+              className="h-px bg-[#FF4A16] block"
+              aria-hidden="true"
+            />
+            <motion.div
+              initial={shouldReduceMotion ? { opacity: 1, x: 0 } : { opacity: 0, x: -8 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+              className="font-code text-[10px] sm:text-[11px] tracking-[0.28em] text-[#737575] uppercase font-medium"
+            >
+              HYBRID MEMORY
+            </motion.div>
+          </div>
 
-          <motion.h2
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.7, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
-            className="font-editorial text-4xl sm:text-6xl lg:text-7xl leading-[1.04] tracking-[-0.02em] text-[#F5F3EF] mb-6"
-          >
-            Context should not end with the{" "}
-            <span className="font-editorial italic font-normal text-[#E9D0AD]">
-              conversation.
+          {/* Masked Line Reveal Headline */}
+          <h2 className="font-editorial text-4xl sm:text-6xl lg:text-7xl leading-[1.04] tracking-[-0.02em] text-[#F5F3EF] mb-6 flex flex-col">
+            <span className="overflow-mask block relative py-0.5">
+              <motion.span
+                initial={
+                  shouldReduceMotion
+                    ? { opacity: 1, y: 0 }
+                    : { opacity: 0, y: "110%", filter: "blur(3px)" }
+                }
+                whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.75, ease: [0.16, 1, 0.3, 1] }}
+                className="block font-normal"
+              >
+                Context should not end
+              </motion.span>
             </span>
-          </motion.h2>
+            <span className="overflow-mask block relative py-0.5">
+              <motion.span
+                initial={
+                  shouldReduceMotion
+                    ? { opacity: 1, y: 0 }
+                    : { opacity: 0, y: "110%", filter: "blur(3px)" }
+                }
+                whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.82, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+                className="block font-normal"
+              >
+                with the{" "}
+                <span className="font-editorial italic font-normal text-[#E9D0AD]">
+                  conversation.
+                </span>
+              </motion.span>
+            </span>
+          </h2>
 
           <motion.p
-            initial={{ opacity: 0, y: 16 }}
+            initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 16 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
@@ -145,28 +181,28 @@ export default function MemorySection() {
                     CHROMADB
                   </text>
                   <text x="380" y="156" textAnchor="middle" fill="#737575" fontSize="8" fontFamily="var(--font-jetbrains)">
-                    VECTOR RETRIEVAL
+                    VECTOR STORE
                   </text>
 
-                  {/* Semantic knowledge clusters */}
-                  <circle cx="440" cy="65" r="16" fill="#08090A" stroke="rgba(255,255,255,0.2)" strokeWidth="1" />
-                  <line x1="380" y1="110" x2="440" y2="65" stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
-                  <circle cx="450" cy="155" r="16" fill="#08090A" stroke="rgba(255,255,255,0.2)" strokeWidth="1" />
-                  <line x1="380" y1="110" x2="450" y2="155" stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
-                  <circle cx="350" cy="175" r="12" fill="#08090A" stroke="rgba(255,255,255,0.2)" strokeWidth="1" />
-                  <line x1="380" y1="110" x2="350" y2="175" stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
+                  {/* Satellite nodes for persistent embeddings */}
+                  <circle cx="440" cy="70" r="14" fill="#08090A" stroke="rgba(255,255,255,0.2)" strokeWidth="1" />
+                  <line x1="380" y1="110" x2="440" y2="70" stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
+                  <circle cx="440" cy="150" r="14" fill="#08090A" stroke="rgba(255,255,255,0.2)" strokeWidth="1" />
+                  <line x1="380" y1="110" x2="440" y2="150" stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
+                  <circle cx="350" cy="50" r="12" fill="#08090A" stroke="rgba(255,255,255,0.2)" strokeWidth="1" />
+                  <line x1="380" y1="110" x2="350" y2="50" stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
                 </g>
               </svg>
             </div>
 
-            {/* Bottom State Caption */}
-            <div className="pt-4 border-t border-[rgba(255,255,255,0.08)] flex items-center justify-between font-code text-[10px] text-[#737575] uppercase">
-              <span>SYNC LATENCY &lt; 38ms</span>
-              <span className="text-[#E9D0AD]">CROSS-SESSION PERSISTENCE</span>
+            {/* Micro Caption */}
+            <div className="pt-4 border-t border-[rgba(255,255,255,0.06)] flex items-center justify-between text-[#737575] font-code text-[10px]">
+              <span>EPHEMERAL EXECUTION CONTEXT</span>
+              <span>INDEXED SEMANTIC EMBEDDINGS</span>
             </div>
           </div>
 
-          {/* Right Column: Two Distinct Memory Roles */}
+          {/* Right Column: Explanatory Role Cards */}
           <div className="lg:col-span-5 flex flex-col justify-between gap-6">
             {/* Redis Role Card */}
             <div

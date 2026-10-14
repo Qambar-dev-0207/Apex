@@ -2,10 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { ArrowUpRight, X } from "lucide-react";
+import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const shouldReduceMotion = useReducedMotion();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -34,11 +36,20 @@ export default function Navbar() {
     }
   };
 
+  const navLinks = [
+    { num: "01", label: "Architecture", href: "#architecture" },
+    { num: "02", label: "Orchestration", href: "#orchestration" },
+    { num: "03", label: "Multi-Model", href: "#models" },
+    { num: "04", label: "Hybrid Memory", href: "#memory" },
+    { num: "05", label: "Continuous Loop", href: "#evolution" },
+    { num: "06", label: "KnowledgeForge", href: "#research" },
+  ];
+
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 select-none ${
         scrolled
-          ? "bg-[#08090A]/85 backdrop-blur-md border-b border-[rgba(235,240,238,0.08)] py-4"
+          ? "bg-[#08090A]/85 backdrop-blur-md border-b border-[rgba(255,255,255,0.08)] py-4"
           : "bg-transparent py-7"
       }`}
     >
@@ -46,7 +57,7 @@ export default function Navbar() {
         {/* Left: APEX Chevron Glyph + Wordmark + Descriptor */}
         <a
           href="#"
-          className="flex items-center gap-3.5 group text-[#F3F4F2] focus-visible:outline-[#FF3700] rounded-sm"
+          className="flex items-center gap-3.5 group text-[#F5F3EF] focus-visible:outline-[#FF4A16] rounded-sm"
           aria-label="APEX - Return to top"
         >
           {/* Sovereign APEX Chevron / Lambda Glyph */}
@@ -55,7 +66,7 @@ export default function Navbar() {
               viewBox="0 0 24 24"
               fill="none"
               xmlns="http://www.w3.org/2000/svg"
-              className="w-5 h-5 text-[#F3F4F2] transition-transform duration-300 group-hover:scale-105"
+              className="w-5 h-5 text-[#F5F3EF] transition-transform duration-300 group-hover:scale-105"
               aria-hidden="true"
             >
               <path
@@ -75,11 +86,11 @@ export default function Navbar() {
             </svg>
           </div>
 
-          <span className="font-sans font-bold tracking-[0.26em] text-sm text-[#F3F4F2] uppercase">
+          <span className="font-sans font-bold tracking-[0.26em] text-sm text-[#F5F3EF] uppercase">
             APEX
           </span>
 
-          <span className="hidden md:inline-block w-px h-3.5 bg-[rgba(235,240,238,0.25)] mx-1.5" />
+          <span className="hidden md:inline-block w-px h-3.5 bg-[rgba(255,255,255,0.2)] mx-1.5" />
 
           <span className="hidden md:inline-block font-code text-[11px] tracking-[0.28em] text-[#9A9FA1] uppercase font-normal">
             SOVEREIGN INTELLIGENCE
@@ -92,7 +103,7 @@ export default function Navbar() {
             <a
               href="#architecture"
               onClick={scrollToArchitecture}
-              className="text-[#9A9FA1] hover:text-[#F3F4F2] transition-colors duration-200 py-1"
+              className="link-underline text-[#B2B0AD] hover:text-[#F5F3EF] transition-colors duration-200 py-1"
             >
               Architecture
             </a>
@@ -101,7 +112,7 @@ export default function Navbar() {
               href="https://github.com/Qambar-dev-0207/Apex"
               target="_blank"
               rel="noopener noreferrer"
-              className="group inline-flex items-center gap-1.5 text-[#F3F4F2] hover:text-white transition-colors duration-200 py-1 font-medium"
+              className="group link-underline inline-flex items-center gap-1.5 text-[#F5F3EF] hover:text-white transition-colors duration-200 py-1 font-medium"
             >
               <span>View source</span>
               <ArrowUpRight
@@ -116,7 +127,7 @@ export default function Navbar() {
           <button
             type="button"
             onClick={() => setMobileOpen(!mobileOpen)}
-            className="flex flex-col justify-center gap-1.5 w-6 h-6 text-[#F3F4F2] hover:opacity-80 transition-opacity focus-visible:outline-[#FF3700] p-0.5"
+            className="flex flex-col justify-center gap-1.5 w-6 h-6 text-[#F5F3EF] hover:opacity-80 transition-opacity focus-visible:outline-[#FF4A16] p-0.5 cursor-pointer"
             aria-expanded={mobileOpen}
             aria-controls="mobile-navigation"
             aria-label={mobileOpen ? "Close navigation menu" : "Open navigation menu"}
@@ -125,82 +136,77 @@ export default function Navbar() {
               <X size={20} />
             ) : (
               <>
-                <span className="w-full h-[1.5px] bg-[#F3F4F2] block rounded-full" />
-                <span className="w-full h-[1.5px] bg-[#F3F4F2] block rounded-full" />
+                <span className="w-full h-[1.5px] bg-[#F5F3EF] block rounded-full" />
+                <span className="w-full h-[1.5px] bg-[#F5F3EF] block rounded-full" />
               </>
             )}
           </button>
         </div>
       </div>
 
-      {/* Accessible Mobile / Drawer Dropdown Menu */}
-      {mobileOpen && (
-        <div
-          id="mobile-navigation"
-          className="px-6 py-6 bg-[#08090A]/95 backdrop-blur-xl border-b border-[rgba(255,255,255,0.1)] animate-in fade-in slide-in-from-top-2 duration-200"
-        >
-          <div className="max-w-[1600px] mx-auto flex flex-col gap-4 font-sans text-sm">
-            <span className="font-mono text-[10px] tracking-[0.25em] text-[#737575] uppercase pb-2 border-b border-[rgba(255,255,255,0.08)]">
-              SYSTEM SECTIONS
-            </span>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-1">
-              <a
-                href="#architecture"
-                onClick={() => setMobileOpen(false)}
-                className="text-[#B2B0AD] hover:text-[#F5F3EF] transition-colors py-1"
+      {/* Accessible Mobile / Drawer Dropdown Menu with Staggered Links */}
+      <AnimatePresence>
+        {mobileOpen && (
+          <motion.div
+            id="mobile-navigation"
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+            className="px-6 py-6 bg-[#08090A]/95 backdrop-blur-xl border-b border-[rgba(255,255,255,0.1)]"
+          >
+            <div className="max-w-[1600px] mx-auto flex flex-col gap-4 font-sans text-sm">
+              <span className="font-mono text-[10px] tracking-[0.25em] text-[#737575] uppercase pb-2 border-b border-[rgba(255,255,255,0.08)]">
+                SYSTEM SECTIONS
+              </span>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-1">
+                {navLinks.map((item, idx) => (
+                  <motion.a
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setMobileOpen(false)}
+                    initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{
+                      duration: 0.3,
+                      delay: 0.1 + idx * 0.06,
+                      ease: [0.16, 1, 0.3, 1],
+                    }}
+                    className="link-underline text-[#B2B0AD] hover:text-[#F5F3EF] transition-colors py-1 inline-flex items-center gap-1.5"
+                  >
+                    <span className="font-code text-[11px] text-[#FF4A16]">{item.num}</span>
+                    <span>{item.label}</span>
+                  </motion.a>
+                ))}
+              </div>
+
+              <motion.div
+                initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{
+                  duration: 0.3,
+                  delay: 0.1 + navLinks.length * 0.06,
+                  ease: [0.16, 1, 0.3, 1],
+                }}
+                className="pt-3 border-t border-[rgba(255,255,255,0.08)] flex justify-between items-center"
               >
-                01 Architecture
-              </a>
-              <a
-                href="#orchestration"
-                onClick={() => setMobileOpen(false)}
-                className="text-[#B2B0AD] hover:text-[#F5F3EF] transition-colors py-1"
-              >
-                02 Orchestration
-              </a>
-              <a
-                href="#models"
-                onClick={() => setMobileOpen(false)}
-                className="text-[#B2B0AD] hover:text-[#F5F3EF] transition-colors py-1"
-              >
-                03 Multi-Model
-              </a>
-              <a
-                href="#memory"
-                onClick={() => setMobileOpen(false)}
-                className="text-[#B2B0AD] hover:text-[#F5F3EF] transition-colors py-1"
-              >
-                04 Hybrid Memory
-              </a>
-              <a
-                href="#evolution"
-                onClick={() => setMobileOpen(false)}
-                className="text-[#B2B0AD] hover:text-[#F5F3EF] transition-colors py-1"
-              >
-                05 Continuous Loop
-              </a>
-              <a
-                href="#research"
-                onClick={() => setMobileOpen(false)}
-                className="text-[#B2B0AD] hover:text-[#F5F3EF] transition-colors py-1"
-              >
-                06 KnowledgeForge
-              </a>
+                <a
+                  href="https://github.com/Qambar-dev-0207/Apex"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group link-underline inline-flex items-center gap-1.5 text-[#F5F3EF] hover:text-[#FF4A16] transition-colors font-medium text-xs tracking-wider uppercase"
+                >
+                  <span>View source on GitHub</span>
+                  <ArrowUpRight
+                    size={14}
+                    className="transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+                  />
+                </a>
+              </motion.div>
             </div>
-            <div className="pt-3 border-t border-[rgba(255,255,255,0.08)] flex justify-between items-center">
-              <a
-                href="https://github.com/Qambar-dev-0207/Apex"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-[#F5F3EF] hover:text-[#FF4A16] transition-colors font-medium text-xs tracking-wider uppercase"
-              >
-                <span>View source on GitHub</span>
-                <ArrowUpRight size={14} />
-              </a>
-            </div>
-          </div>
-        </div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </header>
   );
 }

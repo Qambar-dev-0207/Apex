@@ -1,17 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { motion, AnimatePresence } from "motion/react";
-import { Layers, ShieldCheck, Cpu, HardDrive } from "lucide-react";
+import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 
 interface ArchitectureTier {
   id: string;
   num: string;
   name: string;
-  headline: string;
   summary: string;
   details: string[];
-  icon: typeof Layers;
 }
 
 const ARCHITECTURE_TIERS: ArchitectureTier[] = [
@@ -19,97 +16,118 @@ const ARCHITECTURE_TIERS: ArchitectureTier[] = [
     id: "strategy",
     num: "01",
     name: "Intelligence & Strategy",
-    headline: "Intent routing and cognitive orchestration.",
-    summary:
-      "Intent understanding, routing, orchestration, and dependency-ordered task planning.",
+    summary: "Intent understanding, routing, orchestration, and dependency-ordered task planning.",
     details: [
       "Gemini 2.0 Flash intent classification & sovereign skill routing",
       "Directed Acyclic Graph (Task DAG) decomposition engine",
       "Socratic Invariant Gate with Steelman assumption probing",
     ],
-    icon: ShieldCheck,
   },
   {
     id: "memory",
     num: "02",
     name: "Memory & Context",
-    headline: "Hybrid working cache and semantic retrieval.",
-    summary:
-      "Working memory, long-term semantic retrieval, and contextual relationships.",
+    summary: "Working memory, long-term semantic retrieval, and contextual relationships.",
     details: [
-      "Redis in-memory working cache for active state (<10ms latency)",
-      "ChromaDB persistent vector embeddings for long-term semantic search",
-      "AST Code Compass symbol indexer with 18.4× context compression",
+      "Redis sub-10ms active state working memory cache",
+      "ChromaDB persistent vector database with HNSW index (<38ms)",
+      "Automated ephemeral-to-semantic consolidation pipelines",
     ],
-    icon: HardDrive,
   },
   {
     id: "execution",
     num: "03",
     name: "Execution & Validation",
-    headline: "Parallel dispatch and defensive validation.",
-    summary:
-      "Specialized agents, task coordination, execution, and result verification.",
+    summary: "Specialized agents, task coordination, execution, and result verification.",
     details: [
-      "asyncio TaskGroup concurrent worker pool with timeout boundaries",
-      "Specialized research and coding agent harnesses",
-      "Multi-stage pipeline: Spec → Implementation → Automated Validation",
+      "Groq LPU low-latency deterministic tool execution dispatch",
+      "AgentHarness execution wrapper with automated snapshot rollbacks",
+      "Isolated Python sub-process sandboxes with safety guardrails",
     ],
-    icon: Cpu,
   },
   {
     id: "interface",
     num: "04",
     name: "Interface & Telemetry",
-    headline: "Sensory awareness and hardware guardrails.",
-    summary:
-      "User interaction, environmental context, and operational signals where supported.",
+    summary: "User interaction, environmental context, and operational signals where supported.",
     details: [
-      "Real-time hardware monitoring (CPU, RAM, thermals, token spend)",
-      "Ambient sensory awareness and multi-modal screen context",
-      "Proactive throttling based on system load and budget gates",
+      "Full sensory bridge: mouse, keyboard, and display telemetry",
+      "Adaptive real-time token compression via Code Compass AST (18.4×)",
+      "Local sovereignty offline failover: Ollama DeepSeek & Qwen models",
     ],
-    icon: Layers,
   },
 ];
 
 export default function ArchitectureSection() {
   const [selectedTier, setSelectedTier] = useState<number>(0);
+  const shouldReduceMotion = useReducedMotion();
 
   return (
     <section
       id="architecture"
-      className="relative w-full bg-[#08090A] text-[#F5F3EF] py-32 sm:py-40 lg:py-48 overflow-hidden border-t border-[rgba(255,255,255,0.06)]"
+      className="relative w-full bg-[#08090A] text-[#F5F3EF] py-32 sm:py-40 lg:py-48 overflow-hidden border-t border-[rgba(255,255,255,0.06)] select-none"
       aria-label="APEX 24-Layer System Architecture"
     >
       <div className="max-w-[1600px] mx-auto px-6 sm:px-10 lg:px-16">
         {/* Section Header */}
         <div className="max-w-[840px] mb-20 lg:mb-28">
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-            className="font-code text-[10px] sm:text-[11px] tracking-[0.28em] text-[#737575] uppercase font-medium mb-5"
-          >
-            SYSTEM ARCHITECTURE
-          </motion.div>
+          {/* Eyebrow with horizontal line draw */}
+          <div className="flex items-center gap-3 mb-5">
+            <motion.span
+              initial={shouldReduceMotion ? { width: 24 } : { width: 0 }}
+              whileInView={{ width: 24 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+              className="h-px bg-[#FF4A16] block"
+              aria-hidden="true"
+            />
+            <motion.div
+              initial={shouldReduceMotion ? { opacity: 1, x: 0 } : { opacity: 0, x: -8 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+              className="font-code text-[10px] sm:text-[11px] tracking-[0.28em] text-[#737575] uppercase font-medium"
+            >
+              SYSTEM ARCHITECTURE
+            </motion.div>
+          </div>
 
-          <motion.h2
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.7, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
-            className="font-editorial text-4xl sm:text-6xl lg:text-7xl leading-[1.04] tracking-[-0.02em] text-[#F5F3EF] mb-6"
-          >
-            Structure beneath the{" "}
-            <span className="font-editorial italic font-normal text-[#E9D0AD]">
-              intelligence.
+          {/* Masked Line Reveal Headline */}
+          <h2 className="font-editorial text-4xl sm:text-6xl lg:text-7xl leading-[1.04] tracking-[-0.02em] text-[#F5F3EF] mb-6 flex flex-col">
+            <span className="overflow-mask block relative py-0.5">
+              <motion.span
+                initial={
+                  shouldReduceMotion
+                    ? { opacity: 1, y: 0 }
+                    : { opacity: 0, y: "110%", filter: "blur(3px)" }
+                }
+                whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.75, ease: [0.16, 1, 0.3, 1] }}
+                className="block font-normal"
+              >
+                Structure beneath the
+              </motion.span>
             </span>
-          </motion.h2>
+            <span className="overflow-mask block relative py-0.5">
+              <motion.span
+                initial={
+                  shouldReduceMotion
+                    ? { opacity: 1, y: 0 }
+                    : { opacity: 0, y: "110%", filter: "blur(3px)" }
+                }
+                whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.85, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+                className="block font-editorial italic font-normal text-[#E9D0AD]"
+              >
+                intelligence.
+              </motion.span>
+            </span>
+          </h2>
 
           <motion.p
-            initial={{ opacity: 0, y: 16 }}
+            initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 16 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
@@ -123,7 +141,7 @@ export default function ArchitectureSection() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
           {/* Left Column: Stacked Architectural Planes Visualization */}
           <div className="lg:col-span-6 bg-[#050607] border border-[rgba(255,255,255,0.1)] rounded-2xl p-6 sm:p-10 relative overflow-hidden min-h-[460px] flex items-center justify-center">
-            {/* Subtle Perspective Coordinate Grid Background */}
+            {/* Perspective Coordinate Grid Background */}
             <div className="absolute inset-0 architectural-grid opacity-20 pointer-events-none" />
 
             {/* Central Vertical Architectural Axis Line */}
@@ -149,7 +167,7 @@ export default function ArchitectureSection() {
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-3">
                         <span
-                          className={`font-code text-xs font-semibold tracking-wider ${
+                          className={`font-code text-xs font-semibold tracking-wider transition-colors duration-200 ${
                             isSelected ? "text-[#FF4A16]" : "text-[#737575]"
                           }`}
                         >
@@ -161,20 +179,19 @@ export default function ArchitectureSection() {
                         </span>
                       </div>
 
-                      {/* Small Active Orange Beacon */}
+                      {/* Active Status Beacon */}
                       {isSelected && (
                         <div className="flex items-center gap-1.5">
                           <span className="w-1.5 h-1.5 rounded-full bg-[#FF4A16] animate-pulse" />
-                          <span className="font-code text-[9px] tracking-widest text-[#FF4A16] uppercase">
+                          <span className="font-code text-[10px] tracking-widest text-[#FF4A16] uppercase font-medium">
                             ACTIVE
                           </span>
                         </div>
                       )}
                     </div>
 
-                    {/* Short Descriptor */}
-                    <p className="text-[#B2B0AD] text-xs font-normal leading-relaxed line-clamp-1">
-                      {tier.headline}
+                    <p className="text-[#B2B0AD] text-xs font-normal leading-relaxed">
+                      {tier.summary}
                     </p>
 
                     {/* Structural Corner Marks */}
@@ -223,13 +240,14 @@ export default function ArchitectureSection() {
                       {tier.summary}
                     </p>
 
-                    <AnimatePresence>
+                    <AnimatePresence mode="wait">
                       {isSelected && (
                         <motion.ul
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: "auto" }}
-                          exit={{ opacity: 0, height: 0 }}
-                          transition={{ duration: 0.3 }}
+                          key={tier.id}
+                          initial={{ opacity: 0, y: -6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -4 }}
+                          transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
                           className="pt-4 border-t border-[rgba(255,255,255,0.08)] space-y-2 overflow-hidden"
                         >
                           {tier.details.map((detail, dIdx) => (
