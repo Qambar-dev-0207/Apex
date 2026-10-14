@@ -195,13 +195,28 @@ REGISTRY: Dict[str, ToolSpec] = {
     "desktop_control": ToolSpec(
         name="desktop_control",
         aliases=["desktop", "ui", "automation", "win_automation"],
-        actions=["click", "type", "read", "list_elements", "navigate", "powershell"],
-        input_schema='JSON containing action details (e.g. {"selector": "...", "text": "..."})',
-        when_to_use="Control Windows UI elements via UI Automation, run PowerShell scripts, or automate browser tasks using Playwright.",
+        actions=["click", "type", "read", "list_elements", "navigate", "powershell", "open_app", "launch_app", "list_apps"],
+        input_schema='JSON containing action details (e.g. {"selector": "...", "text": "..."}) or app name',
+        when_to_use="Control Windows UI elements via UI Automation, run PowerShell scripts, automate browser tasks, or launch desktop apps.",
         examples=[
+            'desktop_control:open_app input_data=\'{"name": "chrome"}\'',
             'desktop_control:click input_data=\'{"text": "Start"}\'',
             'desktop_control:type input_data=\'{"text": "notepad", "selector": "Search"}\'',
             'desktop_control:navigate input_data=\'{"url": "https://google.com"}\'',
+        ],
+    ),
+    "app_launcher": ToolSpec(
+        name="app_launcher",
+        aliases=["apps", "launch_app", "open_app", "app", "programs", "start_app"],
+        actions=["launch", "open", "search", "list", "rescan"],
+        input_schema="app name string or JSON {'name': str, 'args': str}",
+        when_to_use="Find and open any installed Windows application (Chrome, VS Code, Spotify, Calculator, etc.) via instant hashed lookups.",
+        examples=[
+            "app_launcher:launch input_data='spotify'",
+            "app_launcher:launch input_data='chrome'",
+            "app_launcher:launch input_data='vscode'",
+            "app_launcher:search input_data='editor'",
+            "app_launcher:list input_data=''",
         ],
     ),
     "codebase_index": ToolSpec(

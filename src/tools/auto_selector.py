@@ -50,6 +50,13 @@ def _extract_write(m: re.Match) -> str:
     return json.dumps({"path": path, "content": content})
 
 
+def _extract_app(m: re.Match) -> str:
+    raw = (m.group("arg") or "").strip()
+    raw = re.sub(r"^the\s+", "", raw, flags=re.I).strip()
+    raw = re.sub(r"\s+app(?:lication)?$", "", raw, flags=re.I).strip()
+    return raw
+
+
 _PATTERNS: List[Tuple[re.Pattern, str, str, Any]] = [
     # git
     (re.compile(r"^\s*git\s+status\s*$", re.I), "git", "status", _empty),
@@ -143,6 +150,16 @@ _PATTERNS: List[Tuple[re.Pattern, str, str, Any]] = [
     # api_connector
     (re.compile(r"^\s*(?:save|add|set)\s+(?:api\s+)?key\s+(?P<arg>.+)$", re.I), "api_connector", "save_key", _passthrough),
     (re.compile(r"^\s*connect\s+(?:to\s+)?(?:external\s+)?api\s+(?P<arg>.+)$", re.I), "api_connector", "connect", _passthrough),
+
+    # app_launcher (instant launch/search/list of desktop and Windows apps)
+    (re.compile(r"^\s*(?:open|launch|start)\s+(?:the\s+)?(?:app(?:lication)?\s+)?(?P<arg>[a-zA-Z0-9_\s\.\-+]+?)\s*$", re.I),
+     "app_launcher", "launch", _extract_app),
+    (re.compile(r"^\s*(?:find|search)\s+(?:app(?:lication)?|program)\s+(?P<arg>.+)$", re.I),
+     "app_launcher", "search", _extract_app),
+    (re.compile(r"^\s*(?:list|show)\s+(?:all\s+)?(?:installed\s+)?(?:apps|applications|programs)\s*$", re.I),
+     "app_launcher", "list", _empty),
+    (re.compile(r"^\s*(?:rescan|reindex)\s+(?:apps|applications)\s*$", re.I),
+     "app_launcher", "rescan", _empty),
 ]
 
 

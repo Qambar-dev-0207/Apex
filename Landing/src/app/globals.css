@@ -1,49 +1,42 @@
-@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Fragment+Mono&display=swap');
 @import "tailwindcss";
 
-/* ─────────────────────────────────────────────────────────
-   HANZO MINIMALIST LUXURY DESIGN SYSTEM
-   Exact 1:1 Color Scheme & Architecture
-   ───────────────────────────────────────────────────────── */
+@theme {
+  --color-bg-obsidian: #050607;
+  --color-bg-primary: #08090A;
+  --color-surface-secondary: #111315;
+  --color-text-primary: #F5F3EF;
+  --color-text-secondary: #B2B0AD;
+  --color-text-muted: #737575;
+  --color-border-fine: rgba(255, 255, 255, 0.18);
+  --color-border-subtle: rgba(255, 255, 255, 0.08);
+  --color-border-hover: rgba(255, 255, 255, 0.3);
+  --color-warm-light: #E9D0AD;
+  --color-accent-orange: #FF4A16;
+  --color-accent-hover: #E03E0E;
+  --font-sans: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-serif: 'Instrument Serif', Georgia, serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
 
 @layer base {
   :root {
-    /* Hanzo Core Palette */
-    --bg-canvas: #FFFFFF;
-    --bg-surface: #FAFAFA;
-    --bg-surface-elevated: #F5F5F5;
-    --bg-chip: #F0F0F0;
-    --bg-dark: #000000;
-    --bg-dark-soft: #1A1A1A;
-    --bg-dark-card: #262626;
-
-    /* Typography */
-    --text-primary: #000000;
-    --text-secondary: #545454;
-    --text-muted: #737373;
-    --text-faint: #A3A3A3;
-
-    /* Accents (Exact Hanzo Hex Codes) */
-    --accent-orange: #FF3700;
-    --accent-orange-hover: #E03000;
-    --accent-green: #0CB300;
-    --accent-blue: #0066FF;
-
-    /* Borders (Exact Hanzo Hairline #D9D9D9) */
-    --border-hairline: #D9D9D9;
-    --border-subtle: #EBEBEB;
-    --border-dark: #2E2E2E;
-
-    /* Elevation / Shadows */
-    --shadow-flat: 0 1px 3px rgba(0, 0, 0, 0.04);
-    --shadow-card: 0 4px 20px -2px rgba(0, 0, 0, 0.04), 0 0 0 1px rgba(0, 0, 0, 0.04);
-    --shadow-hover: 0 16px 40px -8px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.06);
-    --shadow-dropdown: 0 24px 64px -12px rgba(0, 0, 0, 0.12), 0 0 0 1px #D9D9D9;
+    --bg-obsidian: #050607;
+    --bg-primary: #08090A;
+    --surface-secondary: #111315;
+    --text-primary: #F5F3EF;
+    --text-secondary: #B2B0AD;
+    --text-muted: #737575;
+    --border-fine: rgba(255, 255, 255, 0.18);
+    --border-subtle: rgba(255, 255, 255, 0.08);
+    --border-hover: rgba(255, 255, 255, 0.3);
+    --warm-light: #E9D0AD;
+    --accent: #FF4A16;
+    --accent-hover: #E03E0E;
   }
 
   html, body {
-    background-color: var(--bg-canvas);
-    color: var(--text-primary);
+    background-color: #08090A;
+    color: #F5F3EF;
     font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     overflow-x: hidden;
     min-height: 100vh;
@@ -56,103 +49,56 @@
   }
 }
 
-/* ─── Custom Minimalist Scrollbar ───────────────────────── */
-::-webkit-scrollbar { width: 5px; height: 5px; }
-::-webkit-scrollbar-track { background: #FFFFFF; }
-::-webkit-scrollbar-thumb { background: #D9D9D9; border-radius: 99px; }
-::-webkit-scrollbar-thumb:hover { background: #545454; }
-
-/* ─── Hanzo Card Surfaces ───────────────────────────────── */
-.hanzo-card {
-  background: var(--bg-canvas);
-  border: 1px solid var(--border-hairline);
-  box-shadow: var(--shadow-card);
-  border-radius: 24px;
-  transition: box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1),
-              border-color 0.3s cubic-bezier(0.16, 1, 0.3, 1),
-              transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+/* ─── Minimal Custom Scrollbar ─── */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: #08090A;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.35);
 }
 
-.hanzo-card:hover {
-  box-shadow: var(--shadow-hover);
-  border-color: #000000;
-  transform: translateY(-2px);
+/* ─── Utility Font Classes ─── */
+.font-editorial {
+  font-family: 'Instrument Serif', Georgia, serif;
 }
 
-/* ─── Hanzo Ambient Hero Mask ───────────────────────────── */
-.hanzo-hero-mask {
-  background: linear-gradient(225deg, #FFFFFF 0%, #E8E8E8 100%);
-  -webkit-mask: radial-gradient(125% 100% at 0 0, #000000 0%, rgba(0, 0, 0, 0.22) 88%, transparent 100%);
-  mask: radial-gradient(125% 100% at 0 0, #000000 0%, rgba(0, 0, 0, 0.22) 88%, transparent 100%);
+.font-code {
+  font-family: var(--font-jetbrains), ui-monospace, monospace;
 }
 
-/* ─── Font Utilities ────────────────────────────────────── */
-.font-display {
-  font-family: var(--font-space), "Space Grotesk", sans-serif !important;
+/* ─── Focus States for Accessibility ─── */
+a:focus-visible, button:focus-visible {
+  outline: 1px solid #FF4A16;
+  outline-offset: 2px;
 }
 
-.font-serif-accent {
-  font-family: 'Instrument Serif', Georgia, serif !important;
+/* ─── Architectural Grid Background ─── */
+.architectural-grid {
+  background-size: 60px 60px;
+  background-image: 
+    linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
 }
 
-.font-mono {
-  font-family: 'Fragment Mono', var(--font-jetbrains), monospace !important;
+/* ─── Subtle Spatial Vignette ─── */
+.spatial-vignette {
+  background: radial-gradient(circle at 65% 50%, rgba(17, 19, 21, 0.6) 0%, rgba(8, 9, 10, 0.95) 70%, #050607 100%);
 }
 
-.font-body {
-  font-family: var(--font-inter), sans-serif !important;
-}
-
-/* ─── Hanzo Magnetic Pill CTA ───────────────────────────── */
-.hanzo-pill-primary {
-  background: #FF3700;
-  color: #FFFFFF;
-  border-radius: 9999px;
-  font-weight: 600;
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: 0 4px 16px rgba(255, 55, 0, 0.3);
-}
-
-.hanzo-pill-primary:hover {
-  background: #E03000;
-  box-shadow: 0 8px 24px rgba(255, 55, 0, 0.42);
-  transform: translateY(-1px);
-}
-
-.hanzo-pill-secondary {
-  background: #FFFFFF;
-  color: #000000;
-  border: 1px solid #D9D9D9;
-  border-radius: 9999px;
-  font-weight: 600;
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-}
-
-.hanzo-pill-secondary:hover {
-  border-color: #000000;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  transform: translateY(-1px);
-}
-
-/* ─── Marquee Animation ─────────────────────────────────── */
-@keyframes marquee-left {
-  0% { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
-}
-
-.animate-marquee-left {
-  animation: marquee-left 32s linear infinite;
-}
-
-.animate-marquee-left:hover {
-  animation-play-state: paused;
-}
-
-/* ─── Prefers Reduced Motion ─────────────────────────────── */
+/* ─── Prefers Reduced Motion ─── */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

@@ -23,6 +23,7 @@ from src.tools.shell import ShellAgent
 from src.tools.mcp_client import MCPClient
 from src.tools.weather_tool import WeatherTool
 from src.tools.api_connector import ApiConnectorTool
+from src.services.app_launcher import AppLauncherService
 from src.tools.registry import resolve_tool_name, ToolTelemetry, get_spec
 from src.core.reflex import Reflex
 from dotenv import load_dotenv
@@ -257,7 +258,8 @@ class ParallelExecutor:
         self.web_fetch = WebFetchTool()
         self.todo = TodoTool()
         self.diff = DiffTool()
-        self.desktop_control = DesktopControlTool()
+        self.app_launcher = AppLauncherService()
+        self.desktop_control = DesktopControlTool(app_launcher=self.app_launcher)
         self.coding_pipeline = CodingPipeline()
         self.safety_guard = SafetyGuard(console=console)
         self.workspace = WorkspaceManager()
@@ -580,6 +582,9 @@ class ParallelExecutor:
                 elif step['tool'] == "desktop_control":
                     action = step['action'].lower()
                     res.update(await self.desktop_control.execute(action, step['input_data']))
+                elif step['tool'] == "app_launcher":
+                    action = step.get('action', 'launch').lower()
+                    res.update(await self.app_launcher.execute(action, step.get('input_data', '')))
                 elif step['tool'] == "codebase_index":
                     action = step['action'].lower()
                     if action == "search":

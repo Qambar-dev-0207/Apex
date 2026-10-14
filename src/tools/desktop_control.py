@@ -37,10 +37,17 @@ class DesktopControlTool:
     Integrates Playwright for web automation.
     """
 
-    def __init__(self):
+    def __init__(self, app_launcher=None):
         # Configure pyautogui safety settings
         if pyautogui:
             pyautogui.FAILSAFE = True
+        self.app_launcher = app_launcher
+
+    def _get_launcher(self):
+        if self.app_launcher is None:
+            from src.services.app_launcher import AppLauncherService
+            self.app_launcher = AppLauncherService()
+        return self.app_launcher
 
     async def execute(self, action: str, input_data: str) -> Dict[str, Any]:
         """
@@ -56,9 +63,24 @@ class DesktopControlTool:
                 data = json.loads(input_data)
             except json.JSONDecodeError:
                 # If not JSON, treat it as a string
-                data = {"text": input_data, "command": input_data, "url": input_data}
+                data = {"text": input_data, "command": input_data, "url": input_data, "query": input_data, "name": input_data}
 
-        if action == "click":
+        if action in ("open_app", "launch_app", "open", "launch"):
+            launcher = self._get_launcher()
+            query = data.get("name") or data.get("query") or data.get("app") or input_data
+            args = data.get("args")
+            return launcher.launch_app(query, args=args)
+        elif action in ("search_app", "find_app"):
+            launcher = self._get_launcher()
+            query = data.get("query") or data.get("name") or input_data
+            return await launcher.execute("search", query)
+        elif action in ("list_apps", "apps"):
+            launcher = self._get_launcher()
+            return launcher.list_apps()
+        elif action in ("rescan_apps", "reindex_apps"):
+            launcher = self._get_launcher()
+            return launcher.rescan()
+        elif action == "click":
             return await self.click(data)
         elif action == "type":
             return await self.type(data)
