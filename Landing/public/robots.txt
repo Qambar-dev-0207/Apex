@@ -1,0 +1,27 @@
+# APEX — Sovereign Agentic AI OS
+# https://github.com/Qambar-dev-0207/Apex
+
+User-agent: *
+Allow: /
+
+# AI Crawlers & Model Ingestion
+User-agent: GPTBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: Applebot-Extended
+Allow: /
+
+User-agent: CCBot
+Allow: /
+
+# LLM Context File (https://llmstxt.org)
+# llms.txt: /llms.txt
