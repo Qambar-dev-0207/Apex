@@ -1,329 +1,426 @@
 "use client";
 
 import { useState } from "react";
-import { motion, AnimatePresence, useReducedMotion } from "motion/react";
-import ApexMascot, { MascotVariant } from "./ApexMascot";
+import Image from "next/image";
+import { motion, useReducedMotion } from "motion/react";
 
-interface WorkflowStep {
+interface WorkflowStage {
   id: string;
-  num: string;
-  label: string;
   title: string;
-  description: string;
+  line1: string;
+  line2: string;
   technicalNote: string;
-  mascotVariant: MascotVariant;
-  mascotAlt: string;
-  graphRole: string;
 }
 
-const WORKFLOW_STEPS: WorkflowStep[] = [
+const ORCHESTRATION_STAGES: WorkflowStage[] = [
   {
     id: "intent",
-    num: "01",
-    label: "Intent",
-    title: "Understand the objective",
-    description: "Analyze the objective, detect boundaries, and identify the appropriate routing approach without assumptions.",
-    technicalNote: "Gemini 2.0 Flash classifies intent into atomic tool schemas and invariant guardrails.",
-    mascotVariant: "coding",
-    mascotAlt: "APEX companion parsing system intent",
-    graphRole: "Root Dispatcher",
+    title: "INTENT",
+    line1: "Understand",
+    line2: "the objective.",
+    technicalNote: "Gemini 2.0 Flash intent classification & sovereign invariant guardrails.",
   },
   {
     id: "plan",
-    num: "02",
-    label: "Plan",
-    title: "Decompose into Task DAGs",
-    description: "Break the overarching goal down into dependency-ordered, directed acyclic tasks.",
-    technicalNote: "DAG compiler resolves step dependencies and isolates parallel sub-trees.",
-    mascotVariant: "building",
-    mascotAlt: "APEX companion assembling task DAG hierarchy",
-    graphRole: "DAG Tree Assembly",
+    title: "PLAN",
+    line1: "Decompose",
+    line2: "into tasks.",
+    technicalNote: "Directed Acyclic Graph (Task DAG) decomposition engine with isolated parallel sub-trees.",
   },
   {
     id: "delegate",
-    num: "03",
-    label: "Delegate",
-    title: "Route to specialized paths",
-    description: "Direct individual tasks to the optimal model, local tool, or specialized execution agent.",
-    technicalNote: "Groq LPU handles deterministic tools; local Ollama takes sovereign air-gapped tasks.",
-    mascotVariant: "coding",
-    mascotAlt: "APEX companion delegating to multi-model workers",
-    graphRole: "Multi-Model Router",
+    title: "DELEGATE",
+    line1: "Route to the",
+    line2: "right agents.",
+    technicalNote: "Groq LPU handles deterministic tools; local Ollama runs air-gapped tasks.",
   },
   {
     id: "execute",
-    num: "04",
-    label: "Execute",
-    title: "Coordinate parallel work",
-    description: "Execute independent tasks concurrently while strictly respecting upstream prerequisite outputs.",
+    title: "EXECUTE",
+    line1: "Coordinate",
+    line2: "execution.",
     technicalNote: "Isolated sub-process sandboxes with real-time memory synchronization.",
-    mascotVariant: "building",
-    mascotAlt: "APEX companion running sandbox execution",
-    graphRole: "Sandboxed Worker",
   },
   {
     id: "verify",
-    num: "05",
-    label: "Verify",
-    title: "Check results & assert invariants",
-    description: "Validate task output against safety rules and trigger self-healing recovery if an anomaly occurs.",
+    title: "VERIFY",
+    line1: "Validate",
+    line2: "and recover.",
     technicalNote: "AgentHarness execution wrapper with automated snapshot rollbacks.",
-    mascotVariant: "coding",
-    mascotAlt: "APEX companion verifying invariant integrity",
-    graphRole: "Invariant Guard",
   },
 ];
 
+/* Custom SVG Icons matching exact reference visual styling */
+function IntentIcon({ isActive }: { isActive: boolean }) {
+  return (
+    <div
+      className={`relative w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-all duration-300 shrink-0 ${
+        isActive
+          ? "border border-[#FF4A16] bg-[#FF4A16]/20 shadow-[0_0_18px_rgba(255,74,22,0.8),inset_0_0_8px_rgba(255,74,22,0.5)]"
+          : "border border-[rgba(255,255,255,0.22)] bg-[#0C0E10] text-[#8C9295]"
+      }`}
+    >
+      <svg
+        viewBox="0 0 24 24"
+        className="w-4 h-4 sm:w-4.5 sm:h-4.5"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        {/* Outer subtle ring */}
+        <circle
+          cx="12"
+          cy="12"
+          r="9.5"
+          stroke={isActive ? "#FF4A16" : "rgba(255,255,255,0.3)"}
+          strokeWidth="1.2"
+        />
+        {/* Inner glowing crescent / aperture node */}
+        <circle
+          cx="12"
+          cy="12"
+          r="4.5"
+          fill={isActive ? "#FF4A16" : "rgba(255,255,255,0.6)"}
+        />
+        <circle
+          cx="10.5"
+          cy="10.5"
+          r="1.8"
+          fill={isActive ? "#FFF0EB" : "rgba(255,255,255,0.9)"}
+        />
+      </svg>
+    </div>
+  );
+}
+
+function PlanIcon({ isActive }: { isActive: boolean }) {
+  return (
+    <div
+      className={`relative w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-all duration-300 shrink-0 ${
+        isActive
+          ? "border border-[#FF4A16] bg-[#FF4A16]/20 shadow-[0_0_18px_rgba(255,74,22,0.8)]"
+          : "border border-[rgba(255,255,255,0.22)] bg-[#0C0E10] text-[#9A9FA1]"
+      }`}
+    >
+      <svg
+        viewBox="0 0 24 24"
+        className="w-4 h-4 sm:w-4.5 sm:h-4.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        {/* Compass / drafting node */}
+        <circle cx="12" cy="12" r="9" strokeOpacity="0.4" />
+        <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" fill="currentColor" fillOpacity="0.15" />
+      </svg>
+    </div>
+  );
+}
+
+function DelegateIcon({ isActive }: { isActive: boolean }) {
+  return (
+    <div
+      className={`relative w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-all duration-300 shrink-0 ${
+        isActive
+          ? "border border-[#FF4A16] bg-[#FF4A16]/20 shadow-[0_0_18px_rgba(255,74,22,0.8)]"
+          : "border border-[rgba(255,255,255,0.22)] bg-[#0C0E10] text-[#9A9FA1]"
+      }`}
+    >
+      <svg
+        viewBox="0 0 24 24"
+        className="w-4 h-4 sm:w-4.5 sm:h-4.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        {/* Branching routing node */}
+        <circle cx="18" cy="6" r="2.5" />
+        <circle cx="6" cy="12" r="2.5" />
+        <circle cx="18" cy="18" r="2.5" />
+        <path d="M8.5 12h3a4 4 0 0 0 4-4V6" />
+        <path d="M11.5 12a4 4 0 0 1 4 4v2" />
+      </svg>
+    </div>
+  );
+}
+
+function ExecuteIcon({ isActive }: { isActive: boolean }) {
+  return (
+    <div
+      className={`relative w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-all duration-300 shrink-0 ${
+        isActive
+          ? "border border-[#FF4A16] bg-[#FF4A16]/20 shadow-[0_0_18px_rgba(255,74,22,0.8)]"
+          : "border border-[rgba(255,255,255,0.22)] bg-[#0C0E10] text-[#9A9FA1]"
+      }`}
+    >
+      <svg
+        viewBox="0 0 24 24"
+        className="w-4 h-4 sm:w-4.5 sm:h-4.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        {/* Execution play triangle */}
+        <circle cx="12" cy="12" r="9" strokeOpacity="0.4" />
+        <polygon points="10 8 16 12 10 16 10 8" fill="currentColor" fillOpacity="0.7" />
+      </svg>
+    </div>
+  );
+}
+
+function VerifyIcon({ isActive }: { isActive: boolean }) {
+  return (
+    <div
+      className={`relative w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-all duration-300 shrink-0 ${
+        isActive
+          ? "border border-[#FF4A16] bg-[#FF4A16]/20 shadow-[0_0_18px_rgba(255,74,22,0.8)]"
+          : "border border-[rgba(255,255,255,0.22)] bg-[#0C0E10] text-[#9A9FA1]"
+      }`}
+    >
+      <svg
+        viewBox="0 0 24 24"
+        className="w-4 h-4 sm:w-4.5 sm:h-4.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        {/* Verification checkmark */}
+        <circle cx="12" cy="12" r="9" strokeOpacity="0.4" />
+        <polyline points="8.5 12 11 14.5 15.5 9.5" />
+      </svg>
+    </div>
+  );
+}
+
 export default function OrchestrationSection() {
-  const [activeStep, setActiveStep] = useState<number>(0);
+  const [activeStage, setActiveStage] = useState<number>(0);
   const shouldReduceMotion = useReducedMotion();
+
+  const getStageIcon = (idx: number, isActive: boolean) => {
+    switch (idx) {
+      case 0:
+        return <IntentIcon isActive={isActive} />;
+      case 1:
+        return <PlanIcon isActive={isActive} />;
+      case 2:
+        return <DelegateIcon isActive={isActive} />;
+      case 3:
+        return <ExecuteIcon isActive={isActive} />;
+      case 4:
+        return <VerifyIcon isActive={isActive} />;
+      default:
+        return null;
+    }
+  };
 
   return (
     <section
       id="orchestration"
-      className="relative w-full bg-[#050607] text-[#F5F3EF] py-28 sm:py-36 lg:py-48 overflow-hidden border-t border-[rgba(255,255,255,0.06)] select-none"
-      aria-label="APEX Orchestration Workflow Engine"
+      className="relative w-full bg-[#050607] border-t border-[rgba(255,255,255,0.08)] select-none overflow-hidden"
+      aria-label="The Orchestration Engine"
     >
-      <div className="max-w-[1600px] mx-auto px-6 sm:px-10 lg:px-16">
-        {/* Section Header */}
-        <div className="max-w-[840px] mb-16 sm:mb-20">
-          {/* Eyebrow with horizontal line draw */}
-          <div className="flex items-center gap-3 mb-5">
-            <motion.span
-              initial={shouldReduceMotion ? { width: 24 } : { width: 0 }}
-              whileInView={{ width: 24 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-              className="h-px bg-[#FF4A16] block"
-              aria-hidden="true"
-            />
+      {/* Main Wide Panoramic Banner Container matching exact reference */}
+      <div className="relative w-full min-h-[480px] sm:min-h-[520px] lg:min-h-[560px] flex flex-col justify-between overflow-hidden">
+        {/* Background Artwork Canvas: Neural Branching DAG + APEX Robot Mascot at Laptop */}
+        <div className="absolute inset-0 z-0 pointer-events-none">
+          <Image
+            src="/apex-orchestration-bg.jpg"
+            alt="APEX Orchestration Engine"
+            fill
+            priority
+            sizes="100vw"
+            quality={95}
+            className="object-cover object-[center_42%] scale-[1.01]"
+          />
+          {/* Subtle directional gradient on far-left to ensure typography contrast */}
+          <div className="absolute inset-y-0 left-0 w-full sm:w-[50%] lg:w-[42%] bg-gradient-to-r from-[#050607]/85 via-[#050607]/40 to-transparent pointer-events-none" />
+        </div>
+
+        {/* Top/Middle Area: Left Editorial Typography */}
+        <div className="relative z-10 w-full max-w-[1600px] mx-auto px-6 sm:px-10 lg:px-14 pt-12 sm:pt-14 lg:pt-16 pb-4 flex-1 flex flex-col justify-between pointer-events-none">
+          <div className="max-w-[520px] pointer-events-auto">
+            {/* Eyebrow: - THE ORCHESTRATION ENGINE */}
             <motion.div
-              initial={shouldReduceMotion ? { opacity: 1, x: 0 } : { opacity: 0, x: -8 }}
-              whileInView={{ opacity: 1, x: 0 }}
+              initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }}
+              whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
-              className="font-code text-[10px] sm:text-[11px] tracking-[0.28em] text-[#737575] uppercase font-medium"
+              transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+              className="flex items-center gap-2 mb-3.5 font-sans text-[11px] sm:text-xs tracking-[0.24em] text-[#8C9295] uppercase font-medium"
             >
-              THE ORCHESTRATION ENGINE
+              <span className="text-[#FF4A16] font-bold text-sm leading-none">—</span>
+              <span>THE ORCHESTRATION ENGINE</span>
             </motion.div>
-          </div>
 
-          {/* Masked Line Reveal Headline */}
-          <h2 className="font-editorial text-4xl sm:text-6xl lg:text-7xl leading-[1.04] tracking-[-0.02em] text-[#F5F3EF] mb-6 flex flex-col">
-            <span className="overflow-mask block relative py-0.5">
-              <motion.span
-                initial={
-                  shouldReduceMotion
-                    ? { opacity: 1, y: 0 }
-                    : { opacity: 0, y: "110%" }
-                }
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.75, ease: [0.16, 1, 0.3, 1] }}
-                className="block font-normal"
-              >
-                Complexity, brought into
-              </motion.span>
-            </span>
-            <span className="overflow-mask block relative py-0.5">
-              <motion.span
-                initial={
-                  shouldReduceMotion
-                    ? { opacity: 1, y: 0 }
-                    : { opacity: 0, y: "110%" }
-                }
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.85, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
-                className="block font-editorial italic font-normal text-[#FF7A45]"
-              >
-                order.
-              </motion.span>
-            </span>
-          </h2>
+            {/* Headline: Complexity, brought into order. */}
+            <h2 className="font-editorial text-4xl sm:text-5xl lg:text-[54px] xl:text-[60px] leading-[1.06] tracking-tight text-[#F5F3EF] mb-3.5">
+              <span className="overflow-mask block relative py-0.5">
+                <motion.span
+                  initial={
+                    shouldReduceMotion
+                      ? { opacity: 1, y: 0 }
+                      : { opacity: 0, y: "110%" }
+                  }
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.75, ease: [0.16, 1, 0.3, 1] }}
+                  className="block font-normal"
+                >
+                  Complexity,
+                </motion.span>
+              </span>
+              <span className="overflow-mask block relative py-0.5">
+                <motion.span
+                  initial={
+                    shouldReduceMotion
+                      ? { opacity: 1, y: 0 }
+                      : { opacity: 0, y: "110%" }
+                  }
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.85, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+                  className="block font-normal"
+                >
+                  brought into order.
+                </motion.span>
+              </span>
+            </h2>
 
-          <motion.p
-            initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 16 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
-            className="text-[#9A9FA1] text-base sm:text-lg font-normal leading-relaxed max-w-[620px]"
-          >
-            A goal becomes a sequence of dependent tasks, coordinated toward a shared result.
-          </motion.p>
-        </div>
-
-        {/* Continuous Line & Node Workflow Diagram (Interactive DAG Model) */}
-        <div className="bg-[#08090A] border border-[rgba(255,255,255,0.1)] rounded-2xl p-6 sm:p-10 lg:p-12 mb-12 relative overflow-hidden">
-          {/* Subtle Technical Architectural Grid Backdrop */}
-          <div className="absolute inset-0 architectural-grid opacity-15 pointer-events-none" />
-
-          {/* Illustrative Label in corner */}
-          <div className="flex items-center justify-between pb-6 mb-8 border-b border-[rgba(255,255,255,0.08)]">
-            <span className="font-code text-[10px] tracking-[0.24em] text-[#737575] uppercase">
-              WORKFLOW PIPELINE // TASK DAG VISUALIZATION
-            </span>
-            <span className="font-code text-[10px] tracking-[0.2em] text-[#FF4A16] uppercase">
-              STAGE {WORKFLOW_STEPS[activeStep].num} OF 05
-            </span>
-          </div>
-
-          {/* Desktop Horizontal Workflow Navigation with SVG DAG Connector Track */}
-          <div className="hidden lg:grid grid-cols-5 gap-4 relative mb-12 pb-6">
-            {/* SVG Connecting Track Line */}
-            <svg
-              className="absolute top-5 left-12 right-12 w-[calc(100%-6rem)] h-2 z-0 pointer-events-none"
-              preserveAspectRatio="none"
-              aria-hidden="true"
+            {/* Subtitle Copy matching reference 2-line structure */}
+            <motion.p
+              initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+              className="text-[#9A9FA1] text-[13px] sm:text-sm lg:text-[14.5px] font-normal leading-[1.5] max-w-[440px]"
             >
-              <line
-                x1="0%"
-                y1="50%"
-                x2="100%"
-                y2="50%"
-                stroke="rgba(255,255,255,0.14)"
-                strokeWidth="1.5"
-                strokeDasharray="4 4"
-              />
-              <motion.line
-                x1="0%"
-                y1="50%"
-                x2={`${(activeStep / 4) * 100}%`}
-                y2="50%"
-                stroke="#FF4A16"
-                strokeWidth="2"
-                transition={{ duration: 0.4 }}
-              />
-            </svg>
+              A goal becomes a sequence of dependent
+              <br className="hidden sm:inline" /> tasks, coordinated toward a shared result.
+            </motion.p>
+          </div>
 
-            {WORKFLOW_STEPS.map((step, idx) => {
-              const isSelected = activeStep === idx;
-              const isPassed = activeStep > idx;
-              return (
-                <button
-                  key={step.id}
-                  type="button"
-                  onClick={() => setActiveStep(idx)}
-                  className="group relative flex flex-col items-center text-center cursor-pointer z-10 focus-visible:outline-[#FF4A16] py-1"
-                >
-                  {/* Node Dot / Marker */}
-                  <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center border transition-all duration-300 mb-4 ${
-                      isSelected
-                        ? "bg-[#FF4A16] border-[#FF4A16] shadow-[0_0_20px_rgba(255,74,22,0.5)] scale-110"
-                        : isPassed
-                        ? "bg-[#111315] border-[#FF4A16]/70 text-[#FF4A16]"
-                        : "bg-[#08090A] border-[rgba(255,255,255,0.2)] text-[#737575] group-hover:border-[rgba(255,255,255,0.45)]"
+          {/* Bottom Area: Connected 5-Stage Horizontal Workflow Track */}
+          <div className="w-full pt-10 sm:pt-14 pb-4 pointer-events-auto">
+            {/* Desktop Horizontal Connecting Track matching reference layout */}
+            <div className="hidden md:flex items-start justify-between w-full relative">
+              {ORCHESTRATION_STAGES.map((stage, idx) => {
+                const isActive = activeStage === idx;
+                const isPassed = activeStage > idx;
+                const isLast = idx === ORCHESTRATION_STAGES.length - 1;
+
+                return (
+                  <div key={stage.id} className="flex-1 flex items-start">
+                    {/* Stage Item Container */}
+                    <div className="flex flex-col items-start group">
+                      {/* Top Row: Icon + Title */}
+                      <button
+                        type="button"
+                        onClick={() => setActiveStage(idx)}
+                        className="flex items-center gap-2.5 cursor-pointer text-left focus-visible:outline-[#FF4A16] rounded-md transition-transform hover:translate-y-[-1px]"
+                      >
+                        {/* Custom Stage Icon */}
+                        {getStageIcon(idx, isActive)}
+
+                        {/* Stage Name */}
+                        <span
+                          className={`font-code text-xs lg:text-[13px] tracking-[0.18em] uppercase font-bold transition-colors ${
+                            isActive
+                              ? "text-white"
+                              : isPassed
+                              ? "text-[#E0DFDC]"
+                              : "text-[#B0B4B7] group-hover:text-white"
+                          }`}
+                        >
+                          {stage.title}
+                        </span>
+                      </button>
+
+                      {/* 2-line Sub-label description aligned under the stage title */}
+                      <div className="mt-2 text-[11px] lg:text-[12px] text-[#8C9295] tracking-normal leading-[1.35] pl-[38px] sm:pl-[42px]">
+                        <span className="block">{stage.line1}</span>
+                        <span className="block">{stage.line2}</span>
+                      </div>
+                    </div>
+
+                    {/* Connecting Line with Arrowhead in gap */}
+                    {!isLast && (
+                      <div
+                        className="flex-1 flex items-center min-w-[24px] max-w-[120px] mx-2 lg:mx-4 mt-3.5 sm:mt-4 pointer-events-none"
+                        aria-hidden="true"
+                      >
+                        {/* Thin horizontal line */}
+                        <div
+                          className={`flex-1 h-[1px] transition-colors duration-300 ${
+                            isPassed
+                              ? "bg-[#FF4A16]"
+                              : "bg-[rgba(255,255,255,0.22)]"
+                          }`}
+                        />
+                        {/* Clean Arrowhead */}
+                        <svg
+                          viewBox="0 0 8 10"
+                          className={`w-2 h-2.5 -ml-[1px] shrink-0 transition-colors duration-300 ${
+                            isPassed
+                              ? "text-[#FF4A16] fill-[#FF4A16]"
+                              : "text-[rgba(255,255,255,0.35)] fill-[rgba(255,255,255,0.35)]"
+                          }`}
+                        >
+                          <polygon points="0,0 8,5 0,10" />
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Mobile Vertical Connected Track */}
+            <div className="md:hidden flex flex-col gap-2.5">
+              {ORCHESTRATION_STAGES.map((stage, idx) => {
+                const isActive = activeStage === idx;
+
+                return (
+                  <button
+                    key={stage.id}
+                    type="button"
+                    onClick={() => setActiveStage(idx)}
+                    className={`w-full flex items-start gap-3 p-3 rounded-lg border text-left transition-all cursor-pointer ${
+                      isActive
+                        ? "bg-[#111315]/90 border-[#FF4A16] shadow-[0_0_14px_rgba(255,74,22,0.25)]"
+                        : "bg-[#08090A]/85 border-[rgba(255,255,255,0.08)]"
                     }`}
                   >
-                    <span
-                      className={`font-code text-xs font-semibold ${
-                        isSelected ? "text-white" : isPassed ? "text-[#FF4A16]" : "text-[#737575]"
-                      }`}
-                    >
-                      {step.num}
-                    </span>
-                  </div>
+                    <div className="mt-0.5">{getStageIcon(idx, isActive)}</div>
+                    <div>
+                      <span className="font-code text-xs tracking-wider uppercase font-bold text-[#F5F3EF] block">
+                        {stage.title}
+                      </span>
+                      <span className="text-[11px] text-[#8C9295] block mt-0.5 leading-tight">
+                        {stage.line1} {stage.line2}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
 
-                  {/* Stage Name */}
-                  <span
-                    className={`font-code text-xs tracking-[0.2em] uppercase font-semibold transition-colors duration-200 mb-1 ${
-                      isSelected ? "text-[#F5F3EF]" : "text-[#737575] group-hover:text-[#B2B0AD]"
-                    }`}
-                  >
-                    {step.label}
-                  </span>
-
-                  <span className="font-sans text-xs text-[#737575] max-w-[140px] truncate">
-                    {step.title}
-                  </span>
-                </button>
-              );
-            })}
+            {/* Grounded Technical Specification Toast/Drawer on Click */}
+            <div className="mt-5 pt-3 border-t border-[rgba(255,255,255,0.07)] flex flex-wrap items-center justify-between gap-2.5 font-code text-[11px] text-[#8C9295]">
+              <div className="flex items-center gap-2">
+                <span className="text-[#FF4A16] font-semibold">STAGE 0{activeStage + 1} //</span>
+                <span className="text-[#F5F3EF]">{ORCHESTRATION_STAGES[activeStage].technicalNote}</span>
+              </div>
+              <span className="text-[#8C9295]/60 uppercase tracking-widest text-[10px]">
+                DETERMINISTIC DAG DISPATCH
+              </span>
+            </div>
           </div>
-
-          {/* Mobile Vertical Connected Flow */}
-          <div className="lg:hidden flex flex-col gap-3 mb-8">
-            {WORKFLOW_STEPS.map((step, idx) => {
-              const isSelected = activeStep === idx;
-              return (
-                <button
-                  key={step.id}
-                  type="button"
-                  onClick={() => setActiveStep(idx)}
-                  className={`w-full flex items-center justify-between p-4 rounded-xl border text-left transition-all duration-200 cursor-pointer ${
-                    isSelected
-                      ? "bg-[#111315] border-[#FF4A16] text-[#F5F3EF] shadow-[0_0_12px_rgba(255,74,22,0.15)]"
-                      : "bg-[#08090A] border-[rgba(255,255,255,0.08)] text-[#737575]"
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="font-code text-xs font-semibold text-[#FF4A16]">
-                      {step.num}
-                    </span>
-                    <span className="font-code text-xs tracking-wider uppercase">
-                      {step.label}
-                    </span>
-                  </div>
-                  <span className="font-sans text-xs text-[#B2B0AD]">{step.title}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Selected Stage Explanation + Companion Mascot with clean crossfade */}
-          <div className="min-h-[170px] flex items-center">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={activeStep}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -6 }}
-                transition={{ duration: 0.26, ease: [0.16, 1, 0.3, 1] }}
-                className="w-full grid grid-cols-1 lg:grid-cols-12 gap-8 items-center bg-[#050607] border border-[rgba(255,255,255,0.08)] rounded-xl p-6 sm:p-8"
-              >
-                <div className="lg:col-span-6">
-                  <div className="flex items-center gap-2.5 font-code text-[10px] tracking-[0.24em] text-[#FF4A16] uppercase font-semibold mb-2">
-                    <span>STAGE {WORKFLOW_STEPS[activeStep].num} // {WORKFLOW_STEPS[activeStep].graphRole}</span>
-                  </div>
-                  <h3 className="font-sans text-xl sm:text-2xl font-medium text-[#F5F3EF] mb-3">
-                    {WORKFLOW_STEPS[activeStep].title}
-                  </h3>
-                  <p className="text-[#9A9FA1] text-sm sm:text-base leading-relaxed mb-4">
-                    {WORKFLOW_STEPS[activeStep].description}
-                  </p>
-                </div>
-
-                <div className="lg:col-span-4 bg-[#111315] border border-[rgba(255,255,255,0.06)] rounded-lg p-5 font-code text-xs">
-                  <span className="text-[#737575] text-[10px] tracking-wider uppercase block mb-2">
-                    CORE SPECIFICATION
-                  </span>
-                  <p className="text-[#F3F4F2] leading-relaxed">
-                    {WORKFLOW_STEPS[activeStep].technicalNote}
-                  </p>
-                </div>
-
-                {/* Companion Mascot at edge of orchestration card */}
-                <div className="lg:col-span-2 flex flex-col items-center justify-center pt-2 lg:pt-0">
-                  <ApexMascot
-                    variant={WORKFLOW_STEPS[activeStep].mascotVariant}
-                    height={86}
-                    animateIdle={true}
-                    alt={WORKFLOW_STEPS[activeStep].mascotAlt}
-                  />
-                  <span className="font-code text-[9px] text-[#737575] tracking-widest mt-2 uppercase">
-                    SYS::{WORKFLOW_STEPS[activeStep].id.toUpperCase()}
-                  </span>
-                </div>
-              </motion.div>
-            </AnimatePresence>
-          </div>
-        </div>
-
-        {/* Bottom Sequence Notation */}
-        <div className="flex flex-wrap items-center justify-between gap-4 text-[#737575] font-code text-[11px] tracking-[0.22em] uppercase pt-6 border-t border-[rgba(255,255,255,0.08)]">
-          <span>INTENT → PLAN → DELEGATE → EXECUTE → VERIFY</span>
-          <span>DETERMINISTIC DAG DISPATCH</span>
         </div>
       </div>
     </section>

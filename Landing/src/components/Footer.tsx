@@ -46,7 +46,7 @@ export default function Footer() {
 
         {/* Right: Architecture | Orchestration | Memory | Research | GitHub ↗ */}
         <nav aria-label="Footer Navigation">
-          <ul className="flex flex-wrap items-center gap-6 sm:gap-8 lg:gap-10 font-sans text-xs sm:text-[13px] tracking-wider text-[#A5AAAD]">
+          <ul className="flex flex-wrap items-center justify-center md:justify-end gap-5 sm:gap-8 lg:gap-10 font-sans text-xs sm:text-[13px] tracking-wider text-[#A5AAAD]">
             <li>
               <a
                 href="#architecture"
