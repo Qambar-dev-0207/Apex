@@ -46,7 +46,10 @@ export default function Navbar() {
   ];
 
   return (
-    <header
+    <motion.header
+      initial={shouldReduceMotion ? { y: 0, opacity: 1 } : { y: -16, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: 0.6, delay: 0.08, ease: [0.16, 1, 0.3, 1] }}
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 select-none ${
         scrolled
           ? "bg-[#08090A]/85 backdrop-blur-md border-b border-[rgba(255,255,255,0.08)] py-4"
@@ -229,6 +232,6 @@ export default function Navbar() {
           </motion.div>
         )}
       </AnimatePresence>
-    </header>
+    </motion.header>
   );
 }

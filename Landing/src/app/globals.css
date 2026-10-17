@@ -37,6 +37,10 @@
     --ease-interface: cubic-bezier(0.4, 0, 0.2, 1);
   }
 
+  html {
+    scroll-behavior: smooth;
+  }
+
   html, body {
     background-color: #08090A;
     color: #F5F3EF;
