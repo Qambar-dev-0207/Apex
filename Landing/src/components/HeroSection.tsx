@@ -87,7 +87,7 @@ export default function HeroSection() {
             fill
             priority
             sizes="100vw"
-            quality={92}
+            quality={95}
             className="object-cover object-center will-change-transform"
           />
           {/* Subtle directional shadows to preserve contrast on editorial typography */}

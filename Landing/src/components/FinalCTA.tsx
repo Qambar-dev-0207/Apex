@@ -23,7 +23,7 @@ export default function FinalCTA() {
             fill
             priority
             sizes="100vw"
-            quality={92}
+            quality={95}
             className="object-cover object-center scale-[1.01]"
           />
           {/* Subtle Right-Side Gradient to guarantee crisp readability of headline and button */}
