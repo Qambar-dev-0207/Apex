@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import ApexMascot from "./ApexMascot";
-import { MOTION_EASE, MOTION_TIMING } from "../lib/motion";
+import { MOTION_EASE } from "../lib/motion";
 
 export default function MemorySection() {
   const [activeLayer, setActiveLayer] = useState<"all" | "redis" | "chroma">("all");
@@ -15,14 +15,14 @@ export default function MemorySection() {
   return (
     <section
       id="memory"
-      className="relative w-full bg-[#050607] text-[#F5F3EF] py-28 sm:py-36 lg:py-44 overflow-hidden border-t border-[rgba(255,255,255,0.06)] select-none"
+      className="relative w-full bg-[#050607] text-[#F5F3EF] py-16 sm:py-20 lg:py-24 overflow-hidden border-t border-[rgba(255,255,255,0.06)] select-none"
       aria-label="APEX Hybrid Memory Architecture"
     >
       <div className="max-w-[1600px] mx-auto px-6 sm:px-10 lg:px-16">
         {/* Section Header */}
-        <div className="max-w-[840px] mb-16 lg:mb-24">
+        <div className="max-w-[840px] mb-8 lg:mb-12">
           {/* Eyebrow with horizontal line draw */}
-          <div className="flex items-center gap-3 mb-5">
+          <div className="flex items-center gap-3 mb-4">
             <motion.span
               initial={shouldReduceMotion ? { width: 24 } : { width: 0 }}
               whileInView={{ width: 24 }}
@@ -43,7 +43,7 @@ export default function MemorySection() {
           </div>
 
           {/* Masked Line Reveal Headline */}
-          <h2 className="font-editorial text-4xl sm:text-6xl lg:text-7xl leading-[1.04] tracking-[-0.02em] text-[#F5F3EF] mb-6 flex flex-col">
+          <h2 className="font-editorial text-4xl sm:text-6xl lg:text-7xl leading-[1.04] tracking-[-0.02em] text-[#F5F3EF] mb-5 flex flex-col">
             <span className="overflow-mask block relative py-0.5">
               <motion.span
                 initial={
@@ -91,11 +91,11 @@ export default function MemorySection() {
         </div>
 
         {/* Memory Architecture Visual + Dual-Role Cards */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch mb-10">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch mb-8">
           {/* Left Column: Interactive Memory Lattice Network Diagram */}
-          <div className="lg:col-span-7 bg-[#08090A] border border-[rgba(255,255,255,0.1)] rounded-2xl p-6 sm:p-10 flex flex-col justify-between relative overflow-hidden min-h-[460px]">
+          <div className="lg:col-span-7 bg-[#08090A] border border-[rgba(255,255,255,0.1)] rounded-2xl p-6 sm:p-8 flex flex-col justify-between relative overflow-hidden min-h-[440px]">
             {/* Header / Mode Selector */}
-            <div className="flex items-center justify-between pb-6 border-b border-[rgba(255,255,255,0.08)] font-code text-xs z-10">
+            <div className="flex items-center justify-between pb-5 border-b border-[rgba(255,255,255,0.08)] font-code text-xs z-10">
               <span className="text-[#737575] uppercase tracking-wider">
                 HYBRID TOPOLOGY
               </span>
@@ -143,10 +143,10 @@ export default function MemorySection() {
             </div>
 
             {/* SVG Architectural Memory Lattice */}
-            <div className="my-auto py-8 flex items-center justify-center relative">
-              <svg viewBox="0 0 540 240" className="w-full max-w-[500px] h-auto text-white overflow-visible">
+            <div className="my-auto py-6 flex items-center justify-center relative">
+              <svg viewBox="0 0 540 240" className="w-full max-w-[500px] h-auto text-white overflow-visible select-none">
                 {/* Connecting Bridge Rays between Redis & ChromaDB */}
-                <line
+                <motion.line
                   x1="180"
                   y1="120"
                   x2="340"
@@ -154,32 +154,97 @@ export default function MemorySection() {
                   stroke={activeLayer === "all" ? "#FF4A16" : "rgba(255,255,255,0.15)"}
                   strokeWidth="1.5"
                   strokeDasharray="4 4"
-                  className="transition-colors duration-300"
+                  initial={shouldReduceMotion ? { pathLength: 1 } : { pathLength: 0 }}
+                  whileInView={{ pathLength: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.8, ease: MOTION_EASE.enter }}
+                  className="transition-colors duration-400"
                 />
+
+                {/* Traveling Consolidation Amber Pulse across Bridge */}
+                {!shouldReduceMotion && activeLayer === "all" && (
+                  <motion.circle
+                    r="3"
+                    fill="#FF4A16"
+                    initial={{ cx: 180, cy: 120, opacity: 0 }}
+                    animate={{
+                      cx: [180, 340],
+                      opacity: [0, 1, 1, 0],
+                    }}
+                    transition={{
+                      duration: 3,
+                      repeat: 2, // Settle into composed resting state
+                      ease: "easeInOut",
+                    }}
+                  />
+                )}
 
                 {/* Left Cluster: REDIS Working Context (Sub-10ms) */}
                 <g
-                  className="transition-opacity duration-300"
-                  style={{ opacity: isRedisActive ? 1 : 0.25 }}
+                  className="transition-opacity duration-400 ease-in-out"
+                  style={{ opacity: isRedisActive ? 1 : 0.2 }}
                 >
                   {/* Outer boundary circle */}
                   <circle cx="120" cy="120" r="70" fill="none" stroke="rgba(255,255,255,0.08)" strokeDasharray="3 3" />
 
                   {/* Redis Central Hub */}
-                  <rect x="85" y="100" width="70" height="40" rx="8" fill="#111315" stroke={isRedisActive ? "#FF4A16" : "rgba(255,255,255,0.2)"} strokeWidth="1.5" />
+                  <rect
+                    x="85"
+                    y="100"
+                    width="70"
+                    height="40"
+                    rx="8"
+                    fill="#111315"
+                    stroke={isRedisActive ? (activeLayer === "redis" ? "#FF4A16" : "rgba(255,74,22,0.6)") : "rgba(255,255,255,0.2)"}
+                    strokeWidth={activeLayer === "redis" ? "2" : "1.5"}
+                    className="transition-colors duration-300"
+                  />
                   <text x="120" y="125" textAnchor="middle" fill="#F5F3EF" fontSize="11" fontFamily="monospace" fontWeight="bold">REDIS</text>
 
                   {/* Compact Peripheral Nodes */}
                   <circle cx="65" cy="80" r="6" fill="#111315" stroke={isRedisActive ? "#FF4A16" : "rgba(255,255,255,0.3)"} />
-                  <line x1="85" y1="105" x2="71" y2="85" stroke="rgba(255,255,255,0.2)" strokeWidth="1" />
+                  <motion.line
+                    x1="85"
+                    y1="105"
+                    x2="71"
+                    y2="85"
+                    stroke="rgba(255,255,255,0.2)"
+                    strokeWidth="1"
+                    initial={shouldReduceMotion ? { pathLength: 1 } : { pathLength: 0 }}
+                    whileInView={{ pathLength: 1 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.6, ease: MOTION_EASE.enter }}
+                  />
                   <text x="65" y="70" textAnchor="middle" fill="#8C9295" fontSize="8" fontFamily="monospace">SESSION</text>
 
                   <circle cx="65" cy="160" r="6" fill="#111315" stroke={isRedisActive ? "#FF4A16" : "rgba(255,255,255,0.3)"} />
-                  <line x1="85" y1="135" x2="71" y2="155" stroke="rgba(255,255,255,0.2)" strokeWidth="1" />
+                  <motion.line
+                    x1="85"
+                    y1="135"
+                    x2="71"
+                    y2="155"
+                    stroke="rgba(255,255,255,0.2)"
+                    strokeWidth="1"
+                    initial={shouldReduceMotion ? { pathLength: 1 } : { pathLength: 0 }}
+                    whileInView={{ pathLength: 1 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.6, delay: 0.1, ease: MOTION_EASE.enter }}
+                  />
                   <text x="65" y="178" textAnchor="middle" fill="#8C9295" fontSize="8" fontFamily="monospace">AST_CACHE</text>
 
                   <circle cx="175" cy="70" r="6" fill="#111315" stroke={isRedisActive ? "#FF4A16" : "rgba(255,255,255,0.3)"} />
-                  <line x1="145" y1="100" x2="170" y2="75" stroke="rgba(255,255,255,0.2)" strokeWidth="1" />
+                  <motion.line
+                    x1="145"
+                    y1="100"
+                    x2="170"
+                    y2="75"
+                    stroke="rgba(255,255,255,0.2)"
+                    strokeWidth="1"
+                    initial={shouldReduceMotion ? { pathLength: 1 } : { pathLength: 0 }}
+                    whileInView={{ pathLength: 1 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.6, delay: 0.2, ease: MOTION_EASE.enter }}
+                  />
                   <text x="175" y="60" textAnchor="middle" fill="#8C9295" fontSize="8" fontFamily="monospace">DAG_STATE</text>
 
                   <text x="120" y="205" textAnchor="middle" fill="#FF4A16" fontSize="9" fontFamily="monospace" letterSpacing="0.1em">
@@ -189,27 +254,70 @@ export default function MemorySection() {
 
                 {/* Right Cluster: CHROMADB Semantic Network (<38ms HNSW) */}
                 <g
-                  className="transition-opacity duration-300"
-                  style={{ opacity: isChromaActive ? 1 : 0.25 }}
+                  className="transition-opacity duration-400 ease-in-out"
+                  style={{ opacity: isChromaActive ? 1 : 0.2 }}
                 >
                   {/* Outer boundary circle */}
                   <circle cx="400" cy="120" r="70" fill="none" stroke="rgba(255,255,255,0.08)" strokeDasharray="3 3" />
 
                   {/* ChromaDB Central Hub */}
-                  <rect x="360" y="100" width="80" height="40" rx="8" fill="#111315" stroke={isChromaActive ? "#FF4A16" : "rgba(255,255,255,0.2)"} strokeWidth="1.5" />
+                  <rect
+                    x="360"
+                    y="100"
+                    width="80"
+                    height="40"
+                    rx="8"
+                    fill="#111315"
+                    stroke={isChromaActive ? (activeLayer === "chroma" ? "#FF4A16" : "rgba(255,74,22,0.6)") : "rgba(255,255,255,0.2)"}
+                    strokeWidth={activeLayer === "chroma" ? "2" : "1.5"}
+                    className="transition-colors duration-300"
+                  />
                   <text x="400" y="125" textAnchor="middle" fill="#F5F3EF" fontSize="11" fontFamily="monospace" fontWeight="bold">CHROMADB</text>
 
                   {/* Distributed Semantic Graph Nodes */}
                   <circle cx="455" cy="75" r="6" fill="#111315" stroke={isChromaActive ? "#FF4A16" : "rgba(255,255,255,0.3)"} />
-                  <line x1="435" y1="105" x2="450" y2="80" stroke="rgba(255,255,255,0.2)" strokeWidth="1" />
+                  <motion.line
+                    x1="435"
+                    y1="105"
+                    x2="450"
+                    y2="80"
+                    stroke="rgba(255,255,255,0.2)"
+                    strokeWidth="1"
+                    initial={shouldReduceMotion ? { pathLength: 1 } : { pathLength: 0 }}
+                    whileInView={{ pathLength: 1 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.6, ease: MOTION_EASE.enter }}
+                  />
                   <text x="455" y="65" textAnchor="middle" fill="#8C9295" fontSize="8" fontFamily="monospace">INVARIANTS</text>
 
                   <circle cx="455" cy="165" r="6" fill="#111315" stroke={isChromaActive ? "#FF4A16" : "rgba(255,255,255,0.3)"} />
-                  <line x1="435" y1="135" x2="450" y2="160" stroke="rgba(255,255,255,0.2)" strokeWidth="1" />
+                  <motion.line
+                    x1="435"
+                    y1="135"
+                    x2="450"
+                    y2="160"
+                    stroke="rgba(255,255,255,0.2)"
+                    strokeWidth="1"
+                    initial={shouldReduceMotion ? { pathLength: 1 } : { pathLength: 0 }}
+                    whileInView={{ pathLength: 1 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.6, delay: 0.1, ease: MOTION_EASE.enter }}
+                  />
                   <text x="455" y="182" textAnchor="middle" fill="#8C9295" fontSize="8" fontFamily="monospace">EMBEDDINGS</text>
 
                   <circle cx="345" cy="65" r="6" fill="#111315" stroke={isChromaActive ? "#FF4A16" : "rgba(255,255,255,0.3)"} />
-                  <line x1="375" y1="100" x2="350" y2="70" stroke="rgba(255,255,255,0.2)" strokeWidth="1" />
+                  <motion.line
+                    x1="375"
+                    y1="100"
+                    x2="350"
+                    y2="70"
+                    stroke="rgba(255,255,255,0.2)"
+                    strokeWidth="1"
+                    initial={shouldReduceMotion ? { pathLength: 1 } : { pathLength: 0 }}
+                    whileInView={{ pathLength: 1 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.6, delay: 0.2, ease: MOTION_EASE.enter }}
+                  />
                   <text x="345" y="55" textAnchor="middle" fill="#8C9295" fontSize="8" fontFamily="monospace">RESEARCH</text>
 
                   <text x="400" y="205" textAnchor="middle" fill="#FF4A16" fontSize="9" fontFamily="monospace" letterSpacing="0.1em">
@@ -232,18 +340,21 @@ export default function MemorySection() {
             </div>
           </div>
 
-          {/* Right Column: Dual-Role Cards */}
-          <div className="lg:col-span-5 flex flex-col justify-between gap-6">
+          {/* Right Column: Dual-Role Cards with Smooth Selection Feedback */}
+          <div className="lg:col-span-5 flex flex-col justify-between gap-5">
             {/* Redis Working Memory Card */}
-            <div
-              onClick={() => setActiveLayer("redis")}
-              className={`p-6 sm:p-7 rounded-xl border transition-all duration-300 cursor-pointer ${
-                isRedisActive
-                  ? "bg-[#08090A] border-[rgba(255,255,255,0.22)] shadow-sm"
-                  : "bg-transparent border-transparent opacity-40 hover:opacity-80"
+            <button
+              type="button"
+              onClick={() => setActiveLayer(activeLayer === "redis" ? "all" : "redis")}
+              className={`p-6 sm:p-7 rounded-xl border text-left transition-all duration-300 cursor-pointer focus-visible:outline-[#FF4A16] ${
+                activeLayer === "redis"
+                  ? "bg-[#111315] border-[#FF4A16] shadow-[0_0_20px_rgba(255,74,22,0.2)] translate-x-1"
+                  : isRedisActive
+                  ? "bg-[#08090A] border-[rgba(255,255,255,0.14)] hover:border-[rgba(255,255,255,0.24)]"
+                  : "bg-[#08090A]/50 border-transparent opacity-40 hover:opacity-80"
               }`}
             >
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center justify-between mb-2.5">
                 <span className="font-code text-xs font-semibold text-[#FF4A16]">
                   01 / ACTIVE
                 </span>
@@ -261,18 +372,21 @@ export default function MemorySection() {
                 <span className="text-[#FF4A16]">▸</span>
                 <span>Fast in-memory key-value eviction & task rollback states.</span>
               </div>
-            </div>
+            </button>
 
             {/* ChromaDB Semantic Memory Card */}
-            <div
-              onClick={() => setActiveLayer("chroma")}
-              className={`p-6 sm:p-7 rounded-xl border transition-all duration-300 cursor-pointer ${
-                isChromaActive
-                  ? "bg-[#08090A] border-[rgba(255,255,255,0.22)] shadow-sm"
-                  : "bg-transparent border-transparent opacity-40 hover:opacity-80"
+            <button
+              type="button"
+              onClick={() => setActiveLayer(activeLayer === "chroma" ? "all" : "chroma")}
+              className={`p-6 sm:p-7 rounded-xl border text-left transition-all duration-300 cursor-pointer focus-visible:outline-[#FF4A16] ${
+                activeLayer === "chroma"
+                  ? "bg-[#111315] border-[#FF4A16] shadow-[0_0_20px_rgba(255,74,22,0.2)] translate-x-1"
+                  : isChromaActive
+                  ? "bg-[#08090A] border-[rgba(255,255,255,0.14)] hover:border-[rgba(255,255,255,0.24)]"
+                  : "bg-[#08090A]/50 border-transparent opacity-40 hover:opacity-80"
               }`}
             >
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center justify-between mb-2.5">
                 <span className="font-code text-xs font-semibold text-[#FF4A16]">
                   02 / PERSISTENT
                 </span>
@@ -290,12 +404,12 @@ export default function MemorySection() {
                 <span className="text-[#FF4A16]">▸</span>
                 <span>Cross-session knowledge graph and concept recall.</span>
               </div>
-            </div>
+            </button>
           </div>
         </div>
 
         {/* Bottom Outside Area: Learning Mascot cleanly positioned outside the central diagram */}
-        <div className="pt-6 border-t border-[rgba(255,255,255,0.06)] flex flex-wrap items-center justify-between gap-4">
+        <div className="pt-4 border-t border-[rgba(255,255,255,0.06)] flex flex-wrap items-center justify-between gap-4">
           <span className="font-code text-[10px] tracking-[0.2em] text-[#737575] uppercase">
             EPHEMERAL-TO-SEMANTIC CONSOLIDATION PIPELINE
           </span>
@@ -304,7 +418,7 @@ export default function MemorySection() {
             <span className="font-code text-[9px] text-[#8C9295] uppercase hidden sm:inline">INDEXING_MEMORY</span>
             <ApexMascot
               variant="learning"
-              height={75}
+              height={70}
               animateIdle={true}
               alt="APEX companion indexing hybrid memory context"
             />
@@ -314,3 +428,4 @@ export default function MemorySection() {
     </section>
   );
 }
+

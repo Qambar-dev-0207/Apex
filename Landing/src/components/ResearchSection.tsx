@@ -51,14 +51,14 @@ export default function ResearchSection() {
   return (
     <section
       id="research"
-      className="relative w-full bg-[#050607] text-[#F5F3EF] py-28 sm:py-36 lg:py-44 overflow-hidden border-t border-[rgba(255,255,255,0.06)] select-none"
+      className="relative w-full bg-[#050607] text-[#F5F3EF] py-16 sm:py-20 lg:py-24 overflow-hidden border-t border-[rgba(255,255,255,0.06)] select-none"
       aria-label="APEX Research and KnowledgeForge System"
     >
       <div className="max-w-[1600px] mx-auto px-6 sm:px-10 lg:px-16">
         {/* Section Header */}
-        <div className="max-w-[840px] mb-16 lg:mb-24">
+        <div className="max-w-[840px] mb-8 lg:mb-12">
           {/* Eyebrow with horizontal line draw */}
-          <div className="flex items-center gap-3 mb-5">
+          <div className="flex items-center gap-3 mb-4">
             <motion.span
               initial={shouldReduceMotion ? { width: 24 } : { width: 0 }}
               whileInView={{ width: 24 }}
@@ -79,7 +79,7 @@ export default function ResearchSection() {
           </div>
 
           {/* Masked Line Reveal Headline */}
-          <h2 className="font-editorial text-4xl sm:text-6xl lg:text-7xl leading-[1.04] tracking-[-0.02em] text-[#F5F3EF] mb-6 flex flex-col">
+          <h2 className="font-editorial text-4xl sm:text-6xl lg:text-7xl leading-[1.04] tracking-[-0.02em] text-[#F5F3EF] mb-5 flex flex-col">
             <span className="overflow-mask block relative py-0.5">
               <motion.span
                 initial={
@@ -124,12 +124,12 @@ export default function ResearchSection() {
         </div>
 
         {/* Culminating Technical Visualization Canvas: Interactive Information Transformation Pipeline */}
-        <div className="bg-[#08090A] border border-[rgba(255,255,255,0.1)] rounded-2xl p-6 sm:p-10 lg:p-12 mb-10 relative overflow-hidden">
-          {/* Subtle grid */}
+        <div className="bg-[#08090A] border border-[rgba(255,255,255,0.1)] rounded-2xl p-6 sm:p-10 lg:p-12 mb-8 relative overflow-hidden">
+          {/* Subtle architectural grid */}
           <div className="absolute inset-0 architectural-grid opacity-20 pointer-events-none" />
 
           {/* Interactive Stage Selector Tabs */}
-          <div className="flex flex-wrap items-center justify-between gap-4 pb-6 border-b border-[rgba(255,255,255,0.08)] mb-8 relative z-10" role="tablist">
+          <div className="flex flex-wrap items-center justify-between gap-4 pb-5 border-b border-[rgba(255,255,255,0.08)] mb-6 relative z-10" role="tablist">
             <span className="font-code text-xs text-[#737575] tracking-wider uppercase">
               KNOWLEDGEFORGE // TRANSFORMATION PIPELINE
             </span>
@@ -158,10 +158,36 @@ export default function ResearchSection() {
           </div>
 
           {/* Central Transformation Graphic */}
-          <div className="my-6 py-8 flex flex-col items-center justify-center relative z-10">
-            <svg viewBox="0 0 680 180" className="w-full max-w-[640px] h-auto text-white overflow-visible">
-              {/* Connecting Conduit Ray */}
-              <line x1="80" y1="90" x2="600" y2="90" stroke="rgba(255,255,255,0.15)" strokeWidth="1.5" strokeDasharray="4 4" />
+          <div className="my-4 py-6 flex flex-col items-center justify-center relative z-10">
+            <svg viewBox="0 0 680 180" className="w-full max-w-[660px] h-auto text-white overflow-visible select-none">
+              {/* Progressive Connecting Conduit Ray */}
+              <motion.line
+                x1="80"
+                y1="90"
+                x2="600"
+                y2="90"
+                stroke="rgba(255,255,255,0.18)"
+                strokeWidth="1.5"
+                strokeDasharray="4 4"
+                initial={shouldReduceMotion ? { pathLength: 1 } : { pathLength: 0 }}
+                whileInView={{ pathLength: 1 }}
+                viewport={{ once: true }}
+                transition={{ duration: 1, ease: MOTION_EASE.enter }}
+              />
+
+              {/* Traveling Pulse Along Active Stage Segment */}
+              {!shouldReduceMotion && (
+                <motion.circle
+                  r="3.5"
+                  fill="#FF4A16"
+                  initial={{ cx: 80, cy: 90, opacity: 0 }}
+                  animate={{
+                    cx: [80, 252, 427, 600][activeStage],
+                    opacity: [0, 1, 1],
+                  }}
+                  transition={{ duration: 0.5, ease: "easeOut" }}
+                />
+              )}
 
               {/* Stage 1: SOURCE — Document Representations */}
               <g
@@ -169,11 +195,21 @@ export default function ResearchSection() {
                 onClick={() => setActiveStage(0)}
                 style={{ opacity: activeStage === 0 ? 1 : 0.4 }}
               >
-                <rect x="40" y="55" width="80" height="70" rx="6" fill="#111315" stroke={activeStage === 0 ? "#FF4A16" : "rgba(255,255,255,0.2)"} strokeWidth={activeStage === 0 ? "2" : "1"} />
+                <rect
+                  x="40"
+                  y="55"
+                  width="80"
+                  height="70"
+                  rx="6"
+                  fill="#111315"
+                  stroke={activeStage === 0 ? "#FF4A16" : "rgba(255,255,255,0.2)"}
+                  strokeWidth={activeStage === 0 ? "2" : "1"}
+                  className="transition-colors duration-300"
+                />
                 {/* Simulated document lines */}
-                <line x1="52" y1="72" x2="108" y2="72" stroke="rgba(255,255,255,0.4)" strokeWidth="2" />
-                <line x1="52" y1="84" x2="96" y2="84" stroke="rgba(255,255,255,0.4)" strokeWidth="2" />
-                <line x1="52" y1="96" x2="104" y2="96" stroke="rgba(255,255,255,0.4)" strokeWidth="2" />
+                <line x1="52" y1="72" x2="108" y2="72" stroke={activeStage === 0 ? "#F5F3EF" : "rgba(255,255,255,0.4)"} strokeWidth="2" />
+                <line x1="52" y1="84" x2="96" y2="84" stroke={activeStage === 0 ? "#F5F3EF" : "rgba(255,255,255,0.4)"} strokeWidth="2" />
+                <line x1="52" y1="96" x2="104" y2="96" stroke={activeStage === 0 ? "#F5F3EF" : "rgba(255,255,255,0.4)"} strokeWidth="2" />
                 <line x1="52" y1="108" x2="80" y2="108" stroke="#FF4A16" strokeWidth="2" />
                 <text x="80" y="145" textAnchor="middle" fill={activeStage === 0 ? "#FF4A16" : "#8C9295"} fontSize="10" fontFamily="monospace" fontWeight="bold">01 SOURCE</text>
               </g>
@@ -184,13 +220,23 @@ export default function ResearchSection() {
                 onClick={() => setActiveStage(1)}
                 style={{ opacity: activeStage === 1 ? 1 : 0.4 }}
               >
-                <rect x="210" y="55" width="85" height="70" rx="6" fill="#111315" stroke={activeStage === 1 ? "#FF4A16" : "rgba(255,255,255,0.2)"} strokeWidth={activeStage === 1 ? "2" : "1"} />
+                <rect
+                  x="210"
+                  y="55"
+                  width="85"
+                  height="70"
+                  rx="6"
+                  fill="#111315"
+                  stroke={activeStage === 1 ? "#FF4A16" : "rgba(255,255,255,0.2)"}
+                  strokeWidth={activeStage === 1 ? "2" : "1"}
+                  className="transition-colors duration-300"
+                />
                 {/* Syntax tree nodes */}
                 <circle cx="252" cy="74" r="5" fill="#FF4A16" />
-                <line x1="252" y1="79" x2="234" y2="98" stroke="rgba(255,255,255,0.3)" />
-                <line x1="252" y1="79" x2="270" y2="98" stroke="rgba(255,255,255,0.3)" />
-                <circle cx="234" cy="98" r="4" fill="#E9D0AD" />
-                <circle cx="270" cy="98" r="4" fill="#E9D0AD" />
+                <line x1="252" y1="79" x2="234" y2="98" stroke={activeStage === 1 ? "#FF4A16" : "rgba(255,255,255,0.3)"} strokeWidth="1.2" />
+                <line x1="252" y1="79" x2="270" y2="98" stroke={activeStage === 1 ? "#FF4A16" : "rgba(255,255,255,0.3)"} strokeWidth="1.2" />
+                <circle cx="234" cy="98" r="4" fill={activeStage === 1 ? "#FF4A16" : "#E9D0AD"} />
+                <circle cx="270" cy="98" r="4" fill={activeStage === 1 ? "#FF4A16" : "#E9D0AD"} />
                 <text x="252" y="145" textAnchor="middle" fill={activeStage === 1 ? "#FF4A16" : "#8C9295"} fontSize="10" fontFamily="monospace" fontWeight="bold">02 INGEST (AST)</text>
               </g>
 
@@ -200,14 +246,24 @@ export default function ResearchSection() {
                 onClick={() => setActiveStage(2)}
                 style={{ opacity: activeStage === 2 ? 1 : 0.4 }}
               >
-                <rect x="385" y="55" width="85" height="70" rx="6" fill="#111315" stroke={activeStage === 2 ? "#FF4A16" : "rgba(255,255,255,0.2)"} strokeWidth={activeStage === 2 ? "2" : "1"} />
+                <rect
+                  x="385"
+                  y="55"
+                  width="85"
+                  height="70"
+                  rx="6"
+                  fill="#111315"
+                  stroke={activeStage === 2 ? "#FF4A16" : "rgba(255,255,255,0.2)"}
+                  strokeWidth={activeStage === 2 ? "2" : "1"}
+                  className="transition-colors duration-300"
+                />
                 {/* Graph network cluster */}
-                <circle cx="410" cy="80" r="4" fill="#FF4A16" />
-                <circle cx="445" cy="75" r="4" fill="#FF4A16" />
-                <circle cx="428" cy="102" r="4" fill="#FF4A16" />
-                <line x1="410" y1="80" x2="445" y2="75" stroke="#FF4A16" strokeWidth="1.2" />
-                <line x1="410" y1="80" x2="428" y2="102" stroke="#FF4A16" strokeWidth="1.2" />
-                <line x1="445" y1="75" x2="428" y2="102" stroke="#FF4A16" strokeWidth="1.2" />
+                <circle cx="410" cy="80" r="4.5" fill="#FF4A16" />
+                <circle cx="445" cy="75" r="4.5" fill="#FF4A16" />
+                <circle cx="428" cy="102" r="4.5" fill="#FF4A16" />
+                <line x1="410" y1="80" x2="445" y2="75" stroke="#FF4A16" strokeWidth={activeStage === 2 ? "1.8" : "1.2"} />
+                <line x1="410" y1="80" x2="428" y2="102" stroke="#FF4A16" strokeWidth={activeStage === 2 ? "1.8" : "1.2"} />
+                <line x1="445" y1="75" x2="428" y2="102" stroke="#FF4A16" strokeWidth={activeStage === 2 ? "1.8" : "1.2"} />
                 <text x="427" y="145" textAnchor="middle" fill={activeStage === 2 ? "#FF4A16" : "#8C9295"} fontSize="10" fontFamily="monospace" fontWeight="bold">03 CONNECT</text>
               </g>
 
@@ -217,17 +273,36 @@ export default function ResearchSection() {
                 onClick={() => setActiveStage(3)}
                 style={{ opacity: activeStage === 3 ? 1 : 0.4 }}
               >
-                <rect x="555" y="55" width="90" height="70" rx="6" fill="#111315" stroke={activeStage === 3 ? "#FF4A16" : "rgba(255,255,255,0.2)"} strokeWidth={activeStage === 3 ? "2" : "1"} />
-                {/* Aperture vector beam */}
-                <circle cx="600" cy="90" r="14" fill="none" stroke="#FF4A16" strokeWidth="1.5" strokeDasharray="3 3" />
-                <circle cx="600" cy="90" r="4" fill="#FF4A16" />
+                <rect
+                  x="555"
+                  y="55"
+                  width="90"
+                  height="70"
+                  rx="6"
+                  fill="#111315"
+                  stroke={activeStage === 3 ? "#FF4A16" : "rgba(255,255,255,0.2)"}
+                  strokeWidth={activeStage === 3 ? "2" : "1"}
+                  className="transition-colors duration-300"
+                />
+                {/* Emphasized Aperture Vector Beam for Retrieval */}
+                <circle
+                  cx="600"
+                  cy="90"
+                  r="15"
+                  fill="none"
+                  stroke="#FF4A16"
+                  strokeWidth={activeStage === 3 ? "2" : "1.2"}
+                  strokeDasharray="3 3"
+                  className={activeStage === 3 ? "animate-spin-slow" : ""}
+                />
+                <circle cx="600" cy="90" r="4.5" fill="#FF4A16" />
                 <text x="600" y="145" textAnchor="middle" fill={activeStage === 3 ? "#FF4A16" : "#8C9295"} fontSize="10" fontFamily="monospace" fontWeight="bold">04 RETRIEVE</text>
               </g>
             </svg>
           </div>
 
           {/* Synchronized Detail Drawer */}
-          <div className="min-h-[100px] pt-6 border-t border-[rgba(255,255,255,0.08)] relative z-10">
+          <div className="min-h-[100px] pt-5 border-t border-[rgba(255,255,255,0.08)] relative z-10">
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeStage}
@@ -259,8 +334,8 @@ export default function ResearchSection() {
           </div>
         </div>
 
-        {/* 4 Sequential Stage Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-12">
+        {/* 4 Sequential Stage Cards with Cohesive Padding & Interactivity */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {RESEARCH_STAGES.map((stg, idx) => {
             const isActive = activeStage === idx;
             return (
@@ -268,14 +343,14 @@ export default function ResearchSection() {
                 key={stg.step}
                 type="button"
                 onClick={() => setActiveStage(idx)}
-                className={`p-6 sm:p-7 rounded-xl text-left border transition-all duration-300 cursor-pointer flex flex-col justify-between min-h-[260px] focus-visible:outline-[#FF4A16] ${
+                className={`p-5 sm:p-6 rounded-xl text-left border transition-all duration-300 cursor-pointer flex flex-col justify-between min-h-[220px] focus-visible:outline-[#FF4A16] ${
                   isActive
                     ? "bg-[#111315] border-[#FF4A16] shadow-[0_0_16px_rgba(255,74,22,0.15)] translate-y-[-2px]"
                     : "bg-[#08090A] border-[rgba(255,255,255,0.08)] hover:border-[rgba(255,255,255,0.2)] opacity-70 hover:opacity-100"
                 }`}
               >
                 <div>
-                  <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center justify-between mb-3">
                     <span
                       className={`font-code text-xs font-semibold ${
                         isActive ? "text-[#FF4A16]" : "text-[#737575]"
@@ -283,12 +358,12 @@ export default function ResearchSection() {
                     >
                       STAGE {stg.step}
                     </span>
-                    <span className="w-1.5 h-1.5 rounded-full bg-[rgba(255,255,255,0.2)]" />
+                    <span className={`w-1.5 h-1.5 rounded-full ${isActive ? "bg-[#FF4A16]" : "bg-[rgba(255,255,255,0.2)]"}`} />
                   </div>
                   <h3 className="font-sans text-base sm:text-lg font-medium text-[#F5F3EF] mb-1">
                     {stg.name}
                   </h3>
-                  <span className="font-code text-[11px] text-[#FF4A16]/80 block mb-3">
+                  <span className="font-code text-[11px] text-[#FF4A16]/80 block mb-2.5">
                     {stg.tag}
                   </span>
                   <p className="text-[#B2B0AD] text-xs leading-relaxed">
@@ -296,7 +371,7 @@ export default function ResearchSection() {
                   </p>
                 </div>
 
-                <div className="pt-3 border-t border-[rgba(255,255,255,0.06)] font-code text-[10px] text-[#737575]">
+                <div className="pt-2.5 border-t border-[rgba(255,255,255,0.06)] font-code text-[10px] text-[#737575]">
                   {stg.spec}
                 </div>
               </button>
@@ -305,7 +380,7 @@ export default function ResearchSection() {
         </div>
 
         {/* Bottom Outside Area: Curious Mascot cleanly placed */}
-        <div className="pt-6 border-t border-[rgba(255,255,255,0.08)] flex flex-wrap items-center justify-between gap-4">
+        <div className="pt-4 border-t border-[rgba(255,255,255,0.08)] flex flex-wrap items-center justify-between gap-4">
           <span className="font-code text-[10px] tracking-[0.2em] text-[#737575] uppercase">
             GROUNDED TECHNICAL INGESTION // CHROMA HNSW
           </span>
@@ -314,7 +389,7 @@ export default function ResearchSection() {
             <span className="font-code text-[9px] text-[#8C9295] uppercase hidden sm:inline">KNOWLEDGE_EXPLORER</span>
             <ApexMascot
               variant="curious"
-              height={70}
+              height={66}
               animateIdle={true}
               alt="APEX companion exploring knowledge graph"
             />
@@ -324,3 +399,4 @@ export default function ResearchSection() {
     </section>
   );
 }
+

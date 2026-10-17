@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
-import { motion, AnimatePresence, useReducedMotion } from "motion/react";
-import ApexMascot from "./ApexMascot";
+import { motion, AnimatePresence, useReducedMotion, useScroll, useTransform } from "motion/react";
 import { MOTION_EASE } from "../lib/motion";
 
 interface PhilosophyConcept {
@@ -42,6 +41,15 @@ export default function ManifestoSection() {
   const [activeConcept, setActiveConcept] = useState<number>(1); // Default to ORCHESTRATE
   const [hasAutoProgressed, setHasAutoProgressed] = useState(false);
   const shouldReduceMotion = useReducedMotion();
+  const sectionRef = useRef<HTMLElement>(null);
+
+  // Subtle parallax depth for the architectural background
+  const { scrollYProgress } = useScroll({
+    target: sectionRef,
+    offset: ["start end", "end start"],
+  });
+
+  const bgY = useTransform(scrollYProgress, [0, 1], ["-2%", "2%"]);
 
   // Subtle initial progression REASON -> ORCHESTRATE on initial view if motion enabled
   useEffect(() => {
@@ -64,14 +72,18 @@ export default function ManifestoSection() {
 
   return (
     <section
+      ref={sectionRef}
       id="manifesto"
       className="relative w-full bg-[#050607] border-t border-[rgba(255,255,255,0.08)] select-none overflow-hidden"
       aria-label="A Different Kind of System"
     >
       {/* Main Wide Panoramic Banner Container */}
       <div className="relative w-full min-h-[520px] sm:min-h-[580px] lg:min-h-[640px] flex flex-col justify-between overflow-hidden">
-        {/* Background Artwork: Brutalist Obsidian Architecture */}
-        <div className="absolute inset-0 z-0 pointer-events-none">
+        {/* Background Artwork: Brutalist Obsidian Architecture with subtle depth parallax */}
+        <motion.div
+          style={{ y: shouldReduceMotion ? 0 : bgY }}
+          className="absolute inset-0 z-0 pointer-events-none"
+        >
           <Image
             src="/apex-manifesto-bg.jpg"
             alt="APEX — A Different Kind of System"
@@ -79,76 +91,98 @@ export default function ManifestoSection() {
             priority
             sizes="100vw"
             quality={95}
-            className="object-cover object-[center_42%] scale-[1.01]"
+            className="object-cover object-[center_42%] scale-[1.04]"
           />
+
+          {/* Environmental light emphasis connected to active concept */}
+          <div
+            className={`absolute inset-0 transition-opacity duration-700 pointer-events-none ${
+              activeConcept === 0
+                ? "bg-[radial-gradient(circle_at_25%_65%,rgba(255,74,22,0.12),transparent_50%)]"
+                : activeConcept === 1
+                ? "bg-[radial-gradient(circle_at_45%_55%,rgba(255,74,22,0.15),transparent_55%)]"
+                : "bg-[radial-gradient(circle_at_70%_50%,rgba(255,74,22,0.12),transparent_50%)]"
+            }`}
+          />
+
           {/* Subtle directional gradient on left to ensure typography contrast */}
           <div className="absolute inset-y-0 left-0 w-full sm:w-[55%] lg:w-[48%] bg-gradient-to-r from-[#050607]/90 via-[#050607]/45 to-transparent pointer-events-none" />
           <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#050607] to-transparent pointer-events-none" />
-        </div>
+        </motion.div>
 
-        {/* Top/Middle Area: Left Editorial Typography & Right Thinking Mascot */}
+        {/* Subtle architectural edge light sweep */}
+        {!shouldReduceMotion && (
+          <motion.div
+            initial={{ x: "-100%", opacity: 0 }}
+            animate={{ x: "200%", opacity: [0, 0.4, 0] }}
+            transition={{ duration: 7, repeat: Infinity, ease: "easeInOut", repeatDelay: 5 }}
+            className="absolute top-[48%] left-0 w-1/3 h-px bg-gradient-to-r from-transparent via-[#FF4A16]/50 to-transparent pointer-events-none z-10"
+          />
+        )}
+
+        {/* Top/Middle Area: Left Editorial Typography */}
         <div className="relative z-10 w-full max-w-[1600px] mx-auto px-6 sm:px-10 lg:px-14 pt-12 sm:pt-16 lg:pt-20 pb-4 flex-1 flex flex-col justify-between pointer-events-none">
-            {/* Left Editorial Copy Area (Span 8 cols) */}
-            <div className="lg:col-span-8 max-w-[560px]">
-              {/* Eyebrow: - A DIFFERENT KIND OF SYSTEM */}
-              <motion.div
-                initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.45, ease: MOTION_EASE.enter }}
-                className="flex items-center gap-2 mb-3.5 font-sans text-[11px] sm:text-xs tracking-[0.24em] text-[#8C9295] uppercase font-medium"
-              >
-                <span className="text-[#FF4A16] font-bold text-sm leading-none">—</span>
-                <span>A DIFFERENT KIND OF SYSTEM</span>
-              </motion.div>
+          {/* Left Editorial Copy Area */}
+          <div className="max-w-[560px]">
+            {/* Eyebrow: — A DIFFERENT KIND OF SYSTEM */}
+            <motion.div
+              initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.45, ease: MOTION_EASE.enter }}
+              className="flex items-center gap-2 mb-3.5 font-sans text-[11px] sm:text-xs tracking-[0.24em] text-[#8C9295] uppercase font-medium"
+            >
+              <span className="text-[#FF4A16] font-bold text-sm leading-none">—</span>
+              <span>A DIFFERENT KIND OF SYSTEM</span>
+            </motion.div>
 
-              {/* Headline: A prompt is only the beginning. */}
-              <h2 className="font-editorial text-4xl sm:text-5xl lg:text-[56px] xl:text-[64px] leading-[1.04] tracking-tight text-[#F5F3EF] mb-4">
-                <span className="overflow-mask block relative py-0.5">
-                  <motion.span
-                    initial={
-                      shouldReduceMotion
-                        ? { opacity: 1, y: 0 }
-                        : { opacity: 0, y: "110%" }
-                    }
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 0.75, ease: MOTION_EASE.enter }}
-                    className="block font-normal"
-                  >
-                    A prompt is only
-                  </motion.span>
-                </span>
-                <span className="overflow-mask block relative py-0.5">
-                  <motion.span
-                    initial={
-                      shouldReduceMotion
-                        ? { opacity: 1, y: 0 }
-                        : { opacity: 0, y: "110%" }
-                    }
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 0.85, delay: 0.1, ease: MOTION_EASE.enter }}
-                    className="block font-normal"
-                  >
-                    the <span className="font-editorial italic font-normal text-[#FF7A45]">beginning.</span>
-                  </motion.span>
-                </span>
-              </h2>
+            {/* Headline: A prompt is only the beginning. */}
+            <h2 className="font-editorial text-4xl sm:text-5xl lg:text-[56px] xl:text-[64px] leading-[1.04] tracking-tight text-[#F5F3EF] mb-4">
+              <span className="overflow-mask block relative py-0.5">
+                <motion.span
+                  initial={
+                    shouldReduceMotion
+                      ? { opacity: 1, y: 0 }
+                      : { opacity: 0, y: "110%" }
+                  }
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.75, ease: MOTION_EASE.enter }}
+                  className="block font-normal"
+                >
+                  A prompt is only
+                </motion.span>
+              </span>
+              <span className="overflow-mask block relative py-0.5">
+                <motion.span
+                  initial={
+                    shouldReduceMotion
+                      ? { opacity: 1, y: 0 }
+                      : { opacity: 0, y: "110%" }
+                  }
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.85, delay: 0.1, ease: MOTION_EASE.enter }}
+                  className="block font-normal"
+                >
+                  the <span className="font-editorial italic font-normal text-[#FF7A45]">beginning.</span>
+                </motion.span>
+              </span>
+            </h2>
 
-              {/* Subtitle Copy */}
-              <motion.p
-                initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.6, delay: 0.2, ease: MOTION_EASE.enter }}
-                className="text-[#9A9FA1] text-[13px] sm:text-sm lg:text-[15px] font-normal leading-[1.6] max-w-[480px]"
-              >
-                The real work begins after understanding the intent —
-                <br className="hidden sm:inline" /> planning the steps, coordinating execution, validating
-                <br className="hidden sm:inline" /> results, and carrying useful context forward.
-              </motion.p>
-            </div>
+            {/* Subtitle Copy */}
+            <motion.p
+              initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, delay: 0.2, ease: MOTION_EASE.enter }}
+              className="text-[#9A9FA1] text-[13px] sm:text-sm lg:text-[15px] font-normal leading-[1.6] max-w-[480px]"
+            >
+              The real work begins after understanding the intent —
+              <br className="hidden sm:inline" /> planning the steps, coordinating execution, validating
+              <br className="hidden sm:inline" /> results, and carrying useful context forward.
+            </motion.p>
+          </div>
 
           {/* Bottom Area: Segmented Interactive Concepts (REASON | ORCHESTRATE | EVOLVE) */}
           <div className="w-full pt-10 sm:pt-14 pb-4 pointer-events-auto">
@@ -224,3 +258,4 @@ export default function ManifestoSection() {
     </section>
   );
 }
+

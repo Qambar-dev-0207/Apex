@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import ApexMascot from "./ApexMascot";
-import { MOTION_EASE, MOTION_TIMING } from "../lib/motion";
+import { MOTION_EASE } from "../lib/motion";
 
 interface ModelEndpoint {
   id: string;
@@ -48,14 +48,14 @@ export default function ModelRoutingSection() {
   return (
     <section
       id="models"
-      className="relative w-full bg-[#08090A] text-[#F5F3EF] py-28 sm:py-36 lg:py-44 overflow-hidden border-t border-[rgba(255,255,255,0.06)] select-none"
+      className="relative w-full bg-[#08090A] text-[#F5F3EF] py-16 sm:py-20 lg:py-24 overflow-hidden border-t border-[rgba(255,255,255,0.06)] select-none"
       aria-label="APEX Multi-Model Intelligence"
     >
       <div className="max-w-[1600px] mx-auto px-6 sm:px-10 lg:px-16">
         {/* Section Header */}
-        <div className="max-w-[840px] mb-16 lg:mb-24">
+        <div className="max-w-[840px] mb-8 lg:mb-12">
           {/* Eyebrow with horizontal line draw */}
-          <div className="flex items-center gap-3 mb-5">
+          <div className="flex items-center gap-3 mb-4">
             <motion.span
               initial={shouldReduceMotion ? { width: 24 } : { width: 0 }}
               whileInView={{ width: 24 }}
@@ -76,7 +76,7 @@ export default function ModelRoutingSection() {
           </div>
 
           {/* Masked Line Reveal Headline */}
-          <h2 className="font-editorial text-4xl sm:text-6xl lg:text-7xl leading-[1.04] tracking-[-0.02em] text-[#F5F3EF] mb-6 flex flex-col">
+          <h2 className="font-editorial text-4xl sm:text-6xl lg:text-7xl leading-[1.04] tracking-[-0.02em] text-[#F5F3EF] mb-5 flex flex-col">
             <span className="overflow-mask block relative py-0.5">
               <motion.span
                 initial={
@@ -120,98 +120,117 @@ export default function ModelRoutingSection() {
           </motion.p>
         </div>
 
-        {/* Branching Architectural Composition */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-center bg-[#050607] border border-[rgba(255,255,255,0.1)] rounded-2xl p-6 sm:p-10 lg:p-12 relative overflow-hidden">
+        {/* Central Router & Downward Branching Architecture Container */}
+        <div className="bg-[#050607] border border-[rgba(255,255,255,0.1)] rounded-2xl p-6 sm:p-10 lg:p-12 relative overflow-hidden">
           {/* Subtle grid background */}
           <div className="absolute inset-0 architectural-grid opacity-20 pointer-events-none" />
 
-          {/* Left Column: Central Architectural Router Node + SVG Radiating Conduits */}
-          <div className="lg:col-span-5 flex flex-col items-center justify-center p-6 border-b lg:border-b-0 lg:border-r border-[rgba(255,255,255,0.08)] relative z-10">
-            {/* Central Kernel Router Element */}
+          {/* Central Router Node Header */}
+          <div className="flex flex-col items-center justify-center relative z-10 mb-2">
             <motion.div
               initial={shouldReduceMotion ? { scale: 1, opacity: 1 } : { scale: 0.9, opacity: 0 }}
               whileInView={{ scale: 1, opacity: 1 }}
               viewport={{ once: true }}
               transition={{ duration: 0.6, ease: MOTION_EASE.enter }}
-              className="w-24 h-24 rounded-2xl bg-[#111315] border border-[rgba(255,255,255,0.2)] flex flex-col items-center justify-center relative mb-5 shadow-lg group"
+              className="px-6 py-3 rounded-2xl bg-[#111315] border border-[rgba(255,255,255,0.2)] flex items-center gap-3.5 shadow-lg group relative"
             >
-              <div className="w-3 h-3 rounded-full bg-[#FF4A16] shadow-[0_0_12px_#FF4A16] animate-pulse mb-1.5" />
-              <span className="font-code text-[9px] tracking-widest text-[#FF4A16] uppercase font-bold">
-                KERNEL
-              </span>
-              <span className="font-code text-[8px] tracking-widest text-[#8C9295] uppercase">
-                ROUTER
-              </span>
-
+              <div className="w-2.5 h-2.5 rounded-full bg-[#FF4A16] shadow-[0_0_12px_#FF4A16] animate-pulse" />
+              <div className="flex flex-col items-start">
+                <span className="font-code text-[9px] tracking-widest text-[#FF4A16] uppercase font-bold">
+                  APEX KERNEL ROUTER
+                </span>
+                <span className="font-code text-[8px] tracking-widest text-[#8C9295] uppercase">
+                  SEMANTIC DISPATCH CONTROLLER
+                </span>
+              </div>
               {/* Corner marks */}
               <span className="absolute top-0 right-0 w-2 h-2 border-t border-r border-[#FF4A16]/60" />
               <span className="absolute bottom-0 left-0 w-2 h-2 border-b border-l border-[#FF4A16]/60" />
             </motion.div>
-
-            <span className="font-sans text-base font-medium text-[#F5F3EF] mb-1">
-              APEX Model Router
+            <span className="font-code text-[10px] text-[#737575] tracking-widest uppercase mt-2">
+              DYNAMIC INTENT-TO-INFERENCE ROUTING
             </span>
-            <span className="font-code text-xs text-[#737575] text-center max-w-[280px] leading-relaxed mb-6">
-              Classifies semantic bounds and dynamically routes execution streams
-            </span>
+          </div>
 
-            {/* Visual SVG Branching Conduits */}
-            <svg viewBox="0 0 320 120" className="w-full max-w-[300px] h-auto text-white overflow-visible">
-              {/* Route Path 1 (Top / Gemini) */}
-              <path
-                d="M 160 10 C 160 30, 60 40, 60 90"
+          {/* Radiating Conduits SVG (Router down to 3 Provider Columns) */}
+          <div className="w-full h-16 sm:h-20 flex justify-center items-center relative z-10 my-1 overflow-visible">
+            <svg
+              viewBox="0 0 900 80"
+              className="w-full max-w-[880px] h-full text-white overflow-visible select-none"
+            >
+              {/* Branch 0: Left to Gemini (col center ~150) */}
+              <motion.path
+                d="M 450 0 C 450 45, 150 25, 150 80"
                 fill="none"
-                stroke={selectedEndpoint === 0 ? "#FF4A16" : "rgba(255,255,255,0.15)"}
-                strokeWidth={selectedEndpoint === 0 ? "2" : "1.2"}
+                stroke={selectedEndpoint === 0 ? "#FF4A16" : "rgba(255,255,255,0.14)"}
+                strokeWidth={selectedEndpoint === 0 ? "2.2" : "1.2"}
                 strokeDasharray={selectedEndpoint === 0 ? "4 4" : "none"}
-                className="transition-colors duration-300"
-              />
-              {/* Route Path 2 (Middle / Groq) */}
-              <path
-                d="M 160 10 L 160 90"
-                fill="none"
-                stroke={selectedEndpoint === 1 ? "#FF4A16" : "rgba(255,255,255,0.15)"}
-                strokeWidth={selectedEndpoint === 1 ? "2" : "1.2"}
-                strokeDasharray={selectedEndpoint === 1 ? "4 4" : "none"}
-                className="transition-colors duration-300"
-              />
-              {/* Route Path 3 (Bottom / Ollama) */}
-              <path
-                d="M 160 10 C 160 30, 260 40, 260 90"
-                fill="none"
-                stroke={selectedEndpoint === 2 ? "#FF4A16" : "rgba(255,255,255,0.15)"}
-                strokeWidth={selectedEndpoint === 2 ? "2" : "1.2"}
-                strokeDasharray={selectedEndpoint === 2 ? "4 4" : "none"}
+                initial={shouldReduceMotion ? { pathLength: 1 } : { pathLength: 0 }}
+                whileInView={{ pathLength: 1 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.8, ease: MOTION_EASE.enter }}
                 className="transition-colors duration-300"
               />
 
-              {/* Endpoint Nodes */}
-              <circle cx="60" cy="90" r="4" fill={selectedEndpoint === 0 ? "#FF4A16" : "rgba(255,255,255,0.4)"} />
-              <circle cx="160" cy="90" r="4" fill={selectedEndpoint === 1 ? "#FF4A16" : "rgba(255,255,255,0.4)"} />
-              <circle cx="260" cy="90" r="4" fill={selectedEndpoint === 2 ? "#FF4A16" : "rgba(255,255,255,0.4)"} />
+              {/* Branch 1: Middle straight down to Groq (col center ~450) */}
+              <motion.path
+                d="M 450 0 L 450 80"
+                fill="none"
+                stroke={selectedEndpoint === 1 ? "#FF4A16" : "rgba(255,255,255,0.14)"}
+                strokeWidth={selectedEndpoint === 1 ? "2.2" : "1.2"}
+                strokeDasharray={selectedEndpoint === 1 ? "4 4" : "none"}
+                initial={shouldReduceMotion ? { pathLength: 1 } : { pathLength: 0 }}
+                whileInView={{ pathLength: 1 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.8, delay: 0.1, ease: MOTION_EASE.enter }}
+                className="transition-colors duration-300"
+              />
+
+              {/* Branch 2: Right to Ollama (col center ~750) */}
+              <motion.path
+                d="M 450 0 C 450 45, 750 25, 750 80"
+                fill="none"
+                stroke={selectedEndpoint === 2 ? "#FF4A16" : "rgba(255,255,255,0.14)"}
+                strokeWidth={selectedEndpoint === 2 ? "2.2" : "1.2"}
+                strokeDasharray={selectedEndpoint === 2 ? "4 4" : "none"}
+                initial={shouldReduceMotion ? { pathLength: 1 } : { pathLength: 0 }}
+                whileInView={{ pathLength: 1 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.8, delay: 0.2, ease: MOTION_EASE.enter }}
+                className="transition-colors duration-300"
+              />
+
+              {/* Terminal Connection Nodes */}
+              <circle cx="150" cy="80" r={selectedEndpoint === 0 ? "5" : "3.5"} fill={selectedEndpoint === 0 ? "#FF4A16" : "rgba(255,255,255,0.3)"} />
+              <circle cx="450" cy="80" r={selectedEndpoint === 1 ? "5" : "3.5"} fill={selectedEndpoint === 1 ? "#FF4A16" : "rgba(255,255,255,0.3)"} />
+              <circle cx="750" cy="80" r={selectedEndpoint === 2 ? "5" : "3.5"} fill={selectedEndpoint === 2 ? "#FF4A16" : "rgba(255,255,255,0.3)"} />
             </svg>
           </div>
 
-          {/* Right Column: Interactive Provider Cards + Dynamic Detail Drawer */}
-          <div className="lg:col-span-7 flex flex-col justify-between relative z-10" role="tablist">
-            <div className="space-y-3.5 mb-6">
-              {MODEL_ENDPOINTS.map((endpoint, idx) => {
-                const isSelected = selectedEndpoint === idx;
-                return (
-                  <button
-                    key={endpoint.id}
-                    role="tab"
-                    aria-selected={isSelected}
-                    type="button"
-                    onClick={() => setSelectedEndpoint(idx)}
-                    className={`w-full text-left p-5 rounded-xl border transition-all duration-300 cursor-pointer focus-visible:outline-[#FF4A16] ${
-                      isSelected
-                        ? "bg-[#111315] border-[#FF4A16] shadow-[0_0_24px_rgba(255,74,22,0.18)] translate-x-1"
-                        : "bg-[#08090A]/90 border-[rgba(255,255,255,0.08)] hover:border-[rgba(255,255,255,0.2)] opacity-70 hover:opacity-100"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="font-sans text-sm sm:text-base font-semibold text-[#F5F3EF]">
+          {/* Three Provider Panels in Staggered Grid Below Router */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8 relative z-10" role="tablist">
+            {MODEL_ENDPOINTS.map((endpoint, idx) => {
+              const isSelected = selectedEndpoint === idx;
+              return (
+                <motion.button
+                  key={endpoint.id}
+                  role="tab"
+                  aria-selected={isSelected}
+                  type="button"
+                  onClick={() => setSelectedEndpoint(idx)}
+                  initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, y: 14 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.5, delay: idx * 0.1, ease: MOTION_EASE.enter }}
+                  className={`w-full text-left p-6 rounded-xl border transition-all duration-300 cursor-pointer flex flex-col justify-between focus-visible:outline-[#FF4A16] ${
+                    isSelected
+                      ? "bg-[#111315] border-[#FF4A16] shadow-[0_0_24px_rgba(255,74,22,0.2)] translate-y-[-2px]"
+                      : "bg-[#08090A]/90 border-[rgba(255,255,255,0.08)] hover:border-[rgba(255,255,255,0.2)] opacity-75 hover:opacity-100"
+                  }`}
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-sans text-base font-semibold text-[#F5F3EF]">
                         {endpoint.name}
                       </span>
                       <span
@@ -223,46 +242,42 @@ export default function ModelRoutingSection() {
                       </span>
                     </div>
 
-                    <div className="font-code text-xs text-[#8C9295] mb-2.5">
+                    <div className="font-code text-xs text-[#8C9295] mb-3">
                       {endpoint.role}
                     </div>
 
-                    <p className="text-[#B2B0AD] text-xs sm:text-[13px] leading-relaxed">
+                    <p className="text-[#B2B0AD] text-xs sm:text-[13px] leading-relaxed mb-4">
                       {endpoint.description}
                     </p>
+                  </div>
 
-                    {isSelected && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        exit={{ opacity: 0, height: 0 }}
-                        transition={{ duration: 0.24, ease: MOTION_EASE.interface }}
-                        className="mt-3 pt-3 border-t border-[rgba(255,255,255,0.08)] font-code text-[11px] text-[#E9D0AD]/90 flex items-center gap-2"
-                      >
-                        <span className="text-[#FF4A16]">TRIGGER //</span>
-                        <span>{endpoint.routingTrigger}</span>
-                      </motion.div>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
+                  <div className="pt-3 border-t border-[rgba(255,255,255,0.08)]">
+                    <span className="font-code text-[10px] text-[#FF4A16] block uppercase tracking-wider mb-1">
+                      DISPATCH POLICY
+                    </span>
+                    <span className="font-code text-[11px] text-[#E9D0AD]/90 leading-relaxed block">
+                      {endpoint.routingTrigger}
+                    </span>
+                  </div>
+                </motion.button>
+              );
+            })}
+          </div>
 
-            {/* Bottom Notation Bar + Connected Mascot */}
-            <div className="pt-4 border-t border-[rgba(255,255,255,0.08)] flex items-center justify-between gap-4">
-              <span className="font-code text-[10px] text-[#737575] tracking-widest uppercase">
-                ZERO VENDOR LOCK-IN // ADAPTIVE MODEL ARBITRAGE
-              </span>
+          {/* Bottom Synchronized Control Bar & Companion Mascot */}
+          <div className="pt-5 border-t border-[rgba(255,255,255,0.08)] flex items-center justify-between gap-4 relative z-10">
+            <span className="font-code text-[10px] text-[#737575] tracking-widest uppercase">
+              ZERO VENDOR LOCK-IN // ADAPTIVE MODEL ARBITRAGE
+            </span>
 
-              <div className="flex items-center gap-2 opacity-85 hover:opacity-100 transition-opacity">
-                <span className="font-code text-[9px] text-[#8C9295] uppercase hidden sm:inline">MULTI_MODEL</span>
-                <ApexMascot
-                  variant="connected"
-                  height={65}
-                  animateIdle={true}
-                  alt="APEX companion linked across multi-model providers"
-                />
-              </div>
+            <div className="flex items-center gap-3 opacity-85 hover:opacity-100 transition-opacity">
+              <span className="font-code text-[9px] text-[#8C9295] uppercase hidden sm:inline">MULTI_MODEL</span>
+              <ApexMascot
+                variant="connected"
+                height={62}
+                animateIdle={true}
+                alt="APEX companion linked across multi-model providers"
+              />
             </div>
           </div>
         </div>
@@ -270,3 +285,4 @@ export default function ModelRoutingSection() {
     </section>
   );
 }
+
