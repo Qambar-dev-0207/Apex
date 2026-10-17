@@ -6,12 +6,9 @@ import { motion, useScroll, useTransform, useReducedMotion } from "motion/react"
 import {
   ArrowRight,
   ArrowUpRight,
-  GitBranch,
-  Cpu,
   Database,
   Search,
 } from "lucide-react";
-import ApexMascot from "./ApexMascot";
 import AtmosphericParticles from "./AtmosphericParticles";
 import { MOTION_EASE } from "../lib/motion";
 
@@ -28,10 +25,10 @@ export default function HeroSection() {
     offset: ["start start", "end start"],
   });
 
-  const bgScale = useTransform(scrollYProgress, [0, 1], [1, 1.06]);
-  const bgTranslateY = useTransform(scrollYProgress, [0, 1], [0, 48]);
+  const bgScale = useTransform(scrollYProgress, [0, 1], [1, 1.05]);
+  const bgTranslateY = useTransform(scrollYProgress, [0, 1], [0, 40]);
   const contentOpacity = useTransform(scrollYProgress, [0, 0.65], [1, 0]);
-  const contentTranslateY = useTransform(scrollYProgress, [0, 0.65], [0, -32]);
+  const contentTranslateY = useTransform(scrollYProgress, [0, 0.65], [0, -28]);
 
   // Subtle pointer parallax listener for desktop
   useEffect(() => {
@@ -79,60 +76,30 @@ export default function HeroSection() {
     { text: "intelligence.", delay: 0.65, isItalic: false },
   ];
 
-  const capabilityGroups = [
-    {
-      id: "orchestration",
-      title: "Orchestration",
-      descriptor: "Intent → Plan → Execute",
-      icon: GitBranch,
-    },
-    {
-      id: "models",
-      title: "Multi-model",
-      descriptor: "Gemini · Groq · Ollama",
-      icon: Cpu,
-    },
-    {
-      id: "memory",
-      title: "Hybrid memory",
-      descriptor: "Redis · ChromaDB",
-      icon: Database,
-    },
-    {
-      id: "research",
-      title: "Research",
-      descriptor: "Ingest · Connect · Retrieve",
-      icon: Search,
-    },
-  ];
-
   // Parallax offsets
-  const bgParallaxX = isDesktop && !shouldReduceMotion ? mousePos.x * -6 : 0;
-  const bgParallaxY = isDesktop && !shouldReduceMotion ? mousePos.y * -4 : 0;
-  const mascotParallaxX = isDesktop && !shouldReduceMotion ? mousePos.x * 10 : 0;
-  const mascotParallaxY = isDesktop && !shouldReduceMotion ? mousePos.y * 6 : 0;
+  const bgParallaxX = isDesktop && !shouldReduceMotion ? mousePos.x * -5 : 0;
+  const bgParallaxY = isDesktop && !shouldReduceMotion ? mousePos.y * -3 : 0;
 
   return (
     <section
       ref={heroRef}
       id="hero"
-      className="relative w-full h-[100svh] min-h-[680px] max-h-[1080px] bg-[#050607] flex flex-col justify-between overflow-hidden select-none"
+      className="relative w-full h-[100svh] min-h-[640px] max-h-[1080px] bg-[#050607] flex flex-col justify-between overflow-hidden select-none"
       aria-label="APEX Sovereign Intelligence Hero"
     >
-      {/* Background Architectural Portal Canvas with Horizon & Reflective Floor */}
+      {/* Background Architectural Portal Canvas with Horizon, Sunlight Rays & Reflective Floor */}
       <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden" aria-hidden="true">
         <motion.div
           style={{
             scale: shouldReduceMotion ? 1 : bgScale,
             y: shouldReduceMotion ? 0 : bgTranslateY,
             x: bgParallaxX,
-            rotateY: bgParallaxX * 0.05,
-            transition: "transform 200ms cubic-bezier(0.2, 0, 0.2, 1)",
+            transition: "transform 240ms cubic-bezier(0.2, 0, 0.2, 1)",
           }}
           className="relative w-full h-full will-change-transform"
         >
           <Image
-            src="/apex-space-gateway.jpg"
+            src="/apex-space-gateway-hero.jpg"
             alt=""
             fill
             priority
@@ -144,15 +111,10 @@ export default function HeroSection() {
           {/* Atmospheric Particle Field over horizon */}
           <AtmosphericParticles />
 
-          {/* Directional gradient overlays for crisp editorial readability */}
-          <div className="absolute inset-0 bg-gradient-to-r from-[#050607]/85 via-[#050607]/40 to-transparent pointer-events-none" />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#050607] via-transparent to-[#050607]/60 pointer-events-none" />
-
-          {/* Warm atmospheric light wash from horizon */}
-          <div className="absolute inset-x-0 bottom-0 h-44 bg-gradient-to-t from-[#050607] via-[#050607]/50 to-transparent pointer-events-none" />
-
-          {/* Reflective floor sheen hairline */}
-          <div className="absolute inset-x-0 bottom-24 h-px bg-gradient-to-r from-transparent via-[rgba(233,208,173,0.18)] to-transparent pointer-events-none" />
+          {/* Directional gradient overlays: Dark on left for high-contrast editorial typography, open on right for sunburst & planet */}
+          <div className="absolute inset-0 bg-gradient-to-r from-[#050607]/90 via-[#050607]/45 via-45% to-transparent pointer-events-none" />
+          <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-[#050607]/60 to-transparent pointer-events-none" />
+          <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#050607]/80 via-[#050607]/20 to-transparent pointer-events-none" />
         </motion.div>
       </div>
 
@@ -164,23 +126,23 @@ export default function HeroSection() {
         }}
         className="relative z-10 w-full max-w-[1600px] mx-auto px-6 sm:px-10 lg:px-16 flex flex-col justify-between flex-1 pt-24 sm:pt-28 pb-3 sm:pb-4 pointer-events-none"
       >
-        {/* Main Content Area (Split: Left Editorial, Right Foreground Mascot) */}
+        {/* Main Content Area (Left-Aligned Editorial Typography) */}
         <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-6 items-center my-auto">
-          {/* Left Editorial Copy Area (Span 8 cols) */}
+          {/* Left Editorial Copy Area */}
           <div className="lg:col-span-8 max-w-[760px] pointer-events-auto">
             {/* Eyebrow: Technical System Identifier */}
             <motion.div
               initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.45, delay: 0.18, ease: MOTION_EASE.enter }}
-              className="font-code text-[10px] sm:text-[11px] tracking-[0.26em] text-[#8C9295] uppercase font-medium mb-4 sm:mb-5 flex items-center gap-2.5"
+              className="font-code text-[10px] sm:text-[11px] tracking-[0.24em] text-[#8C9295] uppercase font-medium mb-4 sm:mb-5 flex items-center gap-2.5"
             >
               <span className="w-1.5 h-1.5 rounded-full bg-[#FF4A16] shadow-[0_0_8px_#FF4A16] animate-pulse" aria-hidden="true" />
               <span>PERSONAL AI OS / 24-LAYER ORCHESTRATION</span>
             </motion.div>
 
             {/* 4-Line Architectural Headline with Masked Editorial Reveal */}
-            <h1 className="font-editorial text-[42px] xs:text-[50px] sm:text-6xl lg:text-[74px] xl:text-[84px] leading-[0.98] tracking-[-0.015em] text-[#F3F4F2] mb-4 sm:mb-5 flex flex-col">
+            <h1 className="font-editorial text-[48px] xs:text-[54px] sm:text-6xl lg:text-[76px] xl:text-[84px] leading-[0.96] tracking-[-0.015em] text-[#FFFFFF] mb-4 sm:mb-5 flex flex-col">
               {headlineLines.map((line, idx) => (
                 <span
                   key={idx}
@@ -201,8 +163,8 @@ export default function HeroSection() {
                     }}
                     className={`block ${
                       line.isItalic
-                        ? "font-editorial italic font-normal text-[#FF7A45]"
-                        : "font-normal"
+                        ? "font-editorial italic font-normal text-[#FF4A16]"
+                        : "font-normal text-white"
                     }`}
                   >
                     {line.text}
@@ -216,12 +178,12 @@ export default function HeroSection() {
               initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.82, ease: MOTION_EASE.enter }}
-              className="text-[#9A9FA1] text-xs sm:text-sm lg:text-base font-normal leading-relaxed max-w-[480px] mb-6 sm:mb-7"
+              className="text-[#9A9FA1] text-xs sm:text-sm lg:text-[15px] font-normal leading-relaxed max-w-[490px] mb-6 sm:mb-7"
             >
               From intent to coordinated execution, APEX connects planning, memory, and action in one intelligent system.
             </motion.p>
 
-            {/* Actions: Brand Warm Orange Primary CTA & Understated Secondary Link */}
+            {/* Actions: Brand Warm Orange Primary CTA & Secondary Link */}
             <motion.div
               initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -263,7 +225,7 @@ export default function HeroSection() {
               initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.65, delay: 1.12 }}
-              className="flex flex-wrap items-center gap-2.5 sm:gap-4 text-[#858B8E] font-code text-[10px] sm:text-[11px] tracking-[0.22em] uppercase font-normal"
+              className="flex flex-wrap items-center gap-2.5 sm:gap-4 text-[#858B8E] font-code text-[10px] sm:text-[11px] tracking-[0.24em] uppercase font-normal"
             >
               <span>24 layers</span>
               <span className="text-[#858B8E]/40" aria-hidden="true">·</span>
@@ -275,84 +237,141 @@ export default function HeroSection() {
             </motion.div>
           </div>
 
-          {/* Right Side Foreground Mascot with Subtle Desktop Parallax */}
-          <div className="lg:col-span-4 flex items-end justify-start lg:justify-end pointer-events-auto">
-            <motion.div
-              style={{
-                x: mascotParallaxX,
-                y: mascotParallaxY,
-                transition: "transform 240ms cubic-bezier(0.2, 0, 0.2, 1)",
-              }}
-              className="relative flex flex-col items-start lg:items-end will-change-transform"
-            >
-              <ApexMascot
-                variant="hero"
-                height={122}
-                animateIdle={true}
-                entranceDelay={1.15}
-                priority={true}
-                alt="APEX companion overlooking the architectural gateway"
-                className="drop-shadow-[0_12px_24px_rgba(0,0,0,0.8)] filter opacity-95 hover:opacity-100 transition-opacity"
-              />
-              <span className="mt-2 font-code text-[9px] tracking-[0.22em] text-[#8C9295]/70 uppercase hidden sm:inline-block">
-                SYS::AGENT_01 // READY
-              </span>
-            </motion.div>
-          </div>
+          {/* Right Column (Architecture & Companion Overview Area) */}
+          <div className="hidden lg:block lg:col-span-4 h-full pointer-events-none" />
         </div>
 
-        {/* Lower Hero Capability Rail */}
+        {/* Lower Hero Capability Rail matching reference layout 1:1 */}
         <motion.div
           initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 1.25, ease: MOTION_EASE.enter }}
-          className="w-full pt-5 pb-2 border-t border-[rgba(235,240,238,0.08)] pointer-events-auto"
+          className="w-full pt-4 sm:pt-5 pb-2 border-t border-[rgba(255,255,255,0.08)] pointer-events-auto"
         >
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="w-full flex items-center justify-between">
             {/* 4 Capability Groups */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 flex-1">
-              {capabilityGroups.map((group, idx) => {
-                const Icon = group.icon;
-                const isActive = activeStage === idx;
-                return (
-                  <button
-                    key={group.id}
-                    type="button"
-                    onClick={() => handleCapabilityClick(group.id, idx)}
-                    className={`group text-left p-2 sm:p-2.5 rounded-lg border transition-all duration-200 cursor-pointer ${
-                      isActive
-                        ? "border-[#FF4A16]/50 bg-[#FF4A16]/5"
-                        : "border-transparent hover:border-[rgba(235,240,238,0.12)] hover:bg-[#08090A]/40"
-                    }`}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 lg:gap-8 flex-1">
+              {/* Item 1: ORCHESTRATION */}
+              <button
+                type="button"
+                onClick={() => handleCapabilityClick("orchestration", 0)}
+                className="group flex items-center text-left transition-colors duration-200 cursor-pointer"
+              >
+                <div className="w-[2px] h-6 bg-[#FF4A16] mr-3 sm:mr-3.5 shrink-0" />
+                <div className="flex items-center gap-2.5 sm:gap-3">
+                  <svg
+                    viewBox="0 0 18 18"
+                    className="w-4 h-4 text-[#FF4A16] shrink-0"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.75"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
                   >
-                    <div className="flex items-center gap-2 mb-1">
-                      <Icon
-                        size={13}
-                        className={`transition-colors duration-200 ${
-                          isActive
-                            ? "text-[#FF4A16]"
-                            : "text-[#8C9295] group-hover:text-[#F3F4F2]"
-                        }`}
-                        aria-hidden="true"
-                      />
-                      <span className="font-code text-[11px] sm:text-xs tracking-[0.16em] uppercase text-[#F3F4F2] font-medium">
-                        {group.title}
-                      </span>
+                    <path d="M5 4C3 6 3 12 5 14" />
+                    <path d="M13 4C15 6 15 12 13 14" />
+                    <circle cx="9" cy="9" r="1.5" fill="currentColor" />
+                  </svg>
+                  <div>
+                    <div className="font-code text-[11px] sm:text-xs tracking-[0.18em] uppercase font-semibold">
+                      <span className="text-[#FF4A16]">ORCH</span>
+                      <span className="text-[#F3F4F2]">ESTRATION</span>
                     </div>
-                    <p className="font-sans text-[11px] sm:text-xs text-[#8C9295] tracking-wide truncate group-hover:text-[#B2B0AD] transition-colors">
-                      {group.descriptor}
+                    <p className="font-sans text-[11px] sm:text-xs text-[#8C9295] tracking-wide">
+                      Intent → Plan → Execute
                     </p>
-                  </button>
-                );
-              })}
+                  </div>
+                </div>
+              </button>
+
+              {/* Item 2: MULTI-MODEL */}
+              <button
+                type="button"
+                onClick={() => handleCapabilityClick("models", 1)}
+                className="group flex items-center text-left transition-colors duration-200 cursor-pointer pl-0 md:pl-4 lg:pl-6 border-l-0 md:border-l border-[rgba(255,255,255,0.08)]"
+              >
+                <div className="flex items-center gap-2.5 sm:gap-3">
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="w-4 h-4 text-[#8C9295] group-hover:text-[#F3F4F2] transition-colors shrink-0"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.75"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                    <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+                    <line x1="12" y1="22.08" x2="12" y2="12" />
+                  </svg>
+                  <div>
+                    <div className="font-code text-[11px] sm:text-xs tracking-[0.18em] uppercase text-[#F3F4F2] font-semibold group-hover:text-white transition-colors">
+                      MULTI-MODEL
+                    </div>
+                    <p className="font-sans text-[11px] sm:text-xs text-[#8C9295] tracking-wide group-hover:text-[#B2B0AD] transition-colors">
+                      Gemini · Groq · Ollama
+                    </p>
+                  </div>
+                </div>
+              </button>
+
+              {/* Item 3: HYBRID MEMORY */}
+              <button
+                type="button"
+                onClick={() => handleCapabilityClick("memory", 2)}
+                className="group flex items-center text-left transition-colors duration-200 cursor-pointer pl-0 md:pl-4 lg:pl-6 border-l-0 md:border-l border-[rgba(255,255,255,0.08)]"
+              >
+                <div className="flex items-center gap-2.5 sm:gap-3">
+                  <Database
+                    size={15}
+                    className="text-[#8C9295] group-hover:text-[#F3F4F2] transition-colors shrink-0"
+                    strokeWidth={1.75}
+                    aria-hidden="true"
+                  />
+                  <div>
+                    <div className="font-code text-[11px] sm:text-xs tracking-[0.18em] uppercase text-[#F3F4F2] font-semibold group-hover:text-white transition-colors">
+                      HYBRID MEMORY
+                    </div>
+                    <p className="font-sans text-[11px] sm:text-xs text-[#8C9295] tracking-wide group-hover:text-[#B2B0AD] transition-colors">
+                      Redis · ChromaDB
+                    </p>
+                  </div>
+                </div>
+              </button>
+
+              {/* Item 4: RESEARCH */}
+              <button
+                type="button"
+                onClick={() => handleCapabilityClick("research", 3)}
+                className="group flex items-center text-left transition-colors duration-200 cursor-pointer pl-0 md:pl-4 lg:pl-6 border-l-0 md:border-l border-[rgba(255,255,255,0.08)]"
+              >
+                <div className="flex items-center gap-2.5 sm:gap-3">
+                  <Search
+                    size={15}
+                    className="text-[#8C9295] group-hover:text-[#F3F4F2] transition-colors shrink-0"
+                    strokeWidth={1.75}
+                    aria-hidden="true"
+                  />
+                  <div>
+                    <div className="font-code text-[11px] sm:text-xs tracking-[0.18em] uppercase text-[#F3F4F2] font-semibold group-hover:text-white transition-colors">
+                      RESEARCH
+                    </div>
+                    <p className="font-sans text-[11px] sm:text-xs text-[#8C9295] tracking-wide group-hover:text-[#B2B0AD] transition-colors">
+                      Ingest · Connect · Retrieve
+                    </p>
+                  </div>
+                </div>
+              </button>
             </div>
 
             {/* Circular Scroll Down Button */}
-            <div className="hidden xl:flex items-center pl-6 border-l border-[rgba(235,240,238,0.08)]">
+            <div className="hidden lg:flex items-center pl-6 border-l border-[rgba(255,255,255,0.08)] ml-6 shrink-0">
               <button
                 type="button"
                 onClick={handleScrollDown}
-                className="w-11 h-11 rounded-full border border-[rgba(235,240,238,0.2)] hover:border-[rgba(235,240,238,0.6)] flex items-center justify-center transition-all duration-300 group cursor-pointer hover:scale-105 focus-visible:outline-[#FF4A16]"
+                className="w-10 h-10 rounded-full border border-[rgba(255,255,255,0.22)] hover:border-[rgba(255,255,255,0.6)] flex items-center justify-center transition-all duration-300 group cursor-pointer hover:scale-105 focus-visible:outline-[#FF4A16]"
                 aria-label="Scroll to manifesto section"
               >
                 <span className="font-code text-[8px] tracking-[0.25em] text-[#9A9FA1] group-hover:text-[#F3F4F2] uppercase transition-colors">
