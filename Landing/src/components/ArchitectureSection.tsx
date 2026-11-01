@@ -20,11 +20,11 @@ const ARCHITECTURE_TIERS: ArchitectureTier[] = [
     num: "01",
     name: "Intelligence & Strategy",
     summary: "Intent understanding, routing, orchestration, and dependency-ordered task planning.",
-    specs: "Reflex Scout (<10µs) · Speculative Prefetch · Task DAGs",
+    specs: "Reflex Scout (<10µs) · Speculative Prefetch · Gemini 3.8 Flash",
     details: [
       "Reflex Scout (<10µs decision) fast-path regex skip & intent classification",
       "Parallel speculative prefetch bus (Redis + ChromaDB + CodeCompass)",
-      "Directed Acyclic Graph (Task DAG) decomposition with 100% topological validation",
+      "Gemini 3.8 Flash Task DAG decomposition with 100% topological validation",
     ],
   },
   {

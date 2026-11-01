@@ -72,7 +72,7 @@ Invariant: **never put a paid LLM call inside Reflex or PrefetchBundle.** They m
 
 | Role | Module | Provider |
 |---|---|---|
-| Planner (DAG, architect, genius-mode) | `src/models/thinking_path.py` | Gemini 2.5 Flash |
+| Planner (DAG, architect, genius-mode) | `src/models/thinking_path.py` | Gemini 3.8 Flash |
 | Fast chat + stream + synth | `src/models/fast_path.py` | Groq llama-3.1-8b |
 | Code implementation | `src/models/mimo_path.py` | Xiaomi MiMo v2.5-pro (OpenAI-compatible) |
 | Architecture spec (stage 1 of coding) | `src/models/minimax_path.py` | MiniMax 2.5 |

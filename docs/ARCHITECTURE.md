@@ -30,7 +30,7 @@ Every layer ships with a fallback so degradation is graceful, not fatal.
                        ├── Fire PrefetchBundle (parallel async fetch of memory, compass, workspace)
                        └── Concurrently call InputClassifier / Gemini classify
 9.  autothink on?    → ThinkPartner.detect_think_mode (regex / flash-lite)
-10. SmartRouter.route→ fast_path (Groq) or thinking_path (Gemini 3.1 Pro DAG)
+10. SmartRouter.route→ fast_path (Groq) or thinking_path (Gemini 3.8 Flash Master Orchestration DAG)
 11. ExecutionPlan:
     ├── if plan.task_plan is empty (Conversational Q&A / Out-of-the-Box reasoning):
     │   → Render single-panel APEX // INTELLECTUAL SYNTHESIS
@@ -55,7 +55,8 @@ Reflex is the **local pre-LLM gateway** that eliminates unnecessary API calls an
 
 ## Brain layer
 
-### Primary planner — Gemini 3.1 Pro (`src/models/thinking_path.py`)
+### Primary Orchestrator & Planner — Gemini 3.8 Flash (`src/models/thinking_path.py`)
+- Google's master orchestration brain for Task DAG decomposition, dependency graph calculation, and execution planning
 - System prompt auto-prefixed with `TimeContext.system_prefix()` + `tool_registry.get_prompt_block()`
 - **Prompt Boundary Tags**: Encloses directives (`--- PROJECT DIRECTIVES ---` ... `--- END PROJECT DIRECTIVES ---`) and workspace context (`--- WORKSPACE CONTEXT ---` ... `--- END WORKSPACE CONTEXT ---`) in clear opening/closing tags to prevent LLM leaking/repetition.
 - **Conditional Directives**: Resolves directives early and prepends them to the thinking path plan prompt only when prefetch is active (`_has_prefetch` is `True`), avoiding context duplication.

@@ -39,12 +39,12 @@ APEX layers smart routing under a "fast path always wins" rule. Simple prompts e
 ## Brain layer
 
 ### Multi-model routing (`src/routers/router.py`)
-- `InputClassifier` (Gemini 2.5 Flash Lite) — assigns intent + complexity + tool requirements
+- `InputClassifier` (Gemini 3.8 Flash) — assigns intent + complexity + tool requirements
 - `SmartRouter` — picks `fast_path` (low complexity) or `thinking_path` (tools/high complexity)
 - `ParallelExecutor` — DAG-aware concurrent dispatcher with hardware gating + 3-tier failover (agent → Gemini retry → OpenRouter fallback)
 
 ### Thinking path (`src/models/thinking_path.py`)
-- Gemini 2.5 Flash for plan generation
+- Gemini 3.8 Flash for master orchestration and plan generation
 - System prompt auto-prefixed with `TimeContext.system_prefix()` and `tool_registry.get_prompt_block()` — no hardcoded tool drift
 - **Prompt Boundary Tags**: Encloses `--- PROJECT DIRECTIVES ---` and `--- WORKSPACE CONTEXT ---` in clear opening/closing tags to prevent LLM leaking/repetition.
 - **Conditional Directives**: Resolves directives early and prepends them to the thinking path plan prompt only when prefetch is active (`_has_prefetch` is `True`), avoiding context duplication.

@@ -17,11 +17,11 @@ interface ModelEndpoint {
 const MODEL_ENDPOINTS: ModelEndpoint[] = [
   {
     id: "gemini",
-    name: "Gemini 2.5 Flash / Pro",
-    role: "Strategic Planning & Intent Routing",
-    tier: "Deep reasoning tier",
-    description: "Analyzes unstructured intent, triggers speculative prefetching, and decomposes multi-step goals into dependency-ordered task graphs.",
-    routingTrigger: "Activated on complex reasoning, schema compilation, and strategic planning goals.",
+    name: "Gemini 3.8 Flash",
+    role: "Master Orchestration & Task DAG Planning",
+    tier: "Google Orchestration Tier",
+    description: "Google's master orchestration brain: parses unstructured intent, triggers speculative prefetching, and decomposes multi-step goals into dependency-ordered Task DAGs.",
+    routingTrigger: "Activated for Task DAG generation, speculative prefetch context synthesis, and complex planning.",
   },
   {
     id: "mimo",

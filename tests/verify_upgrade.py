@@ -28,14 +28,14 @@ async def verify_upgrades():
 
     # 2. Test GeminiClient (New SDK)
     if os.getenv("GEMINI_API_KEY"):
-        console.print("[green]Testing Gemini 2.0 Flash (New SDK)...[/green]")
+        console.print("[green]Testing Gemini 3.8 Flash (New SDK)...[/green]")
         client = GeminiClient()
-        plan = await client.generate_plan("Calculate 2+2 and search for Gemini 2.0 features.", session_id)
+        plan = await client.generate_plan("Calculate 2+2 and search for Gemini 3.8 features.", session_id)
         
         if plan.task_plan:
-            console.print(f"[bold green]✓ Gemini 2.0 Flash plan generated: {plan.summary}[/bold green]")
+            console.print(f"[bold green]✓ Gemini 3.8 Flash plan generated: {plan.summary}[/bold green]")
         else:
-            console.print(f"[bold red]✗ Gemini 2.0 Flash plan generation failed: {plan.summary}[/bold red]")
+            console.print(f"[bold red]✗ Gemini 3.8 Flash plan generation failed: {plan.summary}[/bold red]")
     else:
         console.print("[yellow]! GEMINI_API_KEY missing, skipping SDK test.[/yellow]")
 

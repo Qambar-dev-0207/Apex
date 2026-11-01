@@ -85,7 +85,7 @@ flowchart TD
     ScoutBus -.->|Parallel Lookup| RedisFetch[("Redis Working Session")]:::mem
     ScoutBus -.->|Parallel Lookup| ASTFetch["Code Compass AST Symbol Map"]:::mem
 
-    ScoutBus ==>|Injected Prefetch Context| GeminiPlanner["Thinking Path: Gemini 2.5 Flash / Pro Planner"]:::think
+    ScoutBus ==>|Injected Prefetch Context| GeminiPlanner["Thinking Path: Gemini 3.8 Flash Orchestrator"]:::think
     GeminiPlanner --> DAGGen["ExecutionPlan DAG Generation"]:::think
     DAGGen --> ParallelExec["ParallelExecutor (asyncio.TaskGroup Dispatcher)"]:::think
     ParallelExec --> ToolRegistry["22 Registered DAG Tools Execution"]:::think
@@ -113,11 +113,11 @@ sequenceDiagram
     actor User as User
     participant Main as REPL Engine (main.py)
     participant Reflex as Reflex Scout (reflex.py)
-    participant Classifier as InputClassifier (Gemini Flash-Lite)
+    participant Classifier as InputClassifier (Gemini 3.8 Flash)
     participant Prefetch as PrefetchBundle Bus
     participant Memory as Redis & ChromaDB
     participant Compass as Code Compass AST
-    participant Planner as Gemini 2.5 Thinking Path
+    participant Planner as Gemini 3.8 Flash Thinking Path
 
     User->>Main: Enter Complex Query
     Main->>Reflex: Evaluate Intent (Local Embedding / Regex)
@@ -207,7 +207,7 @@ The APEX engine is divided into 4 sovereign tiers comprising 24 interconnected, 
 | Tier | Layer # | Layer Name | Technology / Service | Core Responsibility |
 |:---|:---:|:---|:---|:---|
 | **Tier 1: Strategic Cognition (The Brain)** | **L1** | **Intent Normalization & Reflex Routing** | `src/core/reflex.py`, `src/routers/router.py` | Local embedding NN & regex matching; bypasses paid LLMs for deterministic queries; triggers speculative prefetching. |
-| | **L3** | **Master Orchestrator & DAG Synthesis** | `src/models/thinking_path.py` | Gemini 2.5 Flash / Pro; decomposes open-ended goals into dependency-ordered Directed Acyclic Graphs. |
+| | **L3** | **Master Orchestrator & DAG Synthesis** | `src/models/thinking_path.py` | Gemini 3.8 Flash; decomposes open-ended goals into dependency-ordered Directed Acyclic Graphs. |
 | | **L14** | **Socratic Reasoning Gate** | `src/services/think_partner.py` | Probes unstated assumptions and introduces constructive friction before code or plans are executed. |
 | | **L17** | **Proactive Strategic Collaborator** | `src/services/think_partner.py` | 6 interactive collaborative modes: Architect, Debate, Brainstorm, Teach, Cross-Question, and Intent Extraction. |
 | | **L18** | **Steelman Reasoning Engine** | `src/services/genius_mode.py` | Generates the strongest opposing arguments to prevent bias and surface structural blind spots. |
@@ -221,7 +221,7 @@ The APEX engine is divided into 4 sovereign tiers comprising 24 interconnected, 
 | **Tier 3: High-Throughput Execution (The Muscle)** | **L4** | **Parallel TaskGroup Dispatcher** | `src/routers/router.py:ParallelExecutor` | Concurrent execution of DAG steps via Python `asyncio.TaskGroup` with hardware-aware resource gating. |
 | | **L5B** | **Isolated Execution Sandbox** | `src/tools/sandbox.py`, `src/services/knowledge_forge/` | Timeout-limited execution environments for newly generated code and isolated pip venvs (`PipSandbox`). |
 | | **L6** | **3-Tier Failover Recovery** | `src/routers/router.py`, `src/models/fallback_path.py` | Automatic 3-tier recovery cascade: Agent retry → Gemini primary retry → OpenRouter `gpt-oss-120b` / `ring-2.6-1t`. |
-| | **L7** | **Multi-Stage Coding Pipeline** | `src/services/coding.py` | Stage 1: MiniMax 2.5 (Architecture Spec) → Stage 2: MiMo v2.5-pro (Implementation) → Stage 3: Gemini (Validation). |
+| | **L7** | **Multi-Stage Coding Pipeline** | `src/services/coding.py` | Stage 1: MiniMax 2.5 (Architecture Spec) → Stage 2: MiMo v2.5-pro (Implementation) → Stage 3: Gemini 3.8 Flash (Validation). |
 | | **L8** | **Response Assembly Engine** | `src/services/delivery.py` | Rich synthesis engine formatting code diffs, telemetry cards, and multi-perspective intellectual outputs. |
 | | **L10B** | **Multi-Agent Research Swarm** | `src/services/swarm.py` | Coordinator, Architect, Coder, Critic, Researcher, and Planner agents collaborating over an async blackboard. |
 | | **L20** | **Continuous Self-Evolution Engine** | `src/services/self_evolution.py` | Idle-time background loop scanning repo AST for TODOs, complexity spikes, and approved Forge proposals. |
@@ -240,11 +240,11 @@ APEX does not rely on a single vendor or model. It dynamically matches tasks to 
 
 | Brain Provider | Default Model | Primary Role | Fallback Cascade |
 |:---|:---|:---|:---|
-| **Google Gemini** | `gemini-2.5-flash` / `gemini-2.5-pro` | DAG Master Planner, GeniusMode Critique, Vision/Multimodal, Forge Ingestion | Groq Llama-3.1-8B → OpenRouter `gpt-oss-120b` |
+| **Google Gemini** | `gemini-3.8-flash` (Orchestrator) / `gemini-3.1-pro` | Master Orchestrator, Task DAG Planner, GeniusMode Critique, Vision/Multimodal | Groq Llama-3.1-8B → OpenRouter `gpt-oss-120b` |
 | **Xiaomi MiMo** | `mimo-v2.5-pro` (via OpenAI SDK) | Coding Pipeline Implementation (Stage 2), Autonomous AgentHarness primary brain | Groq Llama-3.1-8B |
-| **Groq Cloud** | `llama-3.1-8b-instant` | Fast Path conversational chat, streaming summaries, low-complexity instant replies | Gemini 2.5 Flash Lite |
-| **MiniMax** | `minimax-2.5` | Coding Pipeline Architecture Specs (Stage 1) | Gemini 2.5 Pro |
-| **OpenRouter** | `inclusionai/ring-2.6-1t:free` | 1-Trillion Parameter deep reasoning for ThinkPartner & GeniusMode debate | Gemini 2.5 Pro |
+| **Groq Cloud** | `llama-3.1-8b-instant` | Fast Path conversational chat, streaming summaries, low-complexity instant replies | Gemini 3.8 Flash |
+| **MiniMax** | `minimax-2.5` | Coding Pipeline Architecture Specs (Stage 1) | Gemini 3.1 Pro |
+| **OpenRouter** | `inclusionai/ring-2.6-1t:free` | 1-Trillion Parameter deep reasoning for ThinkPartner & GeniusMode debate | Gemini 3.1 Pro |
 | **OpenRouter** | `gpt-oss-120b` | Tertiary DAG planner failover when primary and secondary APIs exhaust | Graceful degradation stub |
 | **Groq Whisper** | `whisper-large-v3` | Near-instant audio and voice transcription | Local faster-whisper fallback |
 
@@ -297,7 +297,7 @@ APEX features a rich terminal interface powered by `src/core/animations.py`:
 ```
    ▄██████▄      [APEX // SOVEREIGN OMEGA]
   ███▀▀▀▀███     Mode: FOCUS // Engine: ONLINE
-  ███ █  ███     Brains: Gemini 2.5 • MiMo v2.5-pro • Groq
+  ███ █  ███     Brains: Gemini 3.8 Flash • MiMo v2.5-pro • Groq
   ███ █  ███     Memory: Redis (Hot) + ChromaDB (Semantic)
    ▀██████▀      Cost: $0.0000 USD // Latency: 42ms
 ```

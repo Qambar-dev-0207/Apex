@@ -210,10 +210,10 @@ def parse_plan_response(text: str) -> ExecutionPlan:
 
 class GeminiClient:
     """
-    The Master Orchestrator brain upgraded to Gemini 3.1 Pro.
-    Handles high-complexity reasoning and DAG synthesis.
+    The Master Orchestrator brain powered by Gemini 3.8 Flash.
+    Handles high-complexity reasoning, DAG synthesis, and task orchestration.
     """
-    def __init__(self, model_name: str = "gemini-3.1-pro", mcp_client: Optional[Any] = None):
+    def __init__(self, model_name: str = "gemini-3.8-flash", mcp_client: Optional[Any] = None):
         load_dotenv()
         api_key = os.getenv("GEMINI_API_KEY")
         self.client = genai.Client(api_key=api_key)
@@ -405,7 +405,7 @@ class GeminiClient:
             
             # 4. Call Gemini with fallback models if primary hits quota or 404/503
             models_to_try = [self.model_id]
-            for candidate in ("gemini-3.1-pro", "gemini-3.8-flash", "gemini-2.5-flash", "gemini-flash-latest"):
+            for candidate in ("gemini-3.8-flash", "gemini-3.1-pro", "gemini-2.5-flash", "gemini-flash-latest"):
                 if candidate not in models_to_try:
                     models_to_try.append(candidate)
 

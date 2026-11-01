@@ -6,7 +6,7 @@ APEX is a personal, sovereign AI operating system engineered for deterministic m
 
 ## Core Architectural Tiers
 
-- **01 Intelligence & Strategy**: Intent classification, Directed Acyclic Graph (Task DAG) decomposition, and Socratic Invariant Gate with Steelman assumption probing. Powered by Gemini 2.0 Flash for strategic reasoning.
+- **01 Intelligence & Strategy**: Intent classification, Directed Acyclic Graph (Task DAG) decomposition, and Socratic Invariant Gate with Steelman assumption probing. Powered by Gemini 3.8 Flash for strategic orchestration and DAG synthesis.
 - **02 Memory & Context**: Dual-layer memory topology combining Redis (sub-10ms active state working memory) with ChromaDB (<38ms persistent HNSW vector retrieval) and automated consolidation.
 - **03 Execution & Validation**: Deterministic tool dispatch via Groq LPU, AgentHarness execution wrappers with automated snapshot rollback, and air-gapped offline failover via Ollama (DeepSeek & Qwen).
 - **04 Interface & Telemetry**: Full sensory bridge (mouse, keyboard, display telemetry), real-time process monitoring, and Code Compass AST context compression (18.4× token reduction).
@@ -14,8 +14,8 @@ APEX is a personal, sovereign AI operating system engineered for deterministic m
 ## Orchestration Workflow
 
 1. **Intent**: Understand objective, detect semantic bounds, and normalize schemas without probabilistic hallucination.
-2. **Plan**: Decompose multi-step goals into dependency-ordered Directed Acyclic Graphs (Task DAGs).
-3. **Delegate**: Route tasks to specialized models (Gemini 2.0 Flash, Groq LPU) or local private execution (Ollama).
+2. **Plan**: Decompose multi-step goals into dependency-ordered Directed Acyclic Graphs (Task DAGs) via Gemini 3.8 Flash.
+3. **Delegate**: Route tasks to specialized models (Gemini 3.8 Flash, Xiaomi MiMo v2.5-pro, Groq LPU) or local private execution (Ollama).
 4. **Execute**: Coordinate concurrent sub-trees while enforcing strict upstream prerequisite validation.
 5. **Verify**: Assert invariant contracts, triggering automated AgentHarness snapshot rollback on anomalies.
 

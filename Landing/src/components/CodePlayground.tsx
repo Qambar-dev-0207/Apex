@@ -19,8 +19,8 @@ const TABS: CodeTab[] = [
 
 # Initialize 24-Layer Agentic AI OS
 os = SovereignOS(
-    model="gemini-3.1-pro",
-    fast_model="gemini-3.8-flash",
+    orchestrator="gemini-3.8-flash",
+    deep_reasoner="gemini-3.1-pro",
     socratic_gate=True,
     ast_compression=True
 )

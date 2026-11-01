@@ -316,7 +316,7 @@ export default function HeroSection() {
                       MULTI-MODEL
                     </div>
                     <p className="font-sans text-[10px] sm:text-xs text-[#A5AAAD] tracking-wide truncate group-hover:text-[#B2B0AD] transition-colors">
-                      Gemini 2.5 · MiMo v2.5 · Groq · Ollama
+                      Gemini 3.8 Flash · MiMo v2.5 · Groq · Ollama
                     </p>
                   </div>
                 </div>

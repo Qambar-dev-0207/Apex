@@ -6,20 +6,22 @@ Every brain in APEX has a specific role. No provider is used for everything — 
 
 ## Provider map
 
-| Google Gemini (Thinking) | `gemini-3.1-pro` | `src/models/thinking_path.py` | DAG planner, high-complexity reasoning, JSON-forced architecture, genius critique |
-| Google Gemini (Fast) | `gemini-3.8-flash` | various | Input classification, auto-selector, vision, summaries, validation, research |
-| Groq | `llama-3.1-8b` | `src/models/fast_path.py` | Fast path streaming, AgentHarness fallback brain, GeniusMode fallback |
+| Provider | Model | Source file | Key responsibilities |
+|---|---|---|---|
+| Google Gemini (Orchestration & Fast) | `gemini-3.8-flash` | `src/models/thinking_path.py` | Master orchestrator, Task DAG planner, input classification, auto-selector, vision |
+| Google Gemini (Deep Reasoning) | `gemini-3.1-pro` | `src/models/thinking_path.py` | High-complexity reasoning, deep architecture spec, socratic debate, genius critique |
+| Groq | `llama-3.1-8b` | `src/models/fast_path.py` | Fast path streaming, deterministic 0.003ms skips, AgentHarness fallback |
 | Groq | `whisper-large-v3` | `src/tools/vision.py` | Audio transcription |
-| Xiaomi MiMo | `mimo-v2.5-pro` | `src/models/mimo_path.py` | Code implementation (CodingPipeline), AgentHarness primary brain |
+| Xiaomi MiMo | `mimo-v2.5-pro` | `src/models/mimo_path.py` | Code implementation (CodingPipeline), AgentHarness primary coding brain |
 | MiniMax | `minimax-2.5` | `src/models/minimax_path.py` | CodingPipeline stage 1 - architecture spec |
 | OpenRouter | `gpt-oss-120b` | `src/models/fallback_path.py` | Tertiary fallback when Gemini + agent retry both fail (DAG planner) |
 | OpenRouter | `inclusionai/ring-2.6-1t:free` | `src/models/fallback_path.py` | High-reasoning fallback for ThinkPartner + GeniusMode (1T-param, free) |
 
 ---
 
-## Gemini 3.1 Pro & Gemini 3.8 Flash (`src/models/thinking_path.py`)
+## Gemini 3.8 Flash (Master Orchestrator) & Gemini 3.1 Pro (`src/models/thinking_path.py`)
 
-**Used for:** planning, JSON generation, vision, analysis, fast classification
+**Used for:** Master orchestration, Task DAG planning, JSON generation, vision, analysis, fast classification
 
 - `TimeContext.system_prefix()` + `tool_registry.get_prompt_block()` auto-injected into every call
 - `genius_mode` flag: multi-pass (hypothesis → counters → blind-spot → synthesis)
