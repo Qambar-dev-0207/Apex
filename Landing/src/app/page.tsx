@@ -7,6 +7,7 @@ import ArchitectureSection from "../components/ArchitectureSection";
 import OrchestrationSection from "../components/OrchestrationSection";
 import ModelRoutingSection from "../components/ModelRoutingSection";
 import MemorySection from "../components/MemorySection";
+import SpatialGraphSection from "../components/SpatialGraphSection";
 import EvolutionSection from "../components/EvolutionSection";
 import ResearchSection from "../components/ResearchSection";
 import EvalsSection from "../components/EvalsSection";
@@ -64,10 +65,16 @@ export default function Home() {
         {/* Section 06 — Hybrid Memory */}
         <MemorySection />
 
-        {/* Conduit: Hybrid Memory to Self-Healing Loop */}
+        {/* Conduit: Hybrid Memory to 3D Spatial Topology */}
+        <SectionConduit label="GEOMETRY // 3D_SPATIAL_TOPOLOGY" height={64} />
+
+        {/* Section 07 — 3D Spatial Knowledge & Execution Graphs */}
+        <SpatialGraphSection />
+
+        {/* Conduit: 3D Spatial Topology to Self-Healing Loop */}
         <SectionConduit label="HARNESS // ROLLBACK_RECOVERY" height={64} />
 
-        {/* Section 07 — Recovery and Continuous Improvement */}
+        {/* Section 08 — Recovery and Continuous Improvement */}
         <EvolutionSection />
 
         {/* Conduit: Recovery to KnowledgeForge */}

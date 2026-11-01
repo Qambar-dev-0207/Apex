@@ -4,6 +4,7 @@ import { useState } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import { Zap, Brain, ShieldCheck, Search, ArrowUpRight, CheckCircle2 } from "lucide-react";
 import ApexMascot from "./ApexMascot";
+import BenchmarkRadar3D from "./BenchmarkRadar3D";
 import { MOTION_EASE } from "../lib/motion";
 
 interface EvalPillar {
@@ -241,6 +242,11 @@ export default function EvalsSection() {
                 </button>
               );
             })}
+
+            {/* 3D Benchmark Radar Polyhedron */}
+            <div className="mt-2">
+              <BenchmarkRadar3D selectedPillarIndex={selectedPillar} />
+            </div>
           </div>
 
           {/* Right Column: Detailed Metric Telemetry View */}

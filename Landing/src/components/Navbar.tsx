@@ -41,9 +41,10 @@ export default function Navbar() {
     { num: "02", label: "Orchestration", href: "#orchestration" },
     { num: "03", label: "Multi-Model", href: "#models" },
     { num: "04", label: "Hybrid Memory", href: "#memory" },
-    { num: "05", label: "Continuous Loop", href: "#evolution" },
-    { num: "06", label: "KnowledgeForge", href: "#research" },
-    { num: "07", label: "Benchmarks", href: "#evals" },
+    { num: "05", label: "3D Topology", href: "#topology" },
+    { num: "06", label: "Continuous Loop", href: "#evolution" },
+    { num: "07", label: "KnowledgeForge", href: "#research" },
+    { num: "08", label: "Benchmarks", href: "#evals" },
   ];
 
   return (

@@ -76,6 +76,15 @@ export default function Footer() {
             </li>
             <li>
               <a
+                href="#topology"
+                onClick={(e) => scrollTo("topology", e)}
+                className="link-underline hover:text-[#F5F3EF] transition-colors duration-200 py-1"
+              >
+                3D Topology
+              </a>
+            </li>
+            <li>
+              <a
                 href="#research"
                 onClick={(e) => scrollTo("research", e)}
                 className="link-underline hover:text-[#F5F3EF] transition-colors duration-200 py-1"
