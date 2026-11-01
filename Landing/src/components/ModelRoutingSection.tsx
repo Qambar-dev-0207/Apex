@@ -17,26 +17,34 @@ interface ModelEndpoint {
 const MODEL_ENDPOINTS: ModelEndpoint[] = [
   {
     id: "gemini",
-    name: "Gemini 2.0 Flash",
+    name: "Gemini 2.5 Flash / Pro",
     role: "Strategic Planning & Intent Routing",
-    tier: "High-reasoning tier",
-    description: "Analyzes unstructured intent, normalizes query boundaries, and decomposes multi-step goals into dependency-ordered task graphs.",
+    tier: "Deep reasoning tier",
+    description: "Analyzes unstructured intent, triggers speculative prefetching, and decomposes multi-step goals into dependency-ordered task graphs.",
     routingTrigger: "Activated on complex reasoning, schema compilation, and strategic planning goals.",
   },
   {
+    id: "mimo",
+    name: "Xiaomi MiMo v2.5-pro",
+    role: "Autonomous Code Engineering",
+    tier: "100% HumanEval pass tier",
+    description: "Powers AgentHarness with atomic multi-file edits, test-driven iteration, and bit-for-bit SHA256 snapshot rollbacks.",
+    routingTrigger: "Activated on code generation, multi-file refactoring, bug fixes, and continuous self-evolution.",
+  },
+  {
     id: "groq",
-    name: "Groq LPU Inference",
-    role: "Low-Latency Edge Tool Execution",
-    tier: "Sub-100ms inference tier",
-    description: "Executes deterministic function calling, atomic tool selection, and rapid code validation cycles with instantaneous response.",
-    routingTrigger: "Activated for fast reflexive tool selection, parameter extraction, and status validation.",
+    name: "Groq LPU (Llama-3.1)",
+    role: "0.003ms Deterministic Fast-Path",
+    tier: "Sub-100ms edge tier",
+    description: "Executes deterministic function calling, regex tool skips, and rapid validation cycles with near-zero latency.",
+    routingTrigger: "Activated for fast reflexive tool selection, parameter extraction, and conversational streaming.",
   },
   {
     id: "ollama",
     name: "Ollama / Local Sovereignty",
     role: "Air-Gapped Private Execution",
-    tier: "Zero external network tier",
-    description: "Runs local DeepSeek and Qwen models directly on private hardware without sending sensitive code or credentials over the network.",
+    tier: "Zero network footprint tier",
+    description: "Runs local DeepSeek and Qwen models directly on private hardware without sending sensitive code or credentials off-device.",
     routingTrigger: "Activated during air-gapped operations, offline failovers, or confidential token policies.",
   },
 ];
@@ -152,15 +160,15 @@ export default function ModelRoutingSection() {
             </span>
           </div>
 
-          {/* Radiating Conduits SVG (Router down to 3 Provider Columns) */}
+          {/* Radiating Conduits SVG (Router down to 4 Provider Columns) */}
           <div className="w-full h-16 sm:h-20 flex justify-center items-center relative z-10 my-1 overflow-visible">
             <svg
               viewBox="0 0 900 80"
               className="w-full max-w-[880px] h-full text-white overflow-visible select-none"
             >
-              {/* Branch 0: Left to Gemini (col center ~150) */}
+              {/* Branch 0: Left to Gemini (col center ~112) */}
               <motion.path
-                d="M 450 0 C 450 45, 150 25, 150 80"
+                d="M 450 0 C 450 40, 112 25, 112 80"
                 fill="none"
                 stroke={selectedEndpoint === 0 ? "#FF4A16" : "rgba(255,255,255,0.14)"}
                 strokeWidth={selectedEndpoint === 0 ? "2.2" : "1.2"}
@@ -172,9 +180,9 @@ export default function ModelRoutingSection() {
                 className="transition-colors duration-300"
               />
 
-              {/* Branch 1: Middle straight down to Groq (col center ~450) */}
+              {/* Branch 1: Middle-Left to MiMo (col center ~337) */}
               <motion.path
-                d="M 450 0 L 450 80"
+                d="M 450 0 C 450 40, 337 25, 337 80"
                 fill="none"
                 stroke={selectedEndpoint === 1 ? "#FF4A16" : "rgba(255,255,255,0.14)"}
                 strokeWidth={selectedEndpoint === 1 ? "2.2" : "1.2"}
@@ -182,13 +190,13 @@ export default function ModelRoutingSection() {
                 initial={shouldReduceMotion ? { pathLength: 1 } : { pathLength: 0 }}
                 whileInView={{ pathLength: 1 }}
                 viewport={{ once: true }}
-                transition={{ duration: 0.8, delay: 0.1, ease: MOTION_EASE.enter }}
+                transition={{ duration: 0.8, delay: 0.08, ease: MOTION_EASE.enter }}
                 className="transition-colors duration-300"
               />
 
-              {/* Branch 2: Right to Ollama (col center ~750) */}
+              {/* Branch 2: Middle-Right to Groq (col center ~562) */}
               <motion.path
-                d="M 450 0 C 450 45, 750 25, 750 80"
+                d="M 450 0 C 450 40, 562 25, 562 80"
                 fill="none"
                 stroke={selectedEndpoint === 2 ? "#FF4A16" : "rgba(255,255,255,0.14)"}
                 strokeWidth={selectedEndpoint === 2 ? "2.2" : "1.2"}
@@ -196,19 +204,34 @@ export default function ModelRoutingSection() {
                 initial={shouldReduceMotion ? { pathLength: 1 } : { pathLength: 0 }}
                 whileInView={{ pathLength: 1 }}
                 viewport={{ once: true }}
-                transition={{ duration: 0.8, delay: 0.2, ease: MOTION_EASE.enter }}
+                transition={{ duration: 0.8, delay: 0.16, ease: MOTION_EASE.enter }}
+                className="transition-colors duration-300"
+              />
+
+              {/* Branch 3: Right to Ollama (col center ~787) */}
+              <motion.path
+                d="M 450 0 C 450 40, 787 25, 787 80"
+                fill="none"
+                stroke={selectedEndpoint === 3 ? "#FF4A16" : "rgba(255,255,255,0.14)"}
+                strokeWidth={selectedEndpoint === 3 ? "2.2" : "1.2"}
+                strokeDasharray={selectedEndpoint === 3 ? "4 4" : "none"}
+                initial={shouldReduceMotion ? { pathLength: 1 } : { pathLength: 0 }}
+                whileInView={{ pathLength: 1 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.8, delay: 0.24, ease: MOTION_EASE.enter }}
                 className="transition-colors duration-300"
               />
 
               {/* Terminal Connection Nodes */}
-              <circle cx="150" cy="80" r={selectedEndpoint === 0 ? "5" : "3.5"} fill={selectedEndpoint === 0 ? "#FF4A16" : "rgba(255,255,255,0.3)"} />
-              <circle cx="450" cy="80" r={selectedEndpoint === 1 ? "5" : "3.5"} fill={selectedEndpoint === 1 ? "#FF4A16" : "rgba(255,255,255,0.3)"} />
-              <circle cx="750" cy="80" r={selectedEndpoint === 2 ? "5" : "3.5"} fill={selectedEndpoint === 2 ? "#FF4A16" : "rgba(255,255,255,0.3)"} />
+              <circle cx="112" cy="80" r={selectedEndpoint === 0 ? "5" : "3.5"} fill={selectedEndpoint === 0 ? "#FF4A16" : "rgba(255,255,255,0.3)"} />
+              <circle cx="337" cy="80" r={selectedEndpoint === 1 ? "5" : "3.5"} fill={selectedEndpoint === 1 ? "#FF4A16" : "rgba(255,255,255,0.3)"} />
+              <circle cx="562" cy="80" r={selectedEndpoint === 2 ? "5" : "3.5"} fill={selectedEndpoint === 2 ? "#FF4A16" : "rgba(255,255,255,0.3)"} />
+              <circle cx="787" cy="80" r={selectedEndpoint === 3 ? "5" : "3.5"} fill={selectedEndpoint === 3 ? "#FF4A16" : "rgba(255,255,255,0.3)"} />
             </svg>
           </div>
 
-          {/* Three Provider Panels in Staggered Grid Below Router */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8 relative z-10" role="tablist">
+          {/* Four Provider Panels in Responsive Grid Below Router */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 mb-8 relative z-10" role="tablist">
             {MODEL_ENDPOINTS.map((endpoint, idx) => {
               const isSelected = selectedEndpoint === idx;
               return (

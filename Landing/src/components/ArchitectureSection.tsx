@@ -20,11 +20,11 @@ const ARCHITECTURE_TIERS: ArchitectureTier[] = [
     num: "01",
     name: "Intelligence & Strategy",
     summary: "Intent understanding, routing, orchestration, and dependency-ordered task planning.",
-    specs: "Task DAGs · Socratic Gate · Gemini 2.0 Flash",
+    specs: "Reflex Scout (<10µs) · Speculative Prefetch · Task DAGs",
     details: [
-      "Gemini 2.0 Flash intent classification & sovereign skill routing",
-      "Directed Acyclic Graph (Task DAG) decomposition engine",
-      "Socratic Invariant Gate with Steelman assumption probing",
+      "Reflex Scout (<10µs decision) fast-path regex skip & intent classification",
+      "Parallel speculative prefetch bus (Redis + ChromaDB + CodeCompass)",
+      "Directed Acyclic Graph (Task DAG) decomposition with 100% topological validation",
     ],
   },
   {
@@ -32,11 +32,11 @@ const ARCHITECTURE_TIERS: ArchitectureTier[] = [
     num: "02",
     name: "Memory & Context",
     summary: "Working memory, long-term semantic retrieval, and contextual relationships.",
-    specs: "Redis Cache · ChromaDB HNSW · Context Consolidation",
+    specs: "Redis Cache · ChromaDB HNSW (Recall@3 = 1.0) · CodeCompass (5.75ms)",
     details: [
-      "Redis sub-10ms active state working memory cache",
-      "ChromaDB persistent vector database with HNSW index (<38ms)",
-      "Automated ephemeral-to-semantic consolidation pipelines",
+      "Redis sub-10ms active state working memory and session cache",
+      "ChromaDB persistent vector database (Recall@3 = 1.0, Precision@3 = 1.0, MRR = 1.0)",
+      "Code Compass token-efficient AST symbol indexer (5.75ms query latency, 18.4× compression)",
     ],
   },
   {
@@ -44,11 +44,12 @@ const ARCHITECTURE_TIERS: ArchitectureTier[] = [
     num: "03",
     name: "Execution & Validation",
     summary: "Specialized agents, task coordination, execution, and result verification.",
-    specs: "Groq LPU (<100ms) · AgentHarness · Sandbox Isolation",
+    specs: "22 Canonical DAG Tools · 35 AgentHarness Tools · SHA256 Rollbacks",
     details: [
-      "Groq LPU low-latency deterministic tool execution dispatch",
-      "AgentHarness execution wrapper with automated snapshot rollbacks",
-      "Isolated Python sub-process sandboxes with safety guardrails",
+      "Groq LPU deterministic tool execution (0.003ms regex fast-path skip)",
+      "AgentHarness autonomous coding loop with bit-for-bit SHA256 snapshot rollback",
+      "Desktop AppLauncher multi-tier resolution (1.08ms mean, 5.99ms p95)",
+      "OS-level blocklists (100% defense: .env, .git/config, traversal ../ blocked)",
     ],
   },
   {
@@ -56,10 +57,10 @@ const ARCHITECTURE_TIERS: ArchitectureTier[] = [
     num: "04",
     name: "Interface & Telemetry",
     summary: "User interaction, environmental context, and operational signals.",
-    specs: "Full Sensory Bridge · Code Compass AST (18.4×) · Ollama Failover",
+    specs: "Full Sensory Bridge · 473 Passing Tests (100%) · Zero-Loss Recall",
     details: [
       "Full sensory bridge: mouse, keyboard, and display telemetry",
-      "Adaptive real-time token compression via Code Compass AST (18.4×)",
+      "Comprehensive verification suite: 473 automated tests passed (100% pass rate)",
       "Local sovereignty offline failover: Ollama DeepSeek & Qwen models",
     ],
   },
@@ -146,8 +147,8 @@ export default function ArchitectureSection() {
 
         {/* 2-Column Architectural Layout: Suspended Plate Visualization + Interactive Exploration */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-center">
-          {/* Left Column: Suspended Architectural Plate Stack */}
-          <div className="lg:col-span-6 bg-[#050607] border border-[rgba(255,255,255,0.1)] rounded-2xl p-6 sm:p-10 relative overflow-hidden min-h-[480px] flex items-center justify-center">
+          {/* Left Column: Suspended Architectural Plate Stack (Desktop visualizer) */}
+          <div className="hidden lg:flex lg:col-span-6 bg-[#050607] border border-[rgba(255,255,255,0.1)] rounded-2xl p-6 sm:p-10 relative overflow-hidden min-h-[480px] items-center justify-center">
             {/* Perspective Architectural Coordinate Grid Background */}
             <div className="absolute inset-0 architectural-grid opacity-25 pointer-events-none" />
 
@@ -316,7 +317,11 @@ export default function ArchitectureSection() {
               <div className="flex items-center gap-4">
                 <span>FOUR ARCHITECTURAL TIERS</span>
                 <span className="text-[#737575]/40">·</span>
-                <span>24 DEEP INTERNAL LAYERS</span>
+                <span>24 SOVEREIGN LAYERS</span>
+                <span className="text-[#737575]/40">·</span>
+                <span>22 DAG TOOLS</span>
+                <span className="text-[#737575]/40">·</span>
+                <span className="text-[#FF4A16]">473 TESTS VERIFIED</span>
               </div>
 
               {/* Analyzing Companion at outer edge */}

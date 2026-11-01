@@ -43,6 +43,7 @@ export default function Navbar() {
     { num: "04", label: "Hybrid Memory", href: "#memory" },
     { num: "05", label: "Continuous Loop", href: "#evolution" },
     { num: "06", label: "KnowledgeForge", href: "#research" },
+    { num: "07", label: "Benchmarks", href: "#evals" },
   ];
 
   return (
@@ -52,8 +53,8 @@ export default function Navbar() {
       transition={{ duration: 0.6, delay: 0.08, ease: [0.16, 1, 0.3, 1] }}
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 select-none ${
         scrolled
-          ? "bg-[#08090A]/85 backdrop-blur-md border-b border-[rgba(255,255,255,0.08)] py-4"
-          : "bg-transparent py-7"
+          ? "bg-[#08090A]/85 backdrop-blur-md border-b border-[rgba(255,255,255,0.08)] py-2.5 sm:py-4"
+          : "bg-transparent py-3.5 sm:py-7"
       }`}
     >
       <div className="max-w-[1600px] mx-auto px-6 sm:px-10 lg:px-16 flex items-center justify-between">
@@ -93,9 +94,9 @@ export default function Navbar() {
             APEX
           </span>
 
-          <span className="hidden md:inline-block w-px h-3.5 bg-[rgba(255,255,255,0.2)] mx-1.5" />
+          <span className="hidden lg:inline-block w-px h-3.5 bg-[rgba(255,255,255,0.2)] mx-1.5" />
 
-          <span className="hidden md:inline-block font-code text-[11px] tracking-[0.28em] text-[#9A9FA1] uppercase font-normal">
+          <span className="hidden lg:inline-block font-code text-[11px] tracking-[0.28em] text-[#9A9FA1] uppercase font-normal whitespace-nowrap">
             SOVEREIGN AGENTIC AI OS
           </span>
         </a>
@@ -131,6 +132,17 @@ export default function Navbar() {
               className="link-underline text-[#B2B0AD] hover:text-[#F5F3EF] transition-colors duration-200 py-1"
             >
               Research
+            </a>
+
+            <a
+              href="#evals"
+              onClick={(e) => {
+                e.preventDefault();
+                document.getElementById("evals")?.scrollIntoView({ behavior: "smooth" });
+              }}
+              className="link-underline text-[#B2B0AD] hover:text-[#F5F3EF] transition-colors duration-200 py-1"
+            >
+              Benchmarks
             </a>
 
             <a

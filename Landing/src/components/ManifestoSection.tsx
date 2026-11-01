@@ -91,7 +91,7 @@ export default function ManifestoSection() {
             priority
             sizes="100vw"
             quality={95}
-            className="object-cover object-[center_42%] scale-[1.04]"
+            className="object-cover object-[68%_35%] sm:object-[center_42%]"
           />
 
           {/* Environmental light emphasis connected to active concept */}
@@ -105,9 +105,9 @@ export default function ManifestoSection() {
             }`}
           />
 
-          {/* Subtle directional gradient on left to ensure typography contrast */}
-          <div className="absolute inset-y-0 left-0 w-full sm:w-[55%] lg:w-[48%] bg-gradient-to-r from-[#050607]/90 via-[#050607]/45 to-transparent pointer-events-none" />
-          <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#050607] to-transparent pointer-events-none" />
+          {/* Non-opaque directional gradient on left: ensures typography contrast without darkening the artwork */}
+          <div className="absolute inset-y-0 left-0 w-full sm:w-[55%] lg:w-[48%] bg-gradient-to-r from-[#050607]/65 via-[#050607]/20 to-transparent pointer-events-none" />
+          <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-[#050607]/70 to-transparent pointer-events-none" />
         </motion.div>
 
         {/* Subtle architectural edge light sweep */}
@@ -121,7 +121,7 @@ export default function ManifestoSection() {
         )}
 
         {/* Top/Middle Area: Left Editorial Typography */}
-        <div className="relative z-10 w-full max-w-[1600px] mx-auto px-6 sm:px-10 lg:px-14 pt-12 sm:pt-16 lg:pt-20 pb-4 flex-1 flex flex-col justify-between pointer-events-none">
+        <div className="relative z-10 w-full max-w-[1600px] mx-auto px-5 sm:px-10 lg:px-14 pt-12 sm:pt-16 lg:pt-20 pb-4 flex-1 flex flex-col justify-between pointer-events-none">
           {/* Left Editorial Copy Area */}
           <div className="max-w-[560px]">
             {/* Eyebrow: — A DIFFERENT KIND OF SYSTEM */}
@@ -130,14 +130,14 @@ export default function ManifestoSection() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.45, ease: MOTION_EASE.enter }}
-              className="flex items-center gap-2 mb-3.5 font-sans text-[11px] sm:text-xs tracking-[0.24em] text-[#8C9295] uppercase font-medium"
+              className="flex items-center gap-2 mb-3.5 font-sans text-[11px] sm:text-xs tracking-[0.24em] text-[#C5CAD0] uppercase font-medium [text-shadow:_0_1px_6px_rgba(0,0,0,0.9)]"
             >
               <span className="text-[#FF4A16] font-bold text-sm leading-none">—</span>
               <span>A DIFFERENT KIND OF SYSTEM</span>
             </motion.div>
 
             {/* Headline: A prompt is only the beginning. */}
-            <h2 className="font-editorial text-4xl sm:text-5xl lg:text-[56px] xl:text-[64px] leading-[1.04] tracking-tight text-[#F5F3EF] mb-4">
+            <h2 className="font-editorial text-3xl xs:text-4xl sm:text-5xl lg:text-[56px] xl:text-[64px] leading-[1.04] tracking-tight text-[#F5F3EF] mb-4 [text-shadow:_0_2px_14px_rgba(0,0,0,0.9),_0_1px_4px_rgba(0,0,0,0.95)]">
               <span className="overflow-mask block relative py-0.5">
                 <motion.span
                   initial={

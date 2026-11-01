@@ -16,7 +16,7 @@ Every layer ships with a fallback so degradation is graceful, not fatal.
 
 ---
 
-## Input pipeline
+## Input pipeline & Reflex Scout Architecture
 
 ```
 1.  user_input
@@ -24,22 +24,32 @@ Every layer ships with a fallback so degradation is graceful, not fatal.
 3.  self_evolver.mark_input + knowledge_forge.mark_input
 4.  ! prefix         → direct shell passthrough
 5.  / prefix         → handle_slash (60+ commands)
-6.  greeting?        → TimeContext.craft_greeting_response  [INSTANT]
-7.  autotool on?     → regex_match (git status, ls, URLs, todos, ...)
-8.  autothink on?    → ThinkPartner.detect_think_mode (regex)
-9.  fall-through     → cognitive_core.analyze_user (Conversational AI Architect & Reasoning Companion)
-                     → InputClassifier.classify
-                     → SmartRouter.route → fast_path or thinking_path
-                     → ExecutionPlan (DAG)
-                     → if plan.task_plan is empty (Conversational Q&A / Out-of-the-Box reasoning):
-                         → Render single-panel APEX // INTELLECTUAL SYNTHESIS
-                         → Store interaction in memory & return [SKIP TOOL EXECUTION]
-                     → else (Multi-step code/system task):
-                         → ParallelExecutor.run
-10. response        → memory_manager.store_interaction (Redis + Chroma)
-                     → knowledge_visualizer.extract_knowledge
-                     → learning_manager.learn (background)
+6.  Reflex Stage A   → Deterministic Skip (Greeting / Identity / Casual Chit-Chat) [p95: 0.003 ms, $0]
+7.  Reflex Stage B   → AutoSelector Regex Tool Match (git status, read file, open app, vitals) [Instant tool execution]
+8.  Reflex Stage C/D → Scout Mode (Intent Prototypes Embedding NN):
+                       ├── Fire PrefetchBundle (parallel async fetch of memory, compass, workspace)
+                       └── Concurrently call InputClassifier / Gemini classify
+9.  autothink on?    → ThinkPartner.detect_think_mode (regex / flash-lite)
+10. SmartRouter.route→ fast_path (Groq) or thinking_path (Gemini 3.1 Pro DAG)
+11. ExecutionPlan:
+    ├── if plan.task_plan is empty (Conversational Q&A / Out-of-the-Box reasoning):
+    │   → Render single-panel APEX // INTELLECTUAL SYNTHESIS
+    │   → Store interaction in memory & return [SKIP TOOL EXECUTION]
+    └── else (Multi-step code/system task):
+        → ParallelExecutor.run (asyncio.TaskGroup DAG execution)
+12. Response delivery→ ResponseAssembler renders final DAG tree, vitals, and output
+                     → memory_manager.store_interaction (Redis session + Chroma long-term)
+                     → learning_manager.learn (background skill extraction)
 ```
+
+### Reflex Scout & Speculative Prefetch (`src/core/reflex.py`)
+Reflex is the **local pre-LLM gateway** that eliminates unnecessary API calls and hides retrieval latency:
+- **Mode 1: Deterministic Skip (`needs_llm=False`)**: Handles greetings, identity queries, casual chat (`_CASUAL_RX`), and single-action regex tool intents (`tool_regex_match`) in < 10 microseconds with zero token spend.
+- **Mode 2: Scout Mode (`needs_llm=True`)**: Performs local embedding nearest-neighbor matching against `INTENT_PROTOTYPES`. While Gemini plans, Reflex fires a `PrefetchBundle` in parallel across:
+  - `memory`: Pre-fetches Chroma semantic vectors and session history.
+  - `compass`: Pre-extracts AST signatures from `CodeCompass`.
+  - `workspace`: Pre-summarizes active project directives.
+- **Adaptive Waste Gating**: Tracks the ratio of used vs. wasted prefetches over a rolling 20-call window. If the waste rate exceeds 60%, prefetching auto-disables to protect system CPU/RAM.
 
 ---
 
@@ -131,9 +141,9 @@ Key behaviors:
 ## Tools layer
 
 ### Registry (`src/tools/registry.py`)
-17 registered tools. Each `ToolSpec` has: canonical name + aliases + actions + input schema + when-to-use + examples.
+22 registered canonical tools. Each `ToolSpec` defines: canonical name + aliases + actions + input schema + when-to-use + examples.
 
-Auto-generates AVAILABLE TOOLS block for Gemini system prompt — no hardcoded tool drift.
+Auto-generates the `AVAILABLE TOOLS` prompt block for Gemini — preventing manual prompt drift.
 
 | Tool | Aliases | Core actions |
 |---|---|---|
@@ -154,15 +164,29 @@ Auto-generates AVAILABLE TOOLS block for Gemini system prompt — no hardcoded t
 | `think_partner` | think | cross_question/architect/debate/brainstorm/teach |
 | `todo` | todos, tasks | add/list/update/remove/clear |
 | `diff` | compare, patch | diff_files/diff_content |
+| `desktop_control` | desktop, window | list_apps/search_app/launch_app/active_window |
+| `codebase_index` | cindex, index | index_workspace/search_symbols/find_references |
+| `weather` | forecast | current/forecast/connect |
+| `api_connector` | apikey, keys | save_key/list_keys/test_connection |
+| `app_launcher` | open_app, apps | launch/search/list |
+
+### Desktop Control & App Launcher (`src/services/app_launcher.py`)
+Provides deterministic, sub-millisecond desktop application resolution across Windows:
+- **Tier 1: O(1) Exact & Compact Hash Map**: Direct match for installed software and builtins (`calc`, `notepad`, `cmd`, `powershell`, `code`).
+- **Tier 2: Semantic Alias Dictionary**: Intent mapping (`notes` → Notepad, `tasks` → Task Manager, `browser` → Chrome/Edge).
+- **Tier 3: Fuzzy Typo Matching**: Levenshtein / SequenceMatcher fallback for misspelled queries (e.g. `calculater` → Calculator with confidence ≥ 0.75).
+- **Security Guardrails**: Rejects shell metacharacters (`&`, `;`, `\|`, `` ` ``, `$`), verifies UWP AppID syntax, and blocks prohibited destructive binaries (`format.com`, `reg.exe`, `vssadmin.exe`).
 
 ### Auto-selector (`src/tools/auto_selector.py`)
-**Tier 1 — regex (instant, 0.95 confidence):** ~25+ patterns
+**Tier 1 — regex (instant, 0.95 confidence):** ~30+ patterns
 - `git status/log/diff` → git
 - `read/write/delete/grep X.py` → filesystem
 - `https://...` → web_fetch
 - `todos / tasks` → todo list
 - `todo add / add todo X` → todo add
+- `open/launch/start <app>` → app_launcher
 - `vitals / cpu / ram` → hardware
+- `weather in <city>` → weather
 - `papers about Y` → knowledge_forge
 
 **Tier 2 — LLM (~500ms):** `gemini-2.5-flash-lite` ranks candidates + `confidence` score. Threshold 0.85 to bypass planner.
@@ -259,6 +283,24 @@ See [ANIMATIONS.md](ANIMATIONS.md) for full details.
 | Hook timeout | 20s cap, returns failure dict, doesn't block |
 | Unknown tool | loud failure with hint listing known tools |
 | All brains offline | GeniusMode returns valid offline stub with witty one_liner |
+
+---
+
+## Verification, Testing & Evaluation Architecture
+
+APEX implements a continuous verification and evaluation system to safeguard against regressions, maintain sub-millisecond execution speeds, and enforce strict security boundaries.
+
+### Continuous Evaluation Framework
+- **Speed & Latency**: Reflex regex fast-path achieves **0.003 ms (p95)**, local scout matching achieves **0.008 ms (p95)**, and AppLauncher resolves desktop apps in **1.08 ms (mean)**.
+- **Answer Quality**: HumanEval-lite tasks run in isolated subprocesses verifying code generation with 100% pass rate.
+- **Safety Barriers**: Hardened protections block unauthorized writes to `.env`, `.git/`, or parent directories outside the workspace.
+- **Transactional Rollback**: Multi-chunk file modifications operate atomically; if any single chunk fails, all previous chunks are restored.
+- **Retrieval Precision**: ChromaDB semantic memory achieves **Recall@3 = 1.0**, **Precision@3 = 1.0**, and **MRR = 1.0**.
+
+### Regression Gating
+- `SelfBenchmark` (`src/services/knowledge_forge/benchmark_self.py`): Tracks algorithmic coding pass rates.
+- `ProposalApplier` (`src/services/knowledge_forge/proposal_applier.py`): Automatically triggers code rollback if self-evolution causes a benchmark drop ≥ 15%.
+- See [EVALUATIONS.md](EVALUATIONS.md) and [TESTING.md](TESTING.md) for full benchmark tables and methodology.
 
 ---
 

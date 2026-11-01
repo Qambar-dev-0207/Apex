@@ -391,18 +391,18 @@ export default function MemorySection() {
                   02 / PERSISTENT
                 </span>
                 <span className="font-code text-[10px] text-[#8C9295] uppercase">
-                  &lt;38ms HNSW
+                  RECALL@3 = 1.0 · MRR = 1.0
                 </span>
               </div>
               <h3 className="font-sans text-lg sm:text-xl font-medium text-[#F5F3EF] mb-2">
                 Semantic Memory (ChromaDB)
               </h3>
               <p className="text-[#B2B0AD] text-xs sm:text-sm leading-relaxed mb-4">
-                Indexes user project specifications, documentation, and historical problem-solving patterns into a persistent searchable vector space.
+                Indexes project specifications, directives, and symbol patterns into persistent searchable vector space with perfect Recall@3 and Precision@3.
               </p>
               <div className="font-code text-[11px] text-[#E9D0AD]/90 flex items-center gap-2">
                 <span className="text-[#FF4A16]">▸</span>
-                <span>Cross-session knowledge graph and concept recall.</span>
+                <span>ResponseCache deduplication + CodeCompass 5.75ms AST recall.</span>
               </div>
             </button>
           </div>

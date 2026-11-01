@@ -100,21 +100,24 @@ export default function HeroSection() {
         >
           <Image
             src="/apex-space-gateway-hero.jpg"
-            alt=""
+            alt="APEX sovereign gateway overlooking planetary horizon"
             fill
             priority
             sizes="100vw"
             quality={95}
-            className="object-cover object-center will-change-transform"
+            className="object-cover object-[54%_center] sm:object-center will-change-transform"
           />
 
           {/* Atmospheric Particle Field over horizon */}
           <AtmosphericParticles />
 
-          {/* Directional gradient overlays: Dark on left for high-contrast editorial typography, open on right for sunburst & planet */}
-          <div className="absolute inset-0 bg-gradient-to-r from-[#050607]/90 via-[#050607]/45 via-45% to-transparent pointer-events-none" />
-          <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-[#050607]/60 to-transparent pointer-events-none" />
-          <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#050607]/80 via-[#050607]/20 to-transparent pointer-events-none" />
+          {/* Non-opaque gentle atmospheric scrims: preserves artwork luminosity and solar rays in all viewing modes */}
+          {/* Subtle desktop left scrim strictly behind copy */}
+          <div className="hidden lg:block absolute inset-y-0 left-0 w-[55%] bg-gradient-to-r from-[#050607]/60 via-[#050607]/20 to-transparent pointer-events-none" />
+          {/* Gentle top fade for navigation integration */}
+          <div className="absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-[#050607]/45 via-[#050607]/15 to-transparent pointer-events-none" />
+          {/* Soft bottom edge blend into threshold divider */}
+          <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#050607]/50 via-transparent to-transparent pointer-events-none" />
         </motion.div>
       </div>
 
@@ -124,7 +127,7 @@ export default function HeroSection() {
           opacity: shouldReduceMotion ? 1 : contentOpacity,
           y: shouldReduceMotion ? 0 : contentTranslateY,
         }}
-        className="relative z-10 w-full max-w-[1600px] mx-auto px-6 sm:px-10 lg:px-16 flex flex-col justify-between flex-1 pt-24 sm:pt-28 pb-3 sm:pb-4 pointer-events-none"
+        className="relative z-10 w-full max-w-[1600px] mx-auto px-5 sm:px-10 lg:px-16 flex flex-col justify-between flex-1 pt-20 sm:pt-28 pb-3 sm:pb-4 pointer-events-none"
       >
         {/* Main Content Area (Left-Aligned Editorial Typography) */}
         <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-6 items-center my-auto">
@@ -135,14 +138,14 @@ export default function HeroSection() {
               initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.45, delay: 0.18, ease: MOTION_EASE.enter }}
-              className="font-code text-[10px] sm:text-[11px] tracking-[0.24em] text-[#8C9295] uppercase font-medium mb-4 sm:mb-5 flex items-center gap-2.5"
+              className="font-code text-[10px] sm:text-[11px] tracking-[0.22em] sm:tracking-[0.24em] text-[#C5CAD0] uppercase font-medium mb-3 sm:mb-5 flex items-center gap-2.5 [text-shadow:_0_1px_8px_rgba(0,0,0,0.95)]"
             >
               <span className="w-1.5 h-1.5 rounded-full bg-[#FF4A16] shadow-[0_0_8px_#FF4A16] animate-pulse" aria-hidden="true" />
               <span>PERSONAL AI OS / 24-LAYER ORCHESTRATION</span>
             </motion.div>
 
             {/* 4-Line Architectural Headline with Masked Editorial Reveal */}
-            <h1 className="font-editorial text-[48px] xs:text-[54px] sm:text-6xl lg:text-[76px] xl:text-[84px] leading-[0.96] tracking-[-0.015em] text-[#FFFFFF] mb-4 sm:mb-5 flex flex-col">
+            <h1 className="font-editorial text-[32px] xs:text-[38px] sm:text-5xl lg:text-[76px] xl:text-[84px] leading-[1.02] sm:leading-[0.98] tracking-[-0.015em] text-[#FFFFFF] mb-3.5 sm:mb-5 flex flex-col [text-shadow:_0_2px_16px_rgba(0,0,0,0.9),_0_1px_4px_rgba(0,0,0,0.95)]">
               {headlineLines.map((line, idx) => (
                 <span
                   key={idx}
@@ -178,7 +181,7 @@ export default function HeroSection() {
               initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.82, ease: MOTION_EASE.enter }}
-              className="text-[#9A9FA1] text-xs sm:text-sm lg:text-[15px] font-normal leading-relaxed max-w-[490px] mb-6 sm:mb-7"
+              className="text-[#E2E6EA] text-[13px] sm:text-sm lg:text-[15px] font-normal leading-relaxed max-w-[490px] mb-5 sm:mb-7 [text-shadow:_0_1px_8px_rgba(0,0,0,0.95)]"
             >
               From intent to coordinated execution, APEX connects planning, memory, and action in one intelligent system.
             </motion.p>
@@ -188,13 +191,13 @@ export default function HeroSection() {
               initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.98, ease: MOTION_EASE.enter }}
-              className="flex flex-wrap items-center gap-5 sm:gap-6 mb-5 sm:mb-6"
+              className="flex flex-wrap items-center gap-4 sm:gap-6 mb-4 sm:mb-6"
             >
               {/* Primary Action Button */}
               <a
                 href="#manifesto"
                 onClick={handleScrollDown}
-                className="group inline-flex items-center gap-2.5 px-6 sm:px-7 py-3 sm:py-3.5 rounded-full bg-[#FF4A16] hover:bg-[#ff5d2e] text-white font-sans text-xs tracking-wider font-semibold transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] shadow-[0_0_24px_rgba(255,74,22,0.35)] focus-visible:outline-[#FF4A16] cursor-pointer"
+                className="group inline-flex items-center gap-2.5 px-5 sm:px-7 py-3 sm:py-3.5 rounded-full bg-[#FF4A16] hover:bg-[#ff5d2e] text-white font-sans text-xs tracking-wider font-semibold transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] shadow-[0_0_24px_rgba(255,74,22,0.4)] focus-visible:outline-[#FF4A16] cursor-pointer"
               >
                 <span>Enter the threshold</span>
                 <ArrowRight
@@ -209,12 +212,12 @@ export default function HeroSection() {
                 href="https://github.com/Qambar-dev-0207/Apex"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="group link-underline inline-flex items-center gap-1.5 text-[#F3F4F2] hover:text-white font-sans text-xs tracking-wider transition-colors duration-200 py-1 font-medium focus-visible:outline-[#FF4A16]"
+                className="group link-underline inline-flex items-center gap-1.5 text-[#F3F4F2] hover:text-white font-sans text-xs tracking-wider transition-colors duration-200 py-1.5 font-medium focus-visible:outline-[#FF4A16] [text-shadow:_0_1px_6px_rgba(0,0,0,0.95)]"
               >
                 <span>View source</span>
                 <ArrowUpRight
                   size={13}
-                  className="transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 text-[#9A9FA1] group-hover:text-white"
+                  className="transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 text-[#C5CAD0] group-hover:text-white"
                   aria-hidden="true"
                 />
               </a>
@@ -225,15 +228,17 @@ export default function HeroSection() {
               initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.65, delay: 1.12 }}
-              className="flex flex-wrap items-center gap-2.5 sm:gap-4 text-[#858B8E] font-code text-[10px] sm:text-[11px] tracking-[0.24em] uppercase font-normal"
+              className="flex flex-wrap items-center gap-x-2 sm:gap-x-4 gap-y-1 text-[#D0D4D8] font-code text-[10px] sm:text-[11px] tracking-[0.16em] sm:tracking-[0.24em] uppercase font-normal [text-shadow:_0_1px_6px_rgba(0,0,0,0.95)]"
             >
               <span>24 layers</span>
-              <span className="text-[#858B8E]/40" aria-hidden="true">·</span>
-              <span>Task DAGs</span>
-              <span className="text-[#858B8E]/40" aria-hidden="true">·</span>
-              <span>Hybrid memory</span>
-              <span className="text-[#858B8E]/40" aria-hidden="true">·</span>
-              <span>Multi-model execution</span>
+              <span className="text-[#FF4A16]/70" aria-hidden="true">·</span>
+              <span>22 DAG Tools</span>
+              <span className="text-[#FF4A16]/70" aria-hidden="true">·</span>
+              <span>473 Tests Passing</span>
+              <span className="text-[#FF4A16]/70" aria-hidden="true">·</span>
+              <span>0.003ms Fast Path</span>
+              <span className="text-[#FF4A16]/70" aria-hidden="true">·</span>
+              <span>Multi-Brain Matrix</span>
             </motion.div>
           </div>
 
@@ -246,22 +251,22 @@ export default function HeroSection() {
           initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 1.25, ease: MOTION_EASE.enter }}
-          className="w-full pt-4 sm:pt-5 pb-2 border-t border-[rgba(255,255,255,0.08)] pointer-events-auto"
+          className="w-full pt-3 sm:pt-5 pb-3 sm:pb-2 border-t border-[rgba(255,255,255,0.08)] pointer-events-auto"
         >
           <div className="w-full flex items-center justify-between">
             {/* 4 Capability Groups */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 lg:gap-8 flex-1">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-4 lg:gap-8 flex-1">
               {/* Item 1: ORCHESTRATION */}
               <button
                 type="button"
                 onClick={() => handleCapabilityClick("orchestration", 0)}
-                className="group flex items-center text-left transition-colors duration-200 cursor-pointer"
+                className="group flex items-center text-left transition-all duration-200 cursor-pointer p-2 sm:p-0 bg-[#08090A]/50 sm:bg-transparent backdrop-blur-md sm:backdrop-blur-none border border-white/[0.08] sm:border-0 rounded-xl"
               >
-                <div className="w-[2px] h-6 bg-[#FF4A16] mr-3 sm:mr-3.5 shrink-0" />
-                <div className="flex items-center gap-2.5 sm:gap-3">
+                <div className="w-[2px] h-6 bg-[#FF4A16] mr-2.5 sm:mr-3.5 shrink-0" />
+                <div className="flex items-center gap-2 sm:gap-3">
                   <svg
                     viewBox="0 0 18 18"
-                    className="w-4 h-4 text-[#FF4A16] shrink-0"
+                    className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#FF4A16] shrink-0"
                     fill="none"
                     stroke="currentColor"
                     strokeWidth="1.75"
@@ -274,12 +279,12 @@ export default function HeroSection() {
                     <circle cx="9" cy="9" r="1.5" fill="currentColor" />
                   </svg>
                   <div>
-                    <div className="font-code text-[11px] sm:text-xs tracking-[0.18em] uppercase font-semibold">
+                    <div className="font-code text-[10px] sm:text-xs tracking-[0.16em] sm:tracking-[0.18em] uppercase font-semibold">
                       <span className="text-[#FF4A16]">ORCH</span>
                       <span className="text-[#F3F4F2]">ESTRATION</span>
                     </div>
-                    <p className="font-sans text-[11px] sm:text-xs text-[#8C9295] tracking-wide">
-                      Intent → Plan → Execute
+                    <p className="font-sans text-[10px] sm:text-xs text-[#A5AAAD] tracking-wide truncate">
+                      Reflex Scout → Task DAGs → Execution
                     </p>
                   </div>
                 </div>
@@ -289,12 +294,12 @@ export default function HeroSection() {
               <button
                 type="button"
                 onClick={() => handleCapabilityClick("models", 1)}
-                className="group flex items-center text-left transition-colors duration-200 cursor-pointer pl-0 md:pl-4 lg:pl-6 border-l-0 md:border-l border-[rgba(255,255,255,0.08)]"
+                className="group flex items-center text-left transition-all duration-200 cursor-pointer p-2 sm:p-0 bg-[#08090A]/50 sm:bg-transparent backdrop-blur-md sm:backdrop-blur-none border border-white/[0.08] sm:border-0 rounded-xl pl-2 sm:pl-4 lg:pl-6 sm:border-l sm:border-[rgba(255,255,255,0.08)]"
               >
-                <div className="flex items-center gap-2.5 sm:gap-3">
+                <div className="flex items-center gap-2 sm:gap-3">
                   <svg
                     viewBox="0 0 24 24"
-                    className="w-4 h-4 text-[#8C9295] group-hover:text-[#F3F4F2] transition-colors shrink-0"
+                    className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#8C9295] group-hover:text-[#F3F4F2] transition-colors shrink-0"
                     fill="none"
                     stroke="currentColor"
                     strokeWidth="1.75"
@@ -307,11 +312,11 @@ export default function HeroSection() {
                     <line x1="12" y1="22.08" x2="12" y2="12" />
                   </svg>
                   <div>
-                    <div className="font-code text-[11px] sm:text-xs tracking-[0.18em] uppercase text-[#F3F4F2] font-semibold group-hover:text-white transition-colors">
+                    <div className="font-code text-[10px] sm:text-xs tracking-[0.16em] sm:tracking-[0.18em] uppercase text-[#F3F4F2] font-semibold group-hover:text-white transition-colors">
                       MULTI-MODEL
                     </div>
-                    <p className="font-sans text-[11px] sm:text-xs text-[#8C9295] tracking-wide group-hover:text-[#B2B0AD] transition-colors">
-                      Gemini · Groq · Ollama
+                    <p className="font-sans text-[10px] sm:text-xs text-[#A5AAAD] tracking-wide truncate group-hover:text-[#B2B0AD] transition-colors">
+                      Gemini 2.5 · MiMo v2.5 · Groq · Ollama
                     </p>
                   </div>
                 </div>
@@ -321,20 +326,20 @@ export default function HeroSection() {
               <button
                 type="button"
                 onClick={() => handleCapabilityClick("memory", 2)}
-                className="group flex items-center text-left transition-colors duration-200 cursor-pointer pl-0 md:pl-4 lg:pl-6 border-l-0 md:border-l border-[rgba(255,255,255,0.08)]"
+                className="group flex items-center text-left transition-all duration-200 cursor-pointer p-2 sm:p-0 bg-[#08090A]/50 sm:bg-transparent backdrop-blur-md sm:backdrop-blur-none border border-white/[0.08] sm:border-0 rounded-xl pl-2 sm:pl-4 lg:pl-6 sm:border-l sm:border-[rgba(255,255,255,0.08)]"
               >
-                <div className="flex items-center gap-2.5 sm:gap-3">
+                <div className="flex items-center gap-2 sm:gap-3">
                   <Database
-                    size={15}
+                    size={14}
                     className="text-[#8C9295] group-hover:text-[#F3F4F2] transition-colors shrink-0"
                     strokeWidth={1.75}
                     aria-hidden="true"
                   />
                   <div>
-                    <div className="font-code text-[11px] sm:text-xs tracking-[0.18em] uppercase text-[#F3F4F2] font-semibold group-hover:text-white transition-colors">
+                    <div className="font-code text-[10px] sm:text-xs tracking-[0.16em] sm:tracking-[0.18em] uppercase text-[#F3F4F2] font-semibold group-hover:text-white transition-colors">
                       HYBRID MEMORY
                     </div>
-                    <p className="font-sans text-[11px] sm:text-xs text-[#8C9295] tracking-wide group-hover:text-[#B2B0AD] transition-colors">
+                    <p className="font-sans text-[10px] sm:text-xs text-[#A5AAAD] tracking-wide truncate group-hover:text-[#B2B0AD] transition-colors">
                       Redis · ChromaDB
                     </p>
                   </div>
@@ -345,20 +350,20 @@ export default function HeroSection() {
               <button
                 type="button"
                 onClick={() => handleCapabilityClick("research", 3)}
-                className="group flex items-center text-left transition-colors duration-200 cursor-pointer pl-0 md:pl-4 lg:pl-6 border-l-0 md:border-l border-[rgba(255,255,255,0.08)]"
+                className="group flex items-center text-left transition-all duration-200 cursor-pointer p-2 sm:p-0 bg-[#08090A]/50 sm:bg-transparent backdrop-blur-md sm:backdrop-blur-none border border-white/[0.08] sm:border-0 rounded-xl pl-2 sm:pl-4 lg:pl-6 sm:border-l sm:border-[rgba(255,255,255,0.08)]"
               >
-                <div className="flex items-center gap-2.5 sm:gap-3">
+                <div className="flex items-center gap-2 sm:gap-3">
                   <Search
-                    size={15}
+                    size={14}
                     className="text-[#8C9295] group-hover:text-[#F3F4F2] transition-colors shrink-0"
                     strokeWidth={1.75}
                     aria-hidden="true"
                   />
                   <div>
-                    <div className="font-code text-[11px] sm:text-xs tracking-[0.18em] uppercase text-[#F3F4F2] font-semibold group-hover:text-white transition-colors">
+                    <div className="font-code text-[10px] sm:text-xs tracking-[0.16em] sm:tracking-[0.18em] uppercase text-[#F3F4F2] font-semibold group-hover:text-white transition-colors">
                       RESEARCH
                     </div>
-                    <p className="font-sans text-[11px] sm:text-xs text-[#8C9295] tracking-wide group-hover:text-[#B2B0AD] transition-colors">
+                    <p className="font-sans text-[10px] sm:text-xs text-[#A5AAAD] tracking-wide truncate group-hover:text-[#B2B0AD] transition-colors">
                       Ingest · Connect · Retrieve
                     </p>
                   </div>

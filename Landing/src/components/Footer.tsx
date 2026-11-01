@@ -85,6 +85,15 @@ export default function Footer() {
             </li>
             <li>
               <a
+                href="#evals"
+                onClick={(e) => scrollTo("evals", e)}
+                className="link-underline hover:text-[#F5F3EF] transition-colors duration-200 py-1"
+              >
+                Benchmarks
+              </a>
+            </li>
+            <li>
+              <a
                 href="https://github.com/Qambar-dev-0207/Apex"
                 target="_blank"
                 rel="noopener noreferrer"

@@ -22,8 +22,8 @@ const ORCHESTRATION_STAGES: WorkflowStage[] = [
     title: "INTENT",
     line1: "Understand",
     line2: "the objective.",
-    summary: "Parses natural human language into formal goal specifications and validates pre-execution invariant bounds.",
-    technicalNote: "Gemini 2.0 Flash intent classification & sovereign invariant guardrails.",
+    summary: "Parses natural human language through Reflex Scout (<10µs decision), skipping LLMs for deterministic commands in 0.003ms and routing strategic goals via Gemini 2.5.",
+    technicalNote: "Reflex Scout (<10µs decision) fast-path regex skip & sovereign invariant guardrails.",
     nodePos: { x: 80, y: 110 },
   },
   {
@@ -31,8 +31,8 @@ const ORCHESTRATION_STAGES: WorkflowStage[] = [
     title: "PLAN",
     line1: "Decompose",
     line2: "into tasks.",
-    summary: "Builds a Directed Acyclic Graph (DAG) with topologically sorted sub-tasks and dependency contracts.",
-    technicalNote: "Task DAG decomposition engine with parallelizable branch analysis.",
+    summary: "Fires the parallel speculative prefetch bus across Redis, ChromaDB, and CodeCompass while compiling a topologically sorted Task DAG.",
+    technicalNote: "Task DAG decomposition with parallel prefetch bus & 100% topological validation.",
     nodePos: { x: 230, y: 110 },
   },
   {
@@ -40,8 +40,8 @@ const ORCHESTRATION_STAGES: WorkflowStage[] = [
     title: "DELEGATE",
     line1: "Route to the",
     line2: "right agents.",
-    summary: "Assigns each atomic task to specialized model providers (Gemini, Groq LPU, or local Ollama).",
-    technicalNote: "Groq LPU handles deterministic tools; local Ollama runs air-gapped tasks.",
+    summary: "Assigns tasks across specialized brains: Groq LPU (0.003ms skip), Xiaomi MiMo v2.5-pro (autonomous coding loop), Gemini 2.5 Pro, or local Ollama.",
+    technicalNote: "Dynamic arbitrage: Groq LPU + Xiaomi MiMo v2.5-pro (100% HumanEval-Lite) + Gemini 2.5.",
     nodePos: { x: 380, y: 110 },
   },
   {
@@ -49,8 +49,8 @@ const ORCHESTRATION_STAGES: WorkflowStage[] = [
     title: "EXECUTE",
     line1: "Coordinate",
     line2: "execution.",
-    summary: "Executes tool calls in isolated Python sandboxes with memory synchronization.",
-    technicalNote: "Isolated sub-process sandboxes with real-time memory synchronization.",
+    summary: "Coordinates 22 canonical DAG tools and 35 AgentHarness tools in isolated Python sandboxes with AppLauncher desktop integration.",
+    technicalNote: "22 DAG tools + 35 AgentHarness tools + AppLauncher (1.08ms mean resolution).",
     nodePos: { x: 530, y: 110 },
   },
   {
@@ -58,8 +58,8 @@ const ORCHESTRATION_STAGES: WorkflowStage[] = [
     title: "VERIFY",
     line1: "Validate",
     line2: "and recover.",
-    summary: "Validates execution outputs against invariants, triggering automated rollback if deviations occur.",
-    technicalNote: "AgentHarness execution wrapper with automated snapshot rollbacks.",
+    summary: "Validates execution outputs against invariants and protected shields, triggering automated bit-for-bit SHA256 snapshot rollbacks on deviation.",
+    technicalNote: "AgentHarness execution wrapper with automated SHA256 snapshot rollback & shield defense.",
     nodePos: { x: 680, y: 110 },
   },
 ];
@@ -192,15 +192,15 @@ export default function OrchestrationSection() {
             priority
             sizes="100vw"
             quality={95}
-            className="object-cover object-[center_42%] scale-[1.01]"
+            className="object-cover object-[78%_35%] sm:object-[center_42%]"
           />
-          {/* Subtle directional gradient on left to ensure typography contrast */}
-          <div className="absolute inset-y-0 left-0 w-full sm:w-[55%] lg:w-[45%] bg-gradient-to-r from-[#050607]/90 via-[#050607]/45 to-transparent pointer-events-none" />
-          <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#050607] to-transparent pointer-events-none" />
+          {/* Non-opaque directional gradient on left to ensure typography contrast */}
+          <div className="absolute inset-y-0 left-0 w-full sm:w-[55%] lg:w-[45%] bg-gradient-to-r from-[#050607]/65 via-[#050607]/20 to-transparent pointer-events-none" />
+          <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-[#050607]/70 to-transparent pointer-events-none" />
         </div>
 
         {/* Top/Middle Area: Left Editorial Typography & Right Coding Mascot */}
-        <div className="relative z-10 w-full max-w-[1600px] mx-auto px-6 sm:px-10 lg:px-14 pt-12 sm:pt-16 lg:pt-20 pb-4 flex-1 flex flex-col justify-between pointer-events-none">
+        <div className="relative z-10 w-full max-w-[1600px] mx-auto px-5 sm:px-10 lg:px-14 pt-12 sm:pt-16 lg:pt-20 pb-4 flex-1 flex flex-col justify-between pointer-events-none">
             {/* Left Editorial Copy Area (Span 8 cols) */}
             <div className="lg:col-span-8 max-w-[560px]">
               {/* Eyebrow: - THE ORCHESTRATION ENGINE */}
@@ -209,14 +209,14 @@ export default function OrchestrationSection() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.45, ease: MOTION_EASE.enter }}
-                className="flex items-center gap-2 mb-3.5 font-sans text-[11px] sm:text-xs tracking-[0.24em] text-[#8C9295] uppercase font-medium"
+                className="flex items-center gap-2 mb-3.5 font-sans text-[11px] sm:text-xs tracking-[0.24em] text-[#C5CAD0] uppercase font-medium [text-shadow:_0_1px_6px_rgba(0,0,0,0.9)]"
               >
                 <span className="text-[#FF4A16] font-bold text-sm leading-none">—</span>
                 <span>THE ORCHESTRATION ENGINE</span>
               </motion.div>
 
               {/* Headline: Complexity, brought into order. */}
-              <h2 className="font-editorial text-4xl sm:text-5xl lg:text-[56px] xl:text-[64px] leading-[1.04] tracking-tight text-[#F5F3EF] mb-4">
+              <h2 className="font-editorial text-3xl xs:text-4xl sm:text-5xl lg:text-[56px] xl:text-[64px] leading-[1.04] tracking-tight text-[#F5F3EF] mb-4 [text-shadow:_0_2px_14px_rgba(0,0,0,0.9),_0_1px_4px_rgba(0,0,0,0.95)]">
                 <span className="overflow-mask block relative py-0.5">
                   <motion.span
                     initial={
@@ -255,7 +255,7 @@ export default function OrchestrationSection() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.6, delay: 0.2, ease: MOTION_EASE.enter }}
-                className="text-[#9A9FA1] text-[13px] sm:text-sm lg:text-[15px] font-normal leading-[1.6] max-w-[460px]"
+                className="text-[#E2E6EA] text-[13px] sm:text-sm lg:text-[15px] font-normal leading-[1.6] max-w-[460px] [text-shadow:_0_1px_6px_rgba(0,0,0,0.9)]"
               >
                 A goal becomes a sequence of dependent
                 <br className="hidden sm:inline" /> tasks, coordinated toward a shared result.
@@ -347,36 +347,50 @@ export default function OrchestrationSection() {
               })}
             </div>
 
-            {/* Mobile Vertical Connected Track */}
-            <div className="md:hidden flex flex-col gap-2.5" role="tablist">
-              {ORCHESTRATION_STAGES.map((stage, idx) => {
-                const isActive = activeStage === idx;
+            {/* Mobile Horizontal Connected Pipeline Track */}
+            <div className="md:hidden w-full overflow-x-auto no-scrollbar py-2 -mx-2 px-2" role="tablist">
+              <div className="flex items-center gap-2 min-w-max">
+                {ORCHESTRATION_STAGES.map((stage, idx) => {
+                  const isActive = activeStage === idx;
+                  const isLast = idx === ORCHESTRATION_STAGES.length - 1;
 
-                return (
-                  <button
-                    key={stage.id}
-                    role="tab"
-                    aria-selected={isActive}
-                    type="button"
-                    onClick={() => setActiveStage(idx)}
-                    className={`w-full flex items-start gap-3 p-3 rounded-lg border text-left transition-all cursor-pointer focus-visible:outline-[#FF4A16] ${
-                      isActive
-                        ? "bg-[#111315]/95 border-[#FF4A16] shadow-[0_0_14px_rgba(255,74,22,0.25)]"
-                        : "bg-[#08090A]/85 border-[rgba(255,255,255,0.08)]"
-                    }`}
-                  >
-                    <div className="mt-0.5">{getStageIcon(idx, isActive)}</div>
-                    <div>
-                      <span className="font-code text-xs tracking-wider uppercase font-bold text-[#F5F3EF] block">
-                        {stage.title}
-                      </span>
-                      <span className="text-[11px] text-[#8C9295] block mt-0.5 leading-tight">
-                        {stage.line1} {stage.line2}
-                      </span>
+                  return (
+                    <div key={stage.id} className="flex items-center gap-2">
+                      <button
+                        role="tab"
+                        aria-selected={isActive}
+                        type="button"
+                        onClick={() => setActiveStage(idx)}
+                        className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-left transition-all cursor-pointer backdrop-blur-md focus-visible:outline-[#FF4A16] ${
+                          isActive
+                            ? "bg-[#111315]/90 border-[#FF4A16] shadow-[0_0_16px_rgba(255,74,22,0.35)]"
+                            : "bg-[#08090A]/60 border-[rgba(255,255,255,0.12)] hover:border-[rgba(255,255,255,0.25)]"
+                        }`}
+                      >
+                        <div className="shrink-0 scale-90">{getStageIcon(idx, isActive)}</div>
+                        <div className="flex flex-col">
+                          <span
+                            className={`font-code text-[11px] tracking-wider uppercase font-bold transition-colors ${
+                              isActive ? "text-[#FF4A16]" : "text-[#F5F3EF]"
+                            }`}
+                          >
+                            {stage.title}
+                          </span>
+                          <span className="text-[10px] text-[#A6ABB0] leading-none whitespace-nowrap">
+                            {stage.line1} {stage.line2}
+                          </span>
+                        </div>
+                      </button>
+
+                      {!isLast && (
+                        <span className="text-[rgba(255,255,255,0.3)] font-code text-xs select-none">
+                          →
+                        </span>
+                      )}
                     </div>
-                  </button>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
 
             {/* Grounded Technical Specification Toast/Drawer on Click */}

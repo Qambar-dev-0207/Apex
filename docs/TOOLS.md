@@ -1,7 +1,7 @@
 # APEX — Tool Reference
 
 Two tool surfaces exist in APEX:
-1. **Registered tools** (17) — the tool registry used by the DAG planner and auto-selector
+1. **Registered tools** (22) — the canonical tool registry used by the DAG planner and auto-selector
 2. **Harness tools** (35) — OpenAI function-schema tools used by the AgentHarness autonomous loop
 
 ---
@@ -93,6 +93,31 @@ Unified diff between files or file vs string content.
 - Actions: `diff_files`, `diff_content`
 - Backed by: `src/tools/diff_tool.py`
 
+### `desktop_control` (aliases: `desktop`, `window`)
+Desktop inspection, active window management, and application launching.
+- Actions: `list_apps`, `search_app`, `launch_app`, `active_window`
+- Backed by: `src/tools/desktop_control.py`
+
+### `codebase_index` (aliases: `cindex`, `index`)
+High-speed workspace symbol extraction and reference search.
+- Actions: `index_workspace`, `search_symbols`, `find_references`
+- Backed by: `src/tools/codebase_index.py`
+
+### `weather` (aliases: `forecast`)
+Live meteorological data and forecasts via Open-Meteo.
+- Actions: `current`, `forecast`, `connect`
+- Backed by: `src/tools/weather_tool.py`
+
+### `api_connector` (aliases: `apikey`, `keys`)
+Dynamic external API key management, testing, and persistence.
+- Actions: `save_key`, `list_keys`, `test_connection`
+- Backed by: `src/tools/api_connector.py`
+
+### `app_launcher` (aliases: `open_app`, `apps`)
+Sub-millisecond desktop application launcher and search. Features O(1) hash maps, semantic aliases, and fuzzy typo matching.
+- Actions: `launch`, `search`, `list`
+- Backed by: `src/services/app_launcher.py`
+
 ---
 
 ## Harness tools (`src/core/harness.py` → `TOOL_SCHEMAS`)
@@ -176,6 +201,9 @@ High-confidence (0.95) patterns that bypass the DAG planner:
 | `todos / my tasks` | todo | list |
 | `add todo / todo add <task>` | todo | add |
 | `vitals / cpu / ram` | hardware | vitals |
+| `open / launch / start <app>` | app_launcher | launch |
+| `weather in <city> / temperature in <city>` | weather | current |
+| `save api key <NAME> <VAL>` | api_connector | save_key |
 | `papers about <topic>` | knowledge_forge | search_papers |
 | `screenshot / capture screen` | vision | capture |
 

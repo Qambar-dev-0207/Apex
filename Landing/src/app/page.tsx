@@ -9,6 +9,7 @@ import ModelRoutingSection from "../components/ModelRoutingSection";
 import MemorySection from "../components/MemorySection";
 import EvolutionSection from "../components/EvolutionSection";
 import ResearchSection from "../components/ResearchSection";
+import EvalsSection from "../components/EvalsSection";
 import UseCasesSection from "../components/UseCasesSection";
 import FinalCTA from "../components/FinalCTA";
 import Footer from "../components/Footer";
@@ -75,16 +76,22 @@ export default function Home() {
         {/* Section 08 — KnowledgeForge / Research into Capability */}
         <ResearchSection />
 
-        {/* Conduit: KnowledgeForge to Capabilities */}
+        {/* Conduit: KnowledgeForge to Empirical Benchmarks */}
+        <SectionConduit label="BENCHMARKS // EMPIRICAL_VALIDATION" height={64} />
+
+        {/* Section 09 — Empirical Benchmarks & Telemetry */}
+        <EvalsSection />
+
+        {/* Conduit: Benchmarks to Capabilities */}
         <SectionConduit label="CAPABILITY // DEPLOYMENT" height={64} />
 
-        {/* Section 09 — What APEX is Built For */}
+        {/* Section 10 — What APEX is Built For */}
         <UseCasesSection />
 
         {/* Conduit: Capabilities to Final Horizon */}
         <SectionConduit label="HORIZON // TERMINUS" height={56} />
 
-        {/* Section 10 — Final CTA / Return to the Threshold */}
+        {/* Section 11 — Final CTA / Return to the Threshold */}
         <FinalCTA />
       </main>
 

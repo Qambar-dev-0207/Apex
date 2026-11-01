@@ -24,6 +24,7 @@ class TestRegistryCompleteness(unittest.TestCase):
             "vision", "hardware", "code_compass", "knowledge_forge",
             "swarm", "think_partner", "diff", "web_fetch", "todo",
             "desktop_control", "codebase_index", "weather", "api_connector",
+            "app_launcher",
         }
         self.assertEqual(set(REGISTRY.keys()), required)
 

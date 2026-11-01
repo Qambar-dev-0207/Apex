@@ -16,7 +16,7 @@ export default function FinalCTA() {
       aria-label="Beyond the prompt"
     >
       {/* Wide Panoramic Landscape Banner Container */}
-      <div className="relative w-full min-h-[440px] sm:min-h-[500px] lg:min-h-[560px] flex items-center overflow-hidden">
+      <div className="relative w-full min-h-[520px] sm:min-h-[500px] lg:min-h-[560px] flex items-end sm:items-center overflow-hidden">
         {/* Panoramic Landscape Background Artwork */}
         <div className="absolute inset-0 z-0 pointer-events-none">
           <Image
@@ -26,21 +26,21 @@ export default function FinalCTA() {
             priority
             sizes="100vw"
             quality={95}
-            className="object-cover object-center scale-[1.01]"
+            className="object-cover object-[32%_20%] sm:object-center scale-[1.01]"
           />
-          {/* Subtle directional gradient to guarantee crisp readability */}
-          <div className="absolute inset-0 bg-gradient-to-r from-[#050607]/80 via-transparent to-[#050607]/85 pointer-events-none" />
-          <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-[#050607] to-transparent pointer-events-none" />
-          <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-[#050607] to-transparent pointer-events-none" />
+          {/* Subtle directional scrim on desktop right to protect typography */}
+          <div className="hidden sm:block absolute inset-y-0 right-0 w-[55%] bg-gradient-to-l from-[#050607]/75 via-[#050607]/25 to-transparent pointer-events-none" />
+          <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#050607]/90 via-[#050607]/40 to-transparent pointer-events-none" />
+          <div className="absolute inset-x-0 top-0 h-12 bg-gradient-to-b from-[#050607]/60 to-transparent pointer-events-none" />
         </div>
 
         {/* Foreground Content: Right-Aligned Composition */}
-        <div className="relative z-10 w-full max-w-[1600px] mx-auto px-6 sm:px-10 lg:px-16 flex items-center justify-end py-16 sm:py-20 lg:py-24">
+        <div className="relative z-10 w-full max-w-[1600px] mx-auto px-5 sm:px-10 lg:px-16 flex items-center justify-center md:justify-end pt-36 sm:pt-20 pb-8 sm:pb-20 lg:py-24">
 
           {/* Right-Aligned Editorial Call to Action */}
           <div className="max-w-[540px] text-center md:text-right">
             {/* Masked Editorial Headline: Beyond the prompt. */}
-            <h2 className="font-editorial text-4xl sm:text-5xl lg:text-6xl text-[#F5F3EF] tracking-tight leading-[1.08] mb-3">
+            <h2 className="font-editorial text-3xl xs:text-4xl sm:text-5xl lg:text-6xl text-[#F5F3EF] tracking-tight leading-[1.08] mb-3 [text-shadow:_0_2px_14px_rgba(0,0,0,0.95),_0_1px_4px_rgba(0,0,0,0.95)]">
               <span className="overflow-mask block relative py-0.5">
                 <motion.span
                   initial={
@@ -64,7 +64,7 @@ export default function FinalCTA() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.6, delay: 0.15, ease: MOTION_EASE.enter }}
-              className="text-[#D8D6D2] text-sm sm:text-base font-normal leading-relaxed mb-6"
+              className="text-[#E2E6EA] text-sm sm:text-base font-normal leading-relaxed mb-6 [text-shadow:_0_1px_8px_rgba(0,0,0,0.95)]"
             >
               Explore the 24-layer sovereign architecture behind APEX.
             </motion.p>
